@@ -291,6 +291,20 @@ export default function InvoiceDetail() {
                 <td className="px-2 py-3"></td>
               </tr>
             ))}
+            {/* Totals row — Qty and Ltr sit directly under their own columns */}
+            <tr className="border-t border-black font-semibold bg-white">
+              <td className="border-r border-black px-2 py-1"></td>
+              <td className="border-r border-black px-2 py-1 text-right">Total</td>
+              {isGst && <td className="border-r border-black px-2 py-1"></td>}
+              <td className="border-r border-black px-2 py-1 text-right" data-testid="text-total-qty">{num(totalQty, 0)}</td>
+              <td className="border-r border-black px-2 py-1"></td>
+              <td className="border-r border-black px-2 py-1 text-right" data-testid="text-total-ltr">{totalLtr > 0 ? num(totalLtr, 3) : ""}</td>
+              <td className="border-r border-black px-2 py-1"></td>
+              <td className="border-r border-black px-2 py-1"></td>
+              {hasAnyDisc && <td className="border-r border-black px-2 py-1"></td>}
+              {isGst && <td className="border-r border-black px-2 py-1"></td>}
+              <td className="px-2 py-1 text-right">₹ {inr(invoice.grandTotal)}</td>
+            </tr>
           </tbody>
         </table>
 
@@ -308,10 +322,6 @@ export default function InvoiceDetail() {
                 <li>Interest @ 24% p.a. on overdue bills.</li>
                 <li>Subject to Solapur jurisdiction.</li>
               </ol>
-            </div>
-            <div className="mt-auto pt-2 text-[12px] font-semibold space-y-0.5">
-              <div>Total Qty : {num(totalQty, 0)}</div>
-              <div>Total Ltr : {num(totalLtr, 3)}</div>
             </div>
           </div>
           <div className="col-span-2 border-r border-black p-2 flex flex-col items-center justify-center text-center">
