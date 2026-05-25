@@ -4,14 +4,17 @@ import { useAuth } from "@/contexts/auth-context";
 import {
   useListProducts,
   useCreateInvoice,
+  useLogPayment,
   getListInvoicesQueryKey,
+  getListPaymentsQueryKey,
 } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -27,7 +30,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trash2, Printer, Save, CheckCircle, Loader2, User, Phone, MapPin, ArrowLeft } from "lucide-react";
+import {
+  Trash2, Printer, Save, CheckCircle, Loader2, User, Phone, MapPin,
+  ArrowLeft, Banknote, CreditCard, Building2, Smartphone, Clock, SkipForward,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -148,6 +154,16 @@ export default function Billing() {
   const finalTotal = Math.round(grandTotal);
 
   const createInvoice = useCreateInvoice();
+  const logPayment = useLogPayment();
+
+  // Payment state (shown after invoice save)
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "cheque" | "bank_transfer" | "credit">("cash");
+  const [paymentRef, setPaymentRef] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [paymentDone, setPaymentDone] = useState(false);
+  const [paymentSkipped, setPaymentSkipped] = useState(false);
+  const [savedPayment, setSavedPayment] = useState<any>(null);
 
   const handleSave = () => {
     if (items.length === 0) {
@@ -184,7 +200,8 @@ export default function Billing() {
           queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
           setSaved(true);
           setSavedInvoice(invoice);
-          toast({ title: `Invoice ${invoice.invoiceNo} saved successfully` });
+          setPaymentAmount(finalTotal);
+          toast({ title: `Invoice ${invoice.invoiceNo} saved`, description: "Now record payment received." });
         },
         onError: () => {
           toast({ title: "Failed to save invoice", variant: "destructive" });
@@ -193,21 +210,256 @@ export default function Billing() {
     );
   };
 
+  const handleRecordPayment = () => {
+    if (!customer?.id) {
+      toast({ title: "No customer linked", description: "Cannot record payment for walk-in customer without an account.", variant: "destructive" });
+      return;
+    }
+    logPayment.mutate(
+      {
+        data: {
+          customerId: customer.id,
+          amount: paymentAmount,
+          mode: paymentMode,
+          notes: [paymentRef ? `Ref: ${paymentRef}` : "", paymentNotes].filter(Boolean).join(" | ") || undefined,
+        },
+      },
+      {
+        onSuccess: (payment) => {
+          queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey() });
+          setSavedPayment(payment);
+          setPaymentDone(true);
+          toast({
+            title: payment.status === "approved" ? "Payment recorded & approved" : "Payment logged — pending approval",
+            description: payment.status === "approved"
+              ? `₹${paymentAmount.toLocaleString()} debited from ${customer.name}'s balance.`
+              : `₹${paymentAmount.toLocaleString()} logged. Admin approval required.`,
+          });
+        },
+        onError: () => {
+          toast({ title: "Failed to record payment", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const modeIcons: Record<string, React.ReactNode> = {
+    cash: <Banknote className="w-4 h-4" />,
+    upi: <Smartphone className="w-4 h-4" />,
+    cheque: <CreditCard className="w-4 h-4" />,
+    bank_transfer: <Building2 className="w-4 h-4" />,
+    credit: <Clock className="w-4 h-4" />,
+  };
+
   if (saved && savedInvoice) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <CheckCircle className="w-16 h-16 text-green-500" />
-          <h2 className="text-2xl font-bold">Invoice Saved</h2>
-          <p className="text-muted-foreground">Invoice <span className="font-mono font-bold text-foreground">{savedInvoice.invoiceNo}</span> has been created successfully.</p>
-          <div className="text-3xl font-bold text-primary">₹{finalTotal.toLocaleString()}</div>
-          {customer && <p className="text-sm text-muted-foreground">Customer: {customer.name}</p>}
-        </div>
+      <div className="max-w-3xl mx-auto py-8 space-y-6">
+        {/* Invoice success banner */}
+        <Card className="border-green-500/30 bg-green-500/5">
+          <CardContent className="pt-6 pb-5">
+            <div className="flex items-start gap-4">
+              <CheckCircle className="w-10 h-10 text-green-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-xl font-bold">Invoice Saved</h2>
+                  <Badge className="font-mono bg-green-600 text-white border-transparent">
+                    {savedInvoice.invoiceNo}
+                  </Badge>
+                </div>
+                {customer && (
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Customer: <span className="text-foreground font-medium">{customer.name}</span>
+                    {customer.mobile && <span className="ml-2 text-muted-foreground">({customer.mobile})</span>}
+                  </p>
+                )}
+                <div className="mt-2 flex items-center gap-6 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Invoice Total</span>
+                    <div className="text-2xl font-bold text-primary">₹{finalTotal.toLocaleString()}</div>
+                  </div>
+                  {customer && Number(customer.outstandingBalance) + finalTotal > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">New Outstanding</span>
+                      <div className="text-lg font-bold text-destructive">
+                        ₹{(Number(customer.outstandingBalance) + finalTotal).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => window.print()}>
+                <Printer className="w-4 h-4 mr-1.5" /> Print
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment collection */}
+        {!paymentDone && !paymentSkipped ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Banknote className="w-4 h-4 text-primary" />
+                Collect Payment
+              </CardTitle>
+              <CardDescription>
+                {customer
+                  ? `Record what ${customer.name} paid now. ${user?.role !== "admin" ? "Salesman payments go to pending — admin approves before ledger update." : "Admin payments are instantly credited to the ledger."}`
+                  : "No customer account linked. Skip if this is a cash sale."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Payment mode selector */}
+              <div className="space-y-2">
+                <Label>Payment Mode</Label>
+                <div className="grid grid-cols-5 gap-2">
+                  {(["cash", "upi", "cheque", "bank_transfer", "credit"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setPaymentMode(mode)}
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all
+                        ${paymentMode === mode
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/50 text-muted-foreground hover:text-foreground"
+                        }`}
+                      data-testid={`mode-${mode}`}
+                    >
+                      {modeIcons[mode]}
+                      {mode === "bank_transfer" ? "Bank" : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {paymentMode === "credit" ? (
+                <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground flex items-start gap-3">
+                  <Clock className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
+                  <div>
+                    <p className="font-medium text-foreground">Selling on Credit</p>
+                    <p>No payment collected now. ₹{finalTotal.toLocaleString()} will remain as outstanding balance for {customer?.name ?? "this customer"}.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-amount">Amount Received (₹)</Label>
+                    <Input
+                      id="payment-amount"
+                      type="number"
+                      min={0}
+                      max={finalTotal}
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                      className="text-lg font-bold"
+                      data-testid="input-payment-amount"
+                    />
+                    {paymentAmount < finalTotal && paymentAmount > 0 && (
+                      <p className="text-xs text-amber-500">
+                        Partial — ₹{(finalTotal - paymentAmount).toLocaleString()} outstanding
+                      </p>
+                    )}
+                    {paymentAmount === finalTotal && (
+                      <p className="text-xs text-green-600">Full payment</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-ref">
+                      {paymentMode === "upi" ? "UPI / Transaction ID" : paymentMode === "cheque" ? "Cheque No." : paymentMode === "bank_transfer" ? "UTR / Reference" : "Reference"}
+                    </Label>
+                    <Input
+                      id="payment-ref"
+                      value={paymentRef}
+                      onChange={(e) => setPaymentRef(e.target.value)}
+                      placeholder="Optional"
+                      data-testid="input-payment-ref"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="payment-notes">Notes (optional)</Label>
+                <Textarea
+                  id="payment-notes"
+                  rows={2}
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="Any remarks..."
+                  data-testid="input-payment-notes"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <Button
+                  className="flex-1"
+                  onClick={paymentMode === "credit" ? () => setPaymentSkipped(true) : handleRecordPayment}
+                  disabled={logPayment.isPending || (!customer?.id) || (paymentMode !== "credit" && paymentAmount <= 0)}
+                  data-testid="button-record-payment"
+                >
+                  {logPayment.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : paymentMode === "credit" ? (
+                    <Clock className="w-4 h-4 mr-2" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                  )}
+                  {paymentMode === "credit" ? "Confirm Credit Sale" : `Record ₹${paymentAmount.toLocaleString()} ${paymentMode.toUpperCase()}`}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setPaymentSkipped(true)}
+                  data-testid="button-skip-payment"
+                >
+                  <SkipForward className="w-4 h-4 mr-1.5" />
+                  Skip
+                </Button>
+              </div>
+
+              {!customer?.id && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Walk-in customer — no ledger entry possible. Use Skip for cash sales.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          /* Payment done / skipped confirmation */
+          <Card className={paymentDone ? "border-green-500/30 bg-green-500/5" : "border-muted"}>
+            <CardContent className="pt-5 pb-4">
+              {paymentDone && savedPayment ? (
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">
+                      {savedPayment.status === "approved" ? "Payment Applied" : "Payment Logged — Pending Approval"}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      ₹{Number(savedPayment.amount).toLocaleString()} via {savedPayment.mode.toUpperCase()}
+                      {savedPayment.status === "approved"
+                        ? " — debited from outstanding balance immediately."
+                        : " — will be applied once admin approves."}
+                    </p>
+                    {savedPayment.status === "pending" && (
+                      <Badge variant="outline" className="mt-2 text-amber-500 border-amber-500 text-[10px]">
+                        Pending Admin Approval
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <SkipForward className="w-5 h-5 shrink-0" />
+                  <p className="text-sm">Payment skipped. Outstanding balance updated on invoice.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Action buttons */}
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="w-4 h-4 mr-2" /> Print Invoice
-          </Button>
-          <Button variant="outline" onClick={() => setLocation(`/invoices`)}>
+          <Button variant="outline" onClick={() => setLocation("/invoices")}>
             View All Invoices
           </Button>
           <Button onClick={() => setLocation("/catalog")}>
