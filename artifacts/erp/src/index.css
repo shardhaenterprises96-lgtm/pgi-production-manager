@@ -283,3 +283,16 @@
     inset: -1px;
   }
 }
+
+/* Force all browser focus outlines to use the saffron --ring color (was defaulting to blue in some elements) */
+@layer base {
+  *:focus { outline: none !important; }
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring)) !important;
+    outline-offset: 1px !important;
+    box-shadow: none;
+  }
+  /* Recharts default tooltip cursor is blue — neutralize it project-wide */
+  .recharts-tooltip-cursor { fill: hsl(var(--muted) / 0.4) !important; stroke: hsl(var(--border)) !important; }
+  .recharts-active-bar { fill-opacity: 0.85; }
+}
