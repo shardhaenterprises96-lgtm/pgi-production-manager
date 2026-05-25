@@ -1,102 +1,554 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
+import {
+  useListProducts,
+  useCreateInvoice,
+  getListInvoicesQueryKey,
+} from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Trash2, Printer, Save } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Trash2, Printer, Save, CheckCircle, Loader2, User, Phone, MapPin, ArrowLeft } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+
+type BillingItem = {
+  productId: number;
+  name: string;
+  unit: string;
+  qty: number;
+  rate: number;
+  mrp: number;
+  taxPct: number;
+  discountPct: number;
+  discountAmt: number;
+  amount: number;
+};
+
+function parseSearch(search: string) {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  return {
+    cart: params.get("cart"),
+    customer: params.get("customer"),
+  };
+}
 
 export default function Billing() {
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const params = parseSearch(window.location.search);
+
+  // Parse customer from URL
+  const [customer, setCustomer] = useState<any>(() => {
+    try { return params.customer ? JSON.parse(decodeURIComponent(params.customer)) : null; } catch { return null; }
+  });
+
   const [invoiceType, setInvoiceType] = useState<"gst" | "non_gst">("gst");
-  const [items, setItems] = useState<any[]>([]);
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [placeOfSupply, setPlaceOfSupply] = useState(customer?.state || "Maharashtra");
+  const [items, setItems] = useState<BillingItem[]>([]);
+  const [freight, setFreight] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [savedInvoice, setSavedInvoice] = useState<any>(null);
+
+  const { data: products } = useListProducts({ forSale: true });
+
+  // Populate items from cart URL param
+  useEffect(() => {
+    if (!params.cart || !products) return;
+    try {
+      const cartItems: { productId: number; qty: number }[] = JSON.parse(decodeURIComponent(params.cart));
+      const billing: BillingItem[] = cartItems
+        .map(({ productId, qty }) => {
+          const p = products.find((x) => x.id === productId);
+          if (!p) return null;
+          const rate = customer?.pricingTier === "wholesale" ? p.wholesalePrice : p.retailPrice;
+          const taxPct = invoiceType === "gst" ? (p.taxRate ?? 18) : 0;
+          const amount = qty * rate * (1 + taxPct / 100);
+          return {
+            productId: p.id,
+            name: p.name,
+            unit: p.unit,
+            qty,
+            rate,
+            mrp: p.mrp,
+            taxPct: invoiceType === "gst" ? (p.taxRate ?? 18) : 0,
+            discountPct: 0,
+            discountAmt: 0,
+            amount: Math.round(amount * 100) / 100,
+          } as BillingItem;
+        })
+        .filter(Boolean) as BillingItem[];
+      setItems(billing);
+    } catch { /* ignore */ }
+  }, [products, params.cart]);
+
+  const updateItem = (idx: number, field: keyof BillingItem, value: any) => {
+    setItems((prev) => {
+      const updated = [...prev];
+      const item = { ...updated[idx], [field]: value };
+      const base = item.qty * item.rate;
+      const discAmt = item.discountAmt > 0 ? item.discountAmt : (base * item.discountPct / 100);
+      const taxable = base - discAmt;
+      const taxAmt = invoiceType === "gst" ? (taxable * item.taxPct / 100) : 0;
+      item.amount = Math.round((taxable + taxAmt) * 100) / 100;
+      updated[idx] = item;
+      return updated;
+    });
+  };
+
+  const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
+
+  // Totals
+  const subtotal = items.reduce((s, i) => {
+    const base = i.qty * i.rate;
+    const disc = i.discountAmt > 0 ? i.discountAmt : (base * i.discountPct / 100);
+    return s + (base - disc);
+  }, 0);
+  const totalDiscount = items.reduce((s, i) => {
+    const base = i.qty * i.rate;
+    return s + (i.discountAmt > 0 ? i.discountAmt : (base * i.discountPct / 100));
+  }, 0);
+  const totalTax = invoiceType === "gst"
+    ? items.reduce((s, i) => {
+        const base = i.qty * i.rate;
+        const disc = i.discountAmt > 0 ? i.discountAmt : (base * i.discountPct / 100);
+        const taxable = base - disc;
+        return s + (taxable * i.taxPct / 100);
+      }, 0)
+    : 0;
+  const isInterstate = placeOfSupply !== "Maharashtra";
+  const cgst = invoiceType === "gst" && !isInterstate ? totalTax / 2 : 0;
+  const sgst = invoiceType === "gst" && !isInterstate ? totalTax / 2 : 0;
+  const igst = invoiceType === "gst" && isInterstate ? totalTax : 0;
+  const grandTotal = subtotal + totalTax + freight;
+  const roundOff = Math.round(grandTotal) - grandTotal;
+  const finalTotal = Math.round(grandTotal);
+
+  const createInvoice = useCreateInvoice();
+
+  const handleSave = () => {
+    if (items.length === 0) {
+      toast({ title: "No items", description: "Add at least one product before saving.", variant: "destructive" });
+      return;
+    }
+    createInvoice.mutate(
+      {
+        data: {
+          invoiceType,
+          invoiceDate,
+          placeOfSupply,
+          customerId: customer?.id,
+          customerName: customer?.name,
+          customerGstin: customer?.gstin,
+          billingAddress: customer?.address,
+          freight,
+          roundOff,
+          items: items.map((i) => ({
+            productId: i.productId,
+            qty: i.qty,
+            unit: i.unit,
+            rate: i.rate,
+            mrp: i.mrp,
+            taxPct: invoiceType === "gst" ? i.taxPct : 0,
+            discountPct: i.discountPct,
+            discountAmt: i.discountAmt,
+            cessPct: 0,
+          })),
+        },
+      },
+      {
+        onSuccess: (invoice) => {
+          queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+          setSaved(true);
+          setSavedInvoice(invoice);
+          toast({ title: `Invoice ${invoice.invoiceNo} saved successfully` });
+        },
+        onError: () => {
+          toast({ title: "Failed to save invoice", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  if (saved && savedInvoice) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <CheckCircle className="w-16 h-16 text-green-500" />
+          <h2 className="text-2xl font-bold">Invoice Saved</h2>
+          <p className="text-muted-foreground">Invoice <span className="font-mono font-bold text-foreground">{savedInvoice.invoiceNo}</span> has been created successfully.</p>
+          <div className="text-3xl font-bold text-primary">₹{finalTotal.toLocaleString()}</div>
+          {customer && <p className="text-sm text-muted-foreground">Customer: {customer.name}</p>}
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="w-4 h-4 mr-2" /> Print Invoice
+          </Button>
+          <Button variant="outline" onClick={() => setLocation(`/invoices`)}>
+            View All Invoices
+          </Button>
+          <Button onClick={() => setLocation("/catalog")}>
+            New Order
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-10">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Billing & POS</h1>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setLocation("/catalog")} data-testid="button-back-catalog">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-2xl font-bold tracking-tight">Create Invoice</h1>
+        </div>
         <div className="flex gap-2">
-          <Button variant="outline"><Save className="w-4 h-4 mr-2"/> Save Draft</Button>
-          <Button><Printer className="w-4 h-4 mr-2"/> Print Invoice</Button>
+          <Select value={invoiceType} onValueChange={(v: "gst" | "non_gst") => setInvoiceType(v)}>
+            <SelectTrigger className="w-[150px]" data-testid="select-invoice-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gst">GST Invoice</SelectItem>
+              <SelectItem value="non_gst">Non-GST Invoice</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={handleSave}
+            disabled={createInvoice.isPending || items.length === 0}
+            data-testid="button-save-invoice"
+          >
+            {createInvoice.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Save Invoice
+          </Button>
+          <Button variant="outline" onClick={() => window.print()} data-testid="button-print-invoice">
+            <Printer className="w-4 h-4 mr-2" /> Print
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Invoice Details</CardTitle>
-              <Select value={invoiceType} onValueChange={(v: "gst" | "non_gst") => setInvoiceType(v)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gst">GST Invoice</SelectItem>
-                  <SelectItem value="non_gst">Non-GST Invoice</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Input placeholder="Search Customer (Mobile or Name)" />
-              <Input type="date" />
-            </div>
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Main billing area */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Customer Block */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" />
+                Customer Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {customer ? (
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1 flex-1">
+                    <div className="font-semibold text-lg">{customer.name}</div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                      {customer.mobile && (
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3 h-3" />{customer.mobile}
+                        </span>
+                      )}
+                      {customer.city && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />{customer.city}{customer.state ? `, ${customer.state}` : ""}
+                        </span>
+                      )}
+                    </div>
+                    {customer.gstin && (
+                      <div className="text-xs font-mono text-muted-foreground">GSTIN: {customer.gstin}</div>
+                    )}
+                    <div className="flex items-center gap-3 mt-1">
+                      <Badge variant="outline" className="capitalize text-[10px]">{customer.pricingTier} pricing</Badge>
+                      {Number(customer.outstandingBalance) > 0 && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          Outstanding: ₹{Number(customer.outstandingBalance).toLocaleString()}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setLocation("/catalog")} className="text-xs shrink-0">
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-muted-foreground text-sm flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Walk-in / Cash customer
+                  <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => setLocation("/catalog")}>
+                    Change
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-            <div className="border rounded-md mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Unit</TableHead>
-                    <TableHead>Rate</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        No items added yet. Search products to add.
-                      </TableCell>
+          {/* Invoice Meta */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs">Invoice Date</Label>
+                  <Input
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    data-testid="input-invoice-date"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Place of Supply</Label>
+                  <Input
+                    value={placeOfSupply}
+                    onChange={(e) => setPlaceOfSupply(e.target.value)}
+                    placeholder="e.g. Maharashtra"
+                    data-testid="input-place-supply"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Freight (₹)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={freight}
+                    onChange={(e) => setFreight(Number(e.target.value))}
+                    data-testid="input-freight"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Items Table */}
+          <Card>
+            <CardHeader className="pb-3 flex-row items-center justify-between">
+              <CardTitle className="text-base">Line Items</CardTitle>
+              <span className="text-xs text-muted-foreground">{items.length} item{items.length !== 1 ? "s" : ""}</span>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-xs">
+                      <TableHead className="w-[220px]">Product</TableHead>
+                      <TableHead className="w-16 text-right">Qty</TableHead>
+                      <TableHead className="w-24 text-right">Rate (₹)</TableHead>
+                      {invoiceType === "gst" && <TableHead className="w-16 text-right">Tax%</TableHead>}
+                      <TableHead className="w-20 text-right">Disc%</TableHead>
+                      <TableHead className="w-24 text-right font-semibold">Amount</TableHead>
+                      <TableHead className="w-8" />
                     </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
+                          No items — go back to catalog to add products
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      items.map((item, idx) => (
+                        <TableRow key={idx} data-testid={`billing-row-${idx}`}>
+                          <TableCell>
+                            <div className="font-medium text-sm leading-tight">{item.name}</div>
+                            <div className="text-xs text-muted-foreground">{item.unit}</div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={item.qty}
+                              onChange={(e) => updateItem(idx, "qty", Number(e.target.value))}
+                              className="w-16 text-right h-7 text-sm"
+                              data-testid={`input-qty-${idx}`}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={item.rate}
+                              onChange={(e) => updateItem(idx, "rate", Number(e.target.value))}
+                              className="w-24 text-right h-7 text-sm"
+                              data-testid={`input-rate-${idx}`}
+                            />
+                          </TableCell>
+                          {invoiceType === "gst" && (
+                            <TableCell className="text-right">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={28}
+                                value={item.taxPct}
+                                onChange={(e) => updateItem(idx, "taxPct", Number(e.target.value))}
+                                className="w-16 text-right h-7 text-sm"
+                                data-testid={`input-tax-${idx}`}
+                              />
+                            </TableCell>
+                          )}
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={item.discountPct}
+                              onChange={(e) => updateItem(idx, "discountPct", Number(e.target.value))}
+                              className="w-20 text-right h-7 text-sm"
+                              data-testid={`input-discount-${idx}`}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-sm">
+                            ₹{item.amount.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => removeItem(idx)}
+                              data-testid={`button-remove-item-${idx}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>₹0.00</span>
-            </div>
-            {invoiceType === "gst" && (
-              <>
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>CGST</span>
-                  <span>₹0.00</span>
+        {/* Summary sidebar */}
+        <div className="space-y-5">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Invoice Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>₹{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              {totalDiscount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount</span>
+                  <span>- ₹{totalDiscount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>SGST</span>
-                  <span>₹0.00</span>
+              )}
+              {invoiceType === "gst" && (
+                <>
+                  <Separator />
+                  {!isInterstate ? (
+                    <>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>CGST</span>
+                        <span>₹{cgst.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>SGST</span>
+                        <span>₹{sgst.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>IGST</span>
+                      <span>₹{igst.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              {freight > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Freight</span>
+                  <span>₹{freight.toLocaleString()}</span>
                 </div>
-              </>
+              )}
+              {Math.abs(roundOff) > 0.001 && (
+                <div className="flex justify-between text-muted-foreground text-xs">
+                  <span>Round Off</span>
+                  <span>{roundOff > 0 ? "+" : ""}₹{roundOff.toFixed(2)}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between font-bold text-lg">
+                <span>Grand Total</span>
+                <span className="text-primary">₹{finalTotal.toLocaleString()}</span>
+              </div>
+
+              {invoiceType === "gst" && totalTax > 0 && (
+                <div className="bg-muted/50 rounded p-3 space-y-1 text-xs">
+                  <div className="font-medium mb-1 text-muted-foreground uppercase tracking-wide">GST Breakup</div>
+                  {items.map((item, i) => {
+                    if (!item.taxPct) return null;
+                    const base = item.qty * item.rate;
+                    const disc = item.discountAmt > 0 ? item.discountAmt : (base * item.discountPct / 100);
+                    const taxable = base - disc;
+                    const tax = taxable * item.taxPct / 100;
+                    return (
+                      <div key={i} className="flex justify-between text-muted-foreground">
+                        <span className="truncate max-w-[120px]">{item.name} ({item.taxPct}%)</span>
+                        <span>₹{tax.toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={handleSave}
+            disabled={createInvoice.isPending || items.length === 0}
+            data-testid="button-save-invoice-bottom"
+          >
+            {createInvoice.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
             )}
-            <div className="flex justify-between font-bold text-lg pt-4 border-t">
-              <span>Grand Total</span>
-              <span>₹0.00</span>
-            </div>
-          </CardContent>
-        </Card>
+            Save & Generate Invoice
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setLocation("/catalog")}
+            data-testid="button-back-to-catalog"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Catalog
+          </Button>
+        </div>
       </div>
     </div>
   );
