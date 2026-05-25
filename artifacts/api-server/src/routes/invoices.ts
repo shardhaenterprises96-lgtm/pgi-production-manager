@@ -176,7 +176,7 @@ router.post("/invoices", async (req, res): Promise<void> => {
     }
 
     // Insert invoice
-    const [invoice] = await client.query(
+    const invoiceQueryResult = await client.query(
       `INSERT INTO invoices (invoice_no, invoice_date, due_date, invoice_type, customer_id, customer_name,
         customer_gstin, billing_address, shipping_address, place_of_supply, salesman_id, salesman_name,
         po_number, e_way_bill_no, subtotal, total_discount, total_tax, cgst, sgst, igst, freight,
@@ -212,7 +212,7 @@ router.post("/invoices", async (req, res): Promise<void> => {
         session?.userId ?? 1,
       ]
     );
-    const invRow = invoice.rows[0];
+    const invRow = invoiceQueryResult.rows[0];
 
     // Insert items + deduct stock
     for (const item of processedItems) {
