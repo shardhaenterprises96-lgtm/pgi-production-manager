@@ -5,8 +5,10 @@ import {
   useListProducts,
   useCreateInvoice,
   useLogPayment,
+  useListAccounts,
   getListInvoicesQueryKey,
   getListPaymentsQueryKey,
+  getListAccountsQueryKey,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -164,6 +166,26 @@ export default function Billing() {
   const [paymentDone, setPaymentDone] = useState(false);
   const [paymentSkipped, setPaymentSkipped] = useState(false);
   const [savedPayment, setSavedPayment] = useState<any>(null);
+  const [accountId, setAccountId] = useState<number | null>(null);
+
+  // Accounts (cashbook) — deposit destination for collected payments
+  const { data: accounts } = useListAccounts();
+  const accountTypeForMode: Record<string, string> = {
+    cash: "cash", upi: "upi", cheque: "bank", bank_transfer: "bank",
+  };
+  const matchingAccounts = (accounts ?? []).filter(
+    (a) => a.isActive && (paymentMode === "credit" ? false : a.type === accountTypeForMode[paymentMode]),
+  );
+
+  // Auto-select the first matching active account whenever payment mode changes or accounts arrive
+  useEffect(() => {
+    if (paymentMode === "credit") { setAccountId(null); return; }
+    if (matchingAccounts.length === 0) { setAccountId(null); return; }
+    if (!accountId || !matchingAccounts.some((a) => a.id === accountId)) {
+      setAccountId(matchingAccounts[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentMode, accounts]);
 
   const handleSave = () => {
     if (items.length === 0) {
@@ -218,6 +240,7 @@ export default function Billing() {
           ...(customer?.id ? { customerId: customer.id } : {}),
           amount: paymentAmount,
           mode: paymentMode,
+          ...(accountId ? { accountId } : {}),
           notes: [
             isWalkIn ? `Walk-in cash sale${savedInvoice?.invoiceNo ? ` (Invoice ${savedInvoice.invoiceNo})` : ""}` : "",
             paymentRef ? `Ref: ${paymentRef}` : "",
@@ -228,6 +251,7 @@ export default function Billing() {
       {
         onSuccess: (payment) => {
           queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
           setSavedPayment(payment);
           setPaymentDone(true);
           toast({
@@ -411,6 +435,46 @@ export default function Billing() {
                       data-testid="input-payment-ref"
                     />
                   </div>
+                </div>
+              )}
+
+              {paymentMode !== "credit" && (
+                <div className="space-y-2">
+                  <Label htmlFor="account-select" className="flex items-center gap-2">
+                    Deposit to Account
+                    <span className="text-xs text-muted-foreground font-normal">
+                      ({paymentMode === "cash" ? "Cash drawer" : paymentMode === "upi" ? "UPI account" : "Bank account"})
+                    </span>
+                  </Label>
+                  {matchingAccounts.length === 0 ? (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
+                      No active {accountTypeForMode[paymentMode]} account configured.
+                      Payment will still be recorded, but won't be added to any account balance.
+                      Go to <strong>Accounts &amp; Cashbook</strong> to create one.
+                    </div>
+                  ) : (
+                    <Select
+                      value={accountId ? String(accountId) : ""}
+                      onValueChange={(v) => setAccountId(v ? Number(v) : null)}
+                    >
+                      <SelectTrigger id="account-select" data-testid="select-account">
+                        <SelectValue placeholder="Select an account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {matchingAccounts.map((a) => (
+                          <SelectItem key={a.id} value={String(a.id)}>
+                            <span className="flex items-center gap-2">
+                              <span className="font-medium">{a.name}</span>
+                              {a.identifier && <span className="text-xs text-muted-foreground">({a.identifier})</span>}
+                              <span className="text-xs text-muted-foreground ml-auto">
+                                Bal: ₹{Number(a.currentBalance).toLocaleString()}
+                              </span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               )}
 
