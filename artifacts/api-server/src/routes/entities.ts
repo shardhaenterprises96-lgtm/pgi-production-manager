@@ -74,16 +74,24 @@ router.post("/entities", async (req, res): Promise<void> => {
   const pricingTier = parsed.data.pricingTier ?? "retail";
   let name = parsed.data.name?.trim() ?? "";
 
-  // Wholesale customers must have a real name (used on GST invoices)
-  if (!name && parsed.data.type === "customer" && pricingTier === "wholesale") {
-    res.status(400).json({ error: "Wholesale customers must have a name" });
+  // Canonical rule: name is required for everyone EXCEPT retail customers (walk-ins).
+  // Wholesale customers, vendors, workers, and salesmen always need a real name
+  // because they are surfaced on invoices, purchase orders, job cards, etc.
+  const isRetailCustomer = parsed.data.type === "customer" && pricingTier === "retail";
+  if (!name && !isRetailCustomer) {
+    const pluralMap: Record<string, string> = {
+      customer: "wholesale customers",
+      vendor: "vendors",
+      worker: "workers",
+      salesman: "salesmen",
+    };
+    const typeLabel = pluralMap[parsed.data.type] ?? `${parsed.data.type}s`;
+    res.status(400).json({ error: `Name is required for ${typeLabel}` });
     return;
   }
-  // Retail walk-ins can omit name — fall back to a mobile-based label
+  // Retail walk-ins can omit name — fall back to a mobile-based label.
   if (!name) {
-    name = parsed.data.type === "customer"
-      ? `Retail Customer (${parsed.data.mobile})`
-      : `${parsed.data.type[0].toUpperCase()}${parsed.data.type.slice(1)} (${parsed.data.mobile})`;
+    name = `Retail Customer (${parsed.data.mobile})`;
   }
 
   const [entity] = await db

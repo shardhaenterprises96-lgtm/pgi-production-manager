@@ -346,7 +346,7 @@ export const CreateEntityBody = zod.object({
   "state": zod.string().optional(),
   "pricingTier": zod.enum(['retail', 'wholesale']).optional(),
   "creditLimit": zod.number().optional()
-}).describe('`name` is optional for retail customers — if omitted, the server generates a\nlabel like \"Retail Customer (98765 43210)\". Wholesale customers still require a name.\n')
+}).describe('`name` is optional ONLY for retail customers (walk-ins) — if omitted, the server\ngenerates a label like \"Retail Customer (98765 43210)\". For wholesale customers,\nvendors, workers, and salesmen the name is required.\n')
 
 
 /**
