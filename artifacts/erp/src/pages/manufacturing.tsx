@@ -3,6 +3,7 @@ import {
   useListBoms,
   useListWorkloadCards,
   useCreateBom,
+  useUpdateBom,
   useAssembleItem,
   useListProducts,
   getListBomsQueryKey,
@@ -24,7 +25,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2,
+  Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2, Pencil,
 } from "lucide-react";
 
 export default function Manufacturing() {
@@ -60,6 +61,7 @@ export default function Manufacturing() {
 function BomTab() {
   const { data: boms, isLoading } = useListBoms();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingBom, setEditingBom] = useState<any | null>(null);
 
   return (
     <div className="space-y-4">
@@ -89,9 +91,23 @@ function BomTab() {
           boms.map((bom: any) => (
             <Card key={bom.id} data-testid={`bom-card-${bom.id}`}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg line-clamp-1">{bom.finishedProductName}</CardTitle>
-                <div className="text-sm text-muted-foreground">
-                  Output: {bom.outputQuantity} per batch
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-lg line-clamp-1">{bom.finishedProductName}</CardTitle>
+                    <div className="text-sm text-muted-foreground">
+                      Output: {bom.outputQuantity} per batch
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 -mt-1 -mr-2"
+                    onClick={() => setEditingBom(bom)}
+                    data-testid={`button-edit-bom-${bom.id}`}
+                    title="Edit BOM"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -119,7 +135,17 @@ function BomTab() {
         )}
       </div>
 
-      <CreateBomDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <BomDialog
+        mode="create"
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
+      <BomDialog
+        mode="edit"
+        bom={editingBom}
+        open={editingBom != null}
+        onOpenChange={(v) => { if (!v) setEditingBom(null); }}
+      />
     </div>
   );
 }
@@ -392,13 +418,27 @@ function AssembleTab() {
 
 type MaterialRow = { materialProductId: string; quantity: string; unit: string };
 
-function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function BomDialog({
+  mode,
+  bom,
+  open,
+  onOpenChange,
+}: {
+  mode: "create" | "edit";
+  bom?: any | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const createBom = useCreateBom();
+  const updateBom = useUpdateBom();
 
   const { data: finishedProducts } = useListProducts({ forManufacturing: true });
   const { data: allProducts } = useListProducts({});
+
+  const isEdit = mode === "edit";
+  const pending = createBom.isPending || updateBom.isPending;
 
   const [finishedProductId, setFinishedProductId] = useState("");
   const [outputQuantity, setOutputQuantity] = useState("1");
@@ -406,11 +446,32 @@ function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     { materialProductId: "", quantity: "", unit: "" },
   ]);
 
+  React.useEffect(() => {
+    if (!open) return;
+    if (isEdit && bom) {
+      setFinishedProductId(String(bom.finishedProductId));
+      setOutputQuantity(String(bom.outputQuantity));
+      setItems(
+        (bom.items ?? []).length > 0
+          ? bom.items.map((it: any) => ({
+              materialProductId: String(it.materialProductId),
+              quantity: String(it.quantity),
+              unit: it.unit ?? "",
+            }))
+          : [{ materialProductId: "", quantity: "", unit: "" }],
+      );
+    } else if (!isEdit) {
+      setFinishedProductId("");
+      setOutputQuantity("1");
+      setItems([{ materialProductId: "", quantity: "", unit: "" }]);
+    }
+  }, [open, isEdit, bom]);
+
   const reset = () => {
     setFinishedProductId(""); setOutputQuantity("1");
     setItems([{ materialProductId: "", quantity: "", unit: "" }]);
   };
-  const handleClose = () => { onOpenChange(false); reset(); };
+  const handleClose = () => { onOpenChange(false); if (!isEdit) reset(); };
 
   const updateItem = (i: number, patch: Partial<MaterialRow>) => {
     setItems((prev) => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it));
@@ -433,44 +494,64 @@ function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
       toast({ title: "Add at least one material", description: "Each material needs product, quantity and unit.", variant: "destructive" });
       return;
     }
-    createBom.mutate(
-      {
-        data: {
-          finishedProductId: Number(finishedProductId),
-          outputQuantity: Number(outputQuantity) || 1,
-          items: validItems.map(it => ({
-            materialProductId: Number(it.materialProductId),
-            quantity: Number(it.quantity),
-            unit: it.unit.trim(),
-          })),
+    const mappedItems = validItems.map(it => ({
+      materialProductId: Number(it.materialProductId),
+      quantity: Number(it.quantity),
+      unit: it.unit.trim(),
+    }));
+
+    const onSuccess = () => {
+      queryClient.invalidateQueries({ queryKey: getListBomsQueryKey() });
+      toast({ title: isEdit ? "BOM updated" : "BOM created" });
+      handleClose();
+    };
+    const onError = async (err: any) => {
+      let desc = err?.message ?? "Server error";
+      try {
+        const body = err?.response ? await err.response.json() : null;
+        if (body?.error) desc = String(body.error).slice(0, 300);
+      } catch {}
+      toast({
+        title: isEdit ? "Failed to update BOM" : "Failed to create BOM",
+        description: desc,
+        variant: "destructive",
+      });
+    };
+
+    if (isEdit && bom) {
+      updateBom.mutate(
+        {
+          id: bom.id,
+          data: {
+            outputQuantity: Number(outputQuantity) || 1,
+            items: mappedItems,
+          },
         },
-      },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListBomsQueryKey() });
-          toast({ title: "BOM created" });
-          handleClose();
+        { onSuccess, onError },
+      );
+    } else {
+      createBom.mutate(
+        {
+          data: {
+            finishedProductId: Number(finishedProductId),
+            outputQuantity: Number(outputQuantity) || 1,
+            items: mappedItems,
+          },
         },
-        onError: async (err: any) => {
-          let desc = err?.message ?? "Server error";
-          try {
-            const body = err?.response ? await err.response.json() : null;
-            if (body?.error) desc = String(body.error).slice(0, 300);
-          } catch {}
-          toast({ title: "Failed to create BOM", description: desc, variant: "destructive" });
-        },
-      },
-    );
+        { onSuccess, onError },
+      );
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); else onOpenChange(o); }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create BOM (Recipe)</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit BOM (Recipe)" : "Create BOM (Recipe)"}</DialogTitle>
           <DialogDescription>
-            Define which raw materials &amp; quantities are required to produce one batch of a finished product.
-            Only products marked <strong>Add for Manufacturing</strong> appear in the finished product list.
+            {isEdit
+              ? "Update the output quantity or the materials required per batch. The finished product cannot be changed."
+              : <>Define which raw materials &amp; quantities are required to produce one batch of a finished product. Only products marked <strong>Add for Manufacturing</strong> appear in the finished product list.</>}
           </DialogDescription>
         </DialogHeader>
 
@@ -478,24 +559,32 @@ function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2 space-y-1.5">
               <Label>Finished Product *</Label>
-              <Select value={finishedProductId} onValueChange={setFinishedProductId}>
-                <SelectTrigger data-testid="select-finished-product">
-                  <SelectValue placeholder="Choose product to manufacture..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {!finishedProducts || finishedProducts.length === 0 ? (
-                    <div className="px-3 py-4 text-sm text-muted-foreground">
-                      No products marked for manufacturing. Edit a product and turn on <strong>Add for Manufacturing</strong>.
-                    </div>
-                  ) : (
-                    finishedProducts.map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.name} <span className="text-muted-foreground text-xs ml-2">({p.itemCode})</span>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              {isEdit ? (
+                <Input
+                  value={bom?.finishedProductName ?? ""}
+                  disabled
+                  data-testid="input-finished-product-locked"
+                />
+              ) : (
+                <Select value={finishedProductId} onValueChange={setFinishedProductId}>
+                  <SelectTrigger data-testid="select-finished-product">
+                    <SelectValue placeholder="Choose product to manufacture..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!finishedProducts || finishedProducts.length === 0 ? (
+                      <div className="px-3 py-4 text-sm text-muted-foreground">
+                        No products marked for manufacturing. Edit a product and turn on <strong>Add for Manufacturing</strong>.
+                      </div>
+                    ) : (
+                      finishedProducts.map((p: any) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name} <span className="text-muted-foreground text-xs ml-2">({p.itemCode})</span>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Output per Batch *</Label>
@@ -575,10 +664,10 @@ function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={createBom.isPending} data-testid="button-save-bom">
-            {createBom.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            Create BOM
+          <Button variant="outline" onClick={handleClose} disabled={pending}>Cancel</Button>
+          <Button onClick={handleSave} disabled={pending} data-testid="button-save-bom">
+            {pending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+            {isEdit ? "Save Changes" : "Create BOM"}
           </Button>
         </DialogFooter>
       </DialogContent>
