@@ -96,22 +96,33 @@ export default function InvoiceDetail() {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto print:p-0 print:max-w-none print:m-0">
-      {/* Print stylesheet — hide everything on the page except the invoice sheet */}
+      {/* Print stylesheet — pixel-perfect A5 landscape, hide everything else */}
       <style>{`
+        @page { size: A5 landscape; margin: 5mm; }
         @media print {
-          @page { size: A5 landscape; margin: 5mm; }
-          html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
+          html, body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           body * { visibility: hidden !important; }
           .invoice-sheet, .invoice-sheet * { visibility: visible !important; }
           .invoice-sheet {
             position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            font-size: 9.5px !important;
+            left: 0 !important; top: 0 !important;
+            width: 200mm !important;
+            min-height: 138mm !important;
+            font-size: 9px !important;
+            line-height: 1.25 !important;
+            color: #000 !important;
+            background: #fff !important;
             box-shadow: none !important;
             border: 1px solid #000 !important;
           }
+          .invoice-sheet td, .invoice-sheet th { padding: 2px 4px !important; }
+          .sidebar, .topbar, .no-print, button, nav { display: none !important; }
         }
       `}</style>
 
@@ -276,25 +287,33 @@ export default function InvoiceDetail() {
           </tbody>
         </table>
 
-        {/* Footer: words + totals split */}
+        {/* Footer: words + QR + totals */}
         <div className="grid grid-cols-12 border-t border-black">
-          <div className="col-span-7 border-r border-black p-3 flex flex-col">
+          <div className="col-span-5 border-r border-black p-3 flex flex-col">
             <div>
               <div className="font-semibold">Amount in Words :</div>
               <div className="italic mt-1">{rupeesInWords(invoice.grandTotal)}</div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-x-2 text-[12px]">
-              <div>
-                <div className="font-semibold">Terms and conditions here ....</div>
-                <div className="text-[11px] mt-4">Footer note here ........</div>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold">Total Qty : {num(totalQty, 0)}</div>
-                <div className="font-semibold">Total Ltr : {num(totalLtr, 3)}</div>
-              </div>
+            <div className="mt-3 text-[11px]">
+              <div className="font-semibold">Terms &amp; Conditions:</div>
+              <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                <li>Goods once sold will not be taken back.</li>
+                <li>Interest @ 24% p.a. on overdue bills.</li>
+                <li>Subject to Solapur jurisdiction.</li>
+              </ol>
+            </div>
+            <div className="mt-auto pt-2 flex justify-between text-[12px] font-semibold">
+              <span>Total Qty : {num(totalQty, 0)}</span>
+              <span>Total Ltr : {num(totalLtr, 3)}</span>
             </div>
           </div>
-          <div className="col-span-5 p-0">
+          <div className="col-span-2 border-r border-black p-2 flex flex-col items-center justify-center text-center">
+            <div className="w-20 h-20 border border-black flex items-center justify-center text-[8px] text-muted-foreground">
+              QR / UPI
+            </div>
+            <div className="text-[9px] mt-1 font-semibold">Scan &amp; Pay</div>
+          </div>
+          <div className="col-span-5 p-0 flex flex-col">
             <table className="w-full text-[12px]">
               <tbody>
                 <tr className="border-b border-black">
@@ -342,8 +361,13 @@ export default function InvoiceDetail() {
                   <td className="px-3 py-2 text-right font-bold text-sm">₹ {inr(invoice.grandTotal)}</td>
                 </tr>
                 <tr>
-                  <td colSpan={2} className="px-3 py-6 text-right font-semibold">
+                  <td colSpan={2} className="px-3 pt-2 pb-1 text-right font-semibold">
                     For, SHRADHA OIL CENTER
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={2} className="px-3 pt-10 pb-1 text-right text-[11px] border-t border-black">
+                    Authorized Signature
                   </td>
                 </tr>
               </tbody>
