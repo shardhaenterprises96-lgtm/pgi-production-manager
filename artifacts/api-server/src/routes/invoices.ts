@@ -29,28 +29,20 @@ async function generateInvoiceNumber(client: any): Promise<string> {
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
 
-  // SERIALIZABLE ensures no race conditions
+  // Atomic upsert: insert row on first invoice of the month, increment on every subsequent one.
+  // Requires unique constraint on (month, year) — see schema.
   const result = await client.query(
     `INSERT INTO invoice_sequence (month, year, last_number)
      VALUES ($1, $2, 1)
-     ON CONFLICT DO NOTHING
+     ON CONFLICT (month, year) DO UPDATE
+       SET last_number = invoice_sequence.last_number + 1
      RETURNING last_number`,
     [month, year]
   );
 
-  let seqNum: number;
-  if (result.rows.length > 0) {
-    seqNum = result.rows[0].last_number;
-  } else {
-    const upd = await client.query(
-      `UPDATE invoice_sequence SET last_number = last_number + 1 WHERE month = $1 AND year = $2 RETURNING last_number`,
-      [month, year]
-    );
-    seqNum = upd.rows[0].last_number;
-  }
-
+  const seqNum: number = result.rows[0].last_number;
   const monthStr = String(month).padStart(2, "0");
-  return `INV/${monthStr}/${seqNum}`;
+  return `INV/${year}/${monthStr}/${seqNum}`;
 }
 
 // GET /invoices

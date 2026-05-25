@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, numeric, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, numeric, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { entitiesTable } from "./entities";
@@ -69,7 +69,9 @@ export const invoiceSequenceTable = pgTable("invoice_sequence", {
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   lastNumber: integer("last_number").notNull().default(0),
-});
+}, (t) => [
+  unique("invoice_sequence_month_year_unique").on(t.month, t.year),
+]);
 
 export const insertInvoiceSchema = createInsertSchema(invoicesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
