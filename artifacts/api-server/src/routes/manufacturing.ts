@@ -57,26 +57,60 @@ router.post("/boms", async (req, res): Promise<void> => {
     return;
   }
 
-  const [bom] = await db.insert(bomsTable).values({
-    finishedProductId: parsed.data.finishedProductId,
-    outputQuantity: String(parsed.data.outputQuantity),
-  }).returning();
-
+  // Extra validation: positive quantities, no self-referencing materials, no duplicates
+  if (Number(parsed.data.outputQuantity) <= 0) {
+    res.status(400).json({ error: "outputQuantity must be greater than 0" });
+    return;
+  }
+  const seenMaterials = new Set<number>();
   for (const item of parsed.data.items) {
-    await db.insert(bomItemsTable).values({
-      bomId: bom.id,
-      materialProductId: item.materialProductId,
-      quantity: String(item.quantity),
-      unit: item.unit,
-    });
+    if (Number(item.quantity) <= 0) {
+      res.status(400).json({ error: "Each material quantity must be greater than 0" });
+      return;
+    }
+    if (item.materialProductId === parsed.data.finishedProductId) {
+      res.status(400).json({ error: "A product cannot be a material of itself" });
+      return;
+    }
+    if (seenMaterials.has(item.materialProductId)) {
+      res.status(400).json({ error: "Duplicate material in BOM" });
+      return;
+    }
+    seenMaterials.add(item.materialProductId);
   }
 
+  const client = await pool.connect();
+  let bomId: number;
+  try {
+    await client.query("BEGIN");
+    const bomResult = await client.query(
+      `INSERT INTO boms (finished_product_id, output_quantity) VALUES ($1, $2) RETURNING id`,
+      [parsed.data.finishedProductId, String(parsed.data.outputQuantity)],
+    );
+    bomId = bomResult.rows[0].id;
+
+    for (const item of parsed.data.items) {
+      await client.query(
+        `INSERT INTO bom_items (bom_id, material_product_id, quantity, unit) VALUES ($1, $2, $3, $4)`,
+        [bomId, item.materialProductId, String(item.quantity), item.unit],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logger.error({ err }, "Failed to create BOM");
+    res.status(500).json({ error: "Failed to create BOM" });
+    return;
+  } finally {
+    client.release();
+  }
+
+  const [bom] = await db.select().from(bomsTable).where(eq(bomsTable.id, bomId));
   const items = await db
     .select({ item: bomItemsTable, materialName: productsTable.name })
     .from(bomItemsTable)
     .leftJoin(productsTable, eq(bomItemsTable.materialProductId, productsTable.id))
-    .where(eq(bomItemsTable.bomId, bom.id));
-
+    .where(eq(bomItemsTable.bomId, bomId));
   const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, bom.finishedProductId));
 
   res.status(201).json(formatBom(bom, product?.name ?? null, items));

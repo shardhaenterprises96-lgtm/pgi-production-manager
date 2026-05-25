@@ -136,6 +136,7 @@ type ProductForm = {
   openingStock: string;
   minStockThreshold: string;
   notForSale: boolean;
+  addForManufacturing: boolean;
   imageUrl: string;
 };
 
@@ -143,7 +144,7 @@ const emptyForm: ProductForm = {
   name: "", printName: "", group: "", brand: "", itemCode: "",
   unit: "", purchasePrice: "", mrp: "", wholesalePrice: "", retailPrice: "",
   hsnCode: "", taxRate: "18", litersPerBox: "", openingStock: "0",
-  minStockThreshold: "5", notForSale: false, imageUrl: "",
+  minStockThreshold: "5", notForSale: false, addForManufacturing: false, imageUrl: "",
 };
 
 function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
@@ -222,6 +223,7 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           openingStock: form.openingStock ? Number(form.openingStock) : 0,
           minStockThreshold: form.minStockThreshold ? Number(form.minStockThreshold) : undefined,
           notForSale: form.notForSale,
+          addForManufacturing: form.addForManufacturing,
           imageUrl: form.imageUrl || undefined,
         },
       },
@@ -429,15 +431,30 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
               </div>
             </div>
 
-            <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/20">
-              <Switch
-                id="not-for-sale"
-                checked={form.notForSale}
-                onCheckedChange={(v) => set("notForSale", v)}
-              />
-              <div>
-                <Label htmlFor="not-for-sale" className="cursor-pointer">Internal / Manufacturing only</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">Hide from catalog and sales</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/20">
+                <Switch
+                  id="not-for-sale"
+                  checked={form.notForSale}
+                  onCheckedChange={(v) => set("notForSale", v)}
+                  data-testid="switch-not-for-sale"
+                />
+                <div>
+                  <Label htmlFor="not-for-sale" className="cursor-pointer">Not for Sale</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Hide from price catalog &amp; billing</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/20">
+                <Switch
+                  id="add-for-mfg"
+                  checked={form.addForManufacturing}
+                  onCheckedChange={(v) => set("addForManufacturing", v)}
+                  data-testid="switch-add-for-mfg"
+                />
+                <div>
+                  <Label htmlFor="add-for-mfg" className="cursor-pointer">Add for Manufacturing</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Show in Manufacturing &amp; allow recipes (BOM)</p>
+                </div>
               </div>
             </div>
 
