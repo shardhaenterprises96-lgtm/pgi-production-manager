@@ -734,7 +734,7 @@ export const ListPaymentsResponse = zod.array(ListPaymentsResponseItem)
  * @summary Log a payment
  */
 export const LogPaymentBody = zod.object({
-  "customerId": zod.number(),
+  "customerId": zod.number().optional().describe('Omit for walk-in \/ cash sales — server resolves to a Walk-in Customer entity.'),
   "amount": zod.number(),
   "mode": zod.enum(['cash', 'cheque', 'upi', 'bank_transfer', 'other']),
   "notes": zod.string().optional(),

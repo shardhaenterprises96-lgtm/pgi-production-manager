@@ -1756,10 +1756,11 @@ components:
 
     PaymentInput:
       type: object
-      required: [customerId, amount, mode]
+      required: [amount, mode]
       properties:
         customerId:
           type: integer
+          description: Omit for walk-in / cash sales — server resolves to a Walk-in Customer entity.
         amount:
           type: number
         mode:

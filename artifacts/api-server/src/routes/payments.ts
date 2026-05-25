@@ -47,10 +47,38 @@ router.post("/payments", async (req, res): Promise<void> => {
   const isAdmin = session?.role === "admin";
   const status = isAdmin ? "approved" : "pending";
 
-  const [customer] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, parsed.data.customerId));
-  if (!customer) {
-    res.status(404).json({ error: "Customer not found" });
-    return;
+  // Resolve customer — explicit id, or find-or-create the shared "Walk-in Customer" entity for cash sales.
+  // A session-level advisory lock serializes concurrent walk-in inserts so we never end up with duplicates
+  // (the entities table has no UNIQUE constraint on name/type).
+  const WALKIN_LOCK_KEY = 7421953; // arbitrary constant — any int32 unique to this purpose works
+  let customer;
+  let customerId: number;
+  if (parsed.data.customerId) {
+    [customer] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, parsed.data.customerId));
+    if (!customer) {
+      res.status(404).json({ error: "Customer not found" });
+      return;
+    }
+    customerId = customer.id;
+  } else {
+    const lockClient = await pool.connect();
+    try {
+      await lockClient.query("SELECT pg_advisory_lock($1)", [WALKIN_LOCK_KEY]);
+      [customer] = await db
+        .select()
+        .from(entitiesTable)
+        .where(and(eq(entitiesTable.type, "customer"), eq(entitiesTable.name, "Walk-in Customer")));
+      if (!customer) {
+        [customer] = await db
+          .insert(entitiesTable)
+          .values({ type: "customer", name: "Walk-in Customer", mobile: "0000000000" })
+          .returning();
+      }
+      customerId = customer.id;
+    } finally {
+      try { await lockClient.query("SELECT pg_advisory_unlock($1)", [WALKIN_LOCK_KEY]); } catch {}
+      lockClient.release();
+    }
   }
 
   const receiptId = `RCP-${Date.now()}`;
@@ -63,7 +91,7 @@ router.post("/payments", async (req, res): Promise<void> => {
 
       const [payment] = await db.insert(paymentsTable).values({
         receiptId,
-        customerId: parsed.data.customerId,
+        customerId,
         customerName: customer.name,
         salesmanId: null,
         salesmanName: null,
@@ -94,19 +122,19 @@ router.post("/payments", async (req, res): Promise<void> => {
       // Deduct from outstanding
       await client.query(
         `UPDATE entities SET outstanding_balance = outstanding_balance - $1 WHERE id = $2`,
-        [parsed.data.amount, parsed.data.customerId]
+        [parsed.data.amount, customerId]
       );
 
       const balResult = await client.query(
         `SELECT outstanding_balance FROM entities WHERE id = $1`,
-        [parsed.data.customerId]
+        [customerId]
       );
       const newBal = balResult.rows[0].outstanding_balance;
 
       await client.query(
         `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
          VALUES ($1, NOW(), $2, 0, $3, $4, 'payment', $5, $6)`,
-        [parsed.data.customerId, `Payment received (${parsed.data.mode})`, parsed.data.amount, newBal, payment.id, receiptId]
+        [customerId, `Payment received (${parsed.data.mode})`, parsed.data.amount, newBal, payment.id, receiptId]
       );
 
       await client.query("COMMIT");
@@ -122,7 +150,7 @@ router.post("/payments", async (req, res): Promise<void> => {
     // Salesman entry - goes to escrow (pending)
     const [payment] = await db.insert(paymentsTable).values({
       receiptId,
-      customerId: parsed.data.customerId,
+      customerId,
       customerName: customer.name,
       salesmanId: session?.userId ?? null,
       salesmanName: session?.name ?? null,

@@ -529,7 +529,8 @@ export const PaymentInputMode = {
 } as const;
 
 export interface PaymentInput {
-  customerId: number;
+  /** Omit for walk-in / cash sales — server resolves to a Walk-in Customer entity. */
+  customerId?: number;
   amount: number;
   mode: PaymentInputMode;
   notes?: string;

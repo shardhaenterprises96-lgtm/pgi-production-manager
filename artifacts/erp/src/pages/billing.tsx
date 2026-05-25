@@ -211,17 +211,18 @@ export default function Billing() {
   };
 
   const handleRecordPayment = () => {
-    if (!customer?.id) {
-      toast({ title: "No customer linked", description: "Cannot record payment for walk-in customer without an account.", variant: "destructive" });
-      return;
-    }
+    const isWalkIn = !customer?.id;
     logPayment.mutate(
       {
         data: {
-          customerId: customer.id,
+          ...(customer?.id ? { customerId: customer.id } : {}),
           amount: paymentAmount,
           mode: paymentMode,
-          notes: [paymentRef ? `Ref: ${paymentRef}` : "", paymentNotes].filter(Boolean).join(" | ") || undefined,
+          notes: [
+            isWalkIn ? `Walk-in cash sale${savedInvoice?.invoiceNo ? ` (Invoice ${savedInvoice.invoiceNo})` : ""}` : "",
+            paymentRef ? `Ref: ${paymentRef}` : "",
+            paymentNotes,
+          ].filter(Boolean).join(" | ") || undefined,
         },
       },
       {
@@ -232,12 +233,19 @@ export default function Billing() {
           toast({
             title: payment.status === "approved" ? "Payment recorded & approved" : "Payment logged — pending approval",
             description: payment.status === "approved"
-              ? `₹${paymentAmount.toLocaleString()} debited from ${customer.name}'s balance.`
+              ? isWalkIn
+                ? `₹${paymentAmount.toLocaleString()} recorded as walk-in ${paymentMode.toUpperCase()} sale.`
+                : `₹${paymentAmount.toLocaleString()} debited from ${customer.name}'s balance.`
               : `₹${paymentAmount.toLocaleString()} logged. Admin approval required.`,
           });
         },
-        onError: () => {
-          toast({ title: "Failed to record payment", variant: "destructive" });
+        onError: async (err: any) => {
+          let desc = err?.message ?? "Server error";
+          try {
+            const body = err?.response ? await err.response.json() : null;
+            if (body?.error) desc = String(body.error).slice(0, 300);
+          } catch {}
+          toast({ title: "Failed to record payment", description: desc, variant: "destructive" });
         },
       }
     );
@@ -422,7 +430,7 @@ export default function Billing() {
                 <Button
                   className="flex-1"
                   onClick={paymentMode === "credit" ? () => setPaymentSkipped(true) : handleRecordPayment}
-                  disabled={logPayment.isPending || (!customer?.id) || (paymentMode !== "credit" && paymentAmount <= 0)}
+                  disabled={logPayment.isPending || (paymentMode !== "credit" && paymentAmount <= 0)}
                   data-testid="button-record-payment"
                 >
                   {logPayment.isPending ? (
@@ -444,9 +452,9 @@ export default function Billing() {
                 </Button>
               </div>
 
-              {!customer?.id && (
+              {!customer?.id && paymentMode !== "credit" && (
                 <p className="text-xs text-muted-foreground text-center">
-                  Walk-in customer — no ledger entry possible. Use Skip for cash sales.
+                  Walk-in cash sale — payment will be recorded under the shared "Walk-in Customer" account.
                 </p>
               )}
             </CardContent>
