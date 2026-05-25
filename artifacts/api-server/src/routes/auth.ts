@@ -50,8 +50,10 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 // POST /auth/logout
-router.post("/auth/logout", async (req, res): Promise<void> => {
-  (req as any).session = null;
+router.post("/auth/logout", async (_req, res): Promise<void> => {
+  // Must clearCookie explicitly — sendStatus(204) bypasses the res.json patch
+  // that normally handles cookie clearing.
+  res.clearCookie("session", { path: "/" });
   res.sendStatus(204);
 });
 

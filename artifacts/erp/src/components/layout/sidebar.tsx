@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
 import { useLogout } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -21,10 +22,14 @@ export function Sidebar() {
   const [location] = useLocation();
   const { user, hasRole } = useAuth();
   const logout = useLogout();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
     logout.mutate(undefined, {
       onSuccess: () => {
+        // Clear all cached query data so the stale "me" response
+        // doesn't survive the navigation back to /login.
+        queryClient.clear();
         window.location.href = "/login";
       }
     });
