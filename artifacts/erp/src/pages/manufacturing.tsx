@@ -25,7 +25,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2, Pencil, Package,
+  Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2, Pencil, Package, Search, X,
 } from "lucide-react";
 
 export default function Manufacturing() {
@@ -163,6 +163,7 @@ function AssembleTab() {
   const [bomId, setBomId] = useState<string>("");
   const [batches, setBatches] = useState<string>("1");
   const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
 
   const selectedBom = useMemo(
     () => boms?.find((b: any) => String(b.id) === bomId),
@@ -174,6 +175,24 @@ function AssembleTab() {
     products?.forEach((p: any) => m.set(p.id, p));
     return m;
   }, [products]);
+
+  const filteredBoms = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return boms ?? [];
+    return (boms ?? []).filter((b: any) => {
+      const prod = productById.get(b.finishedProductId);
+      const haystack = [
+        b.finishedProductName,
+        prod?.itemCode,
+        prod?.brand,
+        prod?.group,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [boms, search, productById]);
 
   const batchCount = Math.max(0, Number(batches) || 0);
   const outputUnits = selectedBom ? batchCount * Number(selectedBom.outputQuantity) : 0;
@@ -282,10 +301,38 @@ function AssembleTab() {
         <div>
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-semibold">Pick a Recipe to Assemble</h2>
-            <span className="text-xs text-muted-foreground">{boms.length} recipe{boms.length === 1 ? "" : "s"}</span>
+            <span className="text-xs text-muted-foreground">
+              {filteredBoms.length} of {boms.length} recipe{boms.length === 1 ? "" : "s"}
+            </span>
           </div>
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by product name, item code, brand or group…"
+              className="pl-9 pr-9"
+              data-testid="input-assemble-search"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+                data-testid="button-clear-search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {filteredBoms.length === 0 ? (
+            <div className="text-center py-10 border border-dashed rounded-lg text-sm text-muted-foreground">
+              No recipes match "{search}".
+            </div>
+          ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-            {boms.map((b: any) => {
+            {filteredBoms.map((b: any) => {
               const prod = productById.get(b.finishedProductId);
               const isSelected = String(b.id) === bomId;
               const finishedStock = Number(prod?.currentStock ?? 0);
@@ -344,6 +391,7 @@ function AssembleTab() {
               );
             })}
           </div>
+          )}
         </div>
 
         {/* Assembly panel — appears once a recipe is picked */}
