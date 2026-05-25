@@ -25,7 +25,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2, Pencil,
+  Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2, Pencil, Package,
 } from "lucide-react";
 
 export default function Manufacturing() {
@@ -276,57 +276,106 @@ function AssembleTab() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PackageCheck className="w-5 h-5 text-primary" />
-            Assemble a Finished Product
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="md:col-span-2 space-y-1.5">
-              <Label>Recipe (BOM) *</Label>
-              <Select value={bomId} onValueChange={setBomId}>
-                <SelectTrigger data-testid="select-assemble-bom">
-                  <SelectValue placeholder="Choose a recipe..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {boms.map((b: any) => (
-                    <SelectItem key={b.id} value={String(b.id)}>
-                      {b.finishedProductName}
-                      <span className="text-muted-foreground text-xs ml-2">
-                        ({b.outputQuantity} / batch)
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Batches *</Label>
-              <Input
-                type="number" min="1" step="1"
-                value={batches}
-                onChange={(e) => setBatches(e.target.value)}
-                data-testid="input-assemble-batches"
-              />
-            </div>
+    <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+      <div className="space-y-6">
+        {/* BOM picker — visual catalog of recipes */}
+        <div>
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-lg font-semibold">Pick a Recipe to Assemble</h2>
+            <span className="text-xs text-muted-foreground">{boms.length} recipe{boms.length === 1 ? "" : "s"}</span>
           </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            {boms.map((b: any) => {
+              const prod = productById.get(b.finishedProductId);
+              const isSelected = String(b.id) === bomId;
+              const finishedStock = Number(prod?.currentStock ?? 0);
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBomId(String(b.id))}
+                  data-testid={`card-bom-${b.id}`}
+                  className={`group relative text-left rounded-lg border overflow-hidden flex flex-col transition-all hover:shadow-md ${
+                    isSelected
+                      ? "border-primary ring-2 ring-primary/40 shadow-sm"
+                      : "border-border/50 hover:border-border"
+                  }`}
+                >
+                  <div className="aspect-square bg-muted flex items-center justify-center relative p-4">
+                    {prod?.imageUrl ? (
+                      <img
+                        src={prod.imageUrl}
+                        alt={b.finishedProductName}
+                        className="object-contain h-full w-full"
+                      />
+                    ) : (
+                      <Package className="w-14 h-14 opacity-10" />
+                    )}
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                    <Badge variant="secondary" className="absolute bottom-2 left-2 text-[10px] px-1.5">
+                      Stock: {finishedStock}
+                    </Badge>
+                  </div>
+                  <div className="p-3 flex-1 flex flex-col">
+                    {prod?.itemCode && (
+                      <div className="text-[10px] text-muted-foreground font-mono mb-0.5 truncate">
+                        {prod.itemCode}
+                      </div>
+                    )}
+                    <h3 className="font-semibold text-sm leading-tight line-clamp-2 mb-2">
+                      {b.finishedProductName}
+                    </h3>
+                    <div className="mt-auto flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Per batch</span>
+                      <span className="font-medium tabular-nums">
+                        {b.outputQuantity}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs mt-0.5">
+                      <span className="text-muted-foreground">Materials</span>
+                      <span className="font-medium tabular-nums">{b.items.length}</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-          {selectedBom && (
-            <>
-              <div className="rounded-lg border bg-muted/30 p-3 flex items-center justify-between">
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Will produce</span>{" "}
-                  <span className="font-semibold text-foreground" data-testid="text-output-units">
-                    {outputUnits}
-                  </span>{" "}
-                  <span className="text-muted-foreground">units of</span>{" "}
-                  <span className="font-semibold">{selectedBom.finishedProductName}</span>
+        {/* Assembly panel — appears once a recipe is picked */}
+        {selectedBom ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <PackageCheck className="w-5 h-5 text-primary" />
+                Assemble: {selectedBom.finishedProductName}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-1.5">
+                  <Label>Batches *</Label>
+                  <Input
+                    type="number" min="1" step="1"
+                    value={batches}
+                    onChange={(e) => setBatches(e.target.value)}
+                    data-testid="input-assemble-batches"
+                    className="w-32"
+                  />
                 </div>
-                <Badge variant="outline">{batchCount} × {selectedBom.outputQuantity}</Badge>
+                <div className="rounded-lg border bg-muted/30 px-3 py-2 flex items-center gap-2 text-sm flex-1 min-w-[240px]">
+                  <span className="text-muted-foreground">Will produce</span>
+                  <span className="font-semibold text-foreground tabular-nums" data-testid="text-output-units">
+                    {outputUnits}
+                  </span>
+                  <Badge variant="outline" className="ml-auto">
+                    {batchCount} × {selectedBom.outputQuantity}
+                  </Badge>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -368,25 +417,29 @@ function AssembleTab() {
                   </p>
                 )}
               </div>
-            </>
-          )}
 
-          <div className="flex justify-end pt-2">
-            <Button
-              onClick={handleAssemble}
-              disabled={!canAssemble}
-              data-testid="button-assemble"
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              <PackageCheck className="w-4 h-4 mr-2" />
-              Assemble Now
-            </Button>
+              <div className="flex justify-end pt-1">
+                <Button
+                  onClick={handleAssemble}
+                  disabled={!canAssemble}
+                  data-testid="button-assemble"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <PackageCheck className="w-4 h-4 mr-2" />
+                  Assemble Now
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="text-center py-10 border border-dashed rounded-lg text-sm text-muted-foreground">
+            Pick a recipe above to set batches and check material stock.
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
-      <Card>
+      <Card className="h-fit">
         <CardHeader>
           <CardTitle className="text-base">Recent Assemblies</CardTitle>
         </CardHeader>
