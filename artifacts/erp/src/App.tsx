@@ -26,6 +26,7 @@ import Accounts from "@/pages/accounts";
 import CashBook from "@/pages/cashbook";
 import Workers from "@/pages/workers";
 import Expenses from "@/pages/expenses";
+import Bom from "@/pages/bom";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ function ProtectedRoutes() {
         <Route path="/payments" component={Payments} />
         <Route path="/rewards" component={Rewards} />
         <Route path="/manufacturing" component={Manufacturing} />
+        <Route path="/bom" component={Bom} />
         <Route path="/purchases" component={Purchases} />
         <Route path="/reports" component={Reports} />
         <Route path="/accounts" component={Accounts} />

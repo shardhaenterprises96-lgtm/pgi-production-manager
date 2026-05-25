@@ -21,6 +21,7 @@ import {
   Truck,
   HardHat,
   Receipt,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,7 @@ export function Sidebar() {
     { name: "Accounts", href: "/accounts", icon: Wallet, roles: ["admin", "accountant"] },
     { name: "Rewards", href: "/rewards", icon: Award, roles: ["admin", "customer"] },
     { name: "Manufacturing", href: "/manufacturing", icon: Factory, roles: ["admin", "manufacturing"] },
+    { name: "Bill of Materials", href: "/bom", icon: FileText, roles: ["admin"] },
     { name: "Purchases", href: "/purchases", icon: Truck, roles: ["admin", "accountant", "store"] },
     { name: "Workers", href: "/workers", icon: HardHat, roles: ["admin", "accountant"] },
     { name: "Expenses", href: "/expenses", icon: Receipt, roles: ["admin", "accountant"] },
