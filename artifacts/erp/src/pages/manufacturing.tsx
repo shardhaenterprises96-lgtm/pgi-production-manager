@@ -12,6 +12,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -60,16 +61,22 @@ export default function Manufacturing() {
 
 function BomTab() {
   const { data: boms, isLoading } = useListBoms();
+  const { user } = useAuth();
+  // Manufacturing/shop-floor workers can view recipes but cannot create or
+  // edit them — that's an office/admin/accountant responsibility.
+  const canEdit = user?.role !== "manufacturing";
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBom, setEditingBom] = useState<any | null>(null);
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setDialogOpen(true)} data-testid="button-create-bom">
-          <Plus className="w-4 h-4 mr-2" /> Create BOM
-        </Button>
-      </div>
+      {canEdit && (
+        <div className="flex justify-end">
+          <Button onClick={() => setDialogOpen(true)} data-testid="button-create-bom">
+            <Plus className="w-4 h-4 mr-2" /> Create BOM
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
@@ -83,9 +90,11 @@ function BomTab() {
             <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
               A Bill of Material defines which raw materials and quantities go into one batch of a finished product.
             </p>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" /> Create First BOM
-            </Button>
+            {canEdit && (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Create First BOM
+              </Button>
+            )}
           </div>
         ) : (
           boms.map((bom: any) => (
@@ -98,16 +107,18 @@ function BomTab() {
                       Output: {bom.outputQuantity} per batch
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 -mt-1 -mr-2"
-                    onClick={() => setEditingBom(bom)}
-                    data-testid={`button-edit-bom-${bom.id}`}
-                    title="Edit BOM"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 -mt-1 -mr-2"
+                      onClick={() => setEditingBom(bom)}
+                      data-testid={`button-edit-bom-${bom.id}`}
+                      title="Edit BOM"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
