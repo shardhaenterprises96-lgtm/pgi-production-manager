@@ -292,7 +292,19 @@
     outline-offset: 1px !important;
     box-shadow: none;
   }
-  /* Recharts default tooltip cursor is blue — neutralize it project-wide */
+  /* Recharts default tooltip cursor / hover artifacts are blue — neutralize project-wide */
   .recharts-tooltip-cursor { fill: hsl(var(--muted) / 0.4) !important; stroke: hsl(var(--border)) !important; }
-  .recharts-active-bar { fill-opacity: 0.85; }
+  .recharts-active-bar { fill-opacity: 0.85; stroke: none !important; }
+  .recharts-rectangle.recharts-tooltip-cursor { stroke: none !important; }
+  .recharts-reference-line line,
+  .recharts-reference-line-line { stroke: hsl(var(--border)) !important; }
+  /* SVG elements should never show focus outlines (Chrome paints them as a blue L on partial-bounds SVG nodes) */
+  svg:focus,
+  svg *:focus,
+  svg:focus-visible,
+  svg *:focus-visible,
+  .recharts-wrapper:focus,
+  .recharts-wrapper:focus-visible,
+  .recharts-surface:focus,
+  .recharts-surface:focus-visible { outline: none !important; }
 }

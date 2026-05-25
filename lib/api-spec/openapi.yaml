@@ -1315,6 +1315,264 @@ paths:
               schema:
                 $ref: "#/components/schemas/SearchResults"
 
+  # WORKERS
+  /workers:
+    get:
+      operationId: listWorkers
+      tags: [workers]
+      summary: List workers
+      parameters:
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Workers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Worker"
+    post:
+      operationId: createWorker
+      tags: [workers]
+      summary: Create worker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkerInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+
+  /workers/{id}:
+    patch:
+      operationId: updateWorker
+      tags: [workers]
+      summary: Update worker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkerInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+    delete:
+      operationId: deleteWorker
+      tags: [workers]
+      summary: Deactivate worker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /workers/{id}/ledger:
+    get:
+      operationId: getWorkerLedger
+      tags: [workers]
+      summary: Get worker ledger (attendance + payments + balance)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ledger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerLedger"
+
+  /worker-attendance:
+    get:
+      operationId: listWorkerAttendance
+      tags: [workers]
+      summary: List attendance for a given date
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Attendance rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkerAttendance"
+    post:
+      operationId: upsertWorkerAttendance
+      tags: [workers]
+      summary: Mark / update attendance for a worker on a date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkerAttendanceInput"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerAttendance"
+
+  /worker-payments:
+    post:
+      operationId: createWorkerPayment
+      tags: [workers]
+      summary: Record a payment made to a worker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkerPaymentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerPayment"
+
+  # EXPENSES
+  /expense-categories:
+    get:
+      operationId: listExpenseCategories
+      tags: [expenses]
+      summary: List expense categories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExpenseCategory"
+    post:
+      operationId: createExpenseCategory
+      tags: [expenses]
+      summary: Create expense category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseCategoryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseCategory"
+
+  /expense-categories/{id}:
+    delete:
+      operationId: deleteExpenseCategory
+      tags: [expenses]
+      summary: Deactivate expense category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /expenses:
+    get:
+      operationId: listExpenses
+      tags: [expenses]
+      summary: List expenses
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Expenses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseList"
+    post:
+      operationId: createExpense
+      tags: [expenses]
+      summary: Record an expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+
+  /expenses/{id}:
+    delete:
+      operationId: deleteExpense
+      tags: [expenses]
+      summary: Delete an expense
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -2568,3 +2826,246 @@ components:
           items:
             $ref: "#/components/schemas/InvoiceSummary"
 
+
+    Worker:
+      type: object
+      required: [id, name, dailyWage, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: ["string", "null"]
+        skill:
+          type: ["string", "null"]
+        dailyWage:
+          type: number
+        joinedAt:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    WorkerInput:
+      type: object
+      required: [name, dailyWage]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        skill:
+          type: string
+        dailyWage:
+          type: number
+        joinedAt:
+          type: string
+        isActive:
+          type: boolean
+        notes:
+          type: string
+
+    WorkerAttendance:
+      type: object
+      required: [id, workerId, date, status, wageAmount, createdAt]
+      properties:
+        id:
+          type: integer
+        workerId:
+          type: integer
+        workerName:
+          type: ["string", "null"]
+        date:
+          type: string
+        status:
+          type: string
+          enum: [present, absent, half_day]
+        wageAmount:
+          type: number
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    WorkerAttendanceInput:
+      type: object
+      required: [workerId, date, status]
+      properties:
+        workerId:
+          type: integer
+        date:
+          type: string
+        status:
+          type: string
+          enum: [present, absent, half_day]
+        notes:
+          type: string
+
+    WorkerPayment:
+      type: object
+      required: [id, workerId, amount, paidOn, paymentMode, createdAt]
+      properties:
+        id:
+          type: integer
+        workerId:
+          type: integer
+        amount:
+          type: number
+        paidOn:
+          type: string
+        paymentMode:
+          type: string
+          enum: [cash, upi, bank]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    WorkerPaymentInput:
+      type: object
+      required: [workerId, amount, paidOn, paymentMode]
+      properties:
+        workerId:
+          type: integer
+        amount:
+          type: number
+        paidOn:
+          type: string
+        paymentMode:
+          type: string
+          enum: [cash, upi, bank]
+        notes:
+          type: string
+
+    WorkerLedgerEntry:
+      type: object
+      required: [date, kind, amount, balance]
+      properties:
+        date:
+          type: string
+        kind:
+          type: string
+          enum: [attendance, payment]
+        status:
+          type: ["string", "null"]
+        amount:
+          type: number
+        balance:
+          type: number
+        notes:
+          type: ["string", "null"]
+
+    WorkerLedger:
+      type: object
+      required: [workerId, workerName, totalEarned, totalPaid, balance, entries]
+      properties:
+        workerId:
+          type: integer
+        workerName:
+          type: string
+        totalEarned:
+          type: number
+        totalPaid:
+          type: number
+        balance:
+          type: number
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkerLedgerEntry"
+
+    ExpenseCategory:
+      type: object
+      required: [id, name, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    ExpenseCategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    Expense:
+      type: object
+      required: [id, date, categoryName, amount, paymentMode, createdAt]
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+        categoryId:
+          type: ["integer", "null"]
+        categoryName:
+          type: string
+        amount:
+          type: number
+        paymentMode:
+          type: string
+          enum: [cash, upi, bank]
+        paidTo:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdByUserId:
+          type: ["integer", "null"]
+        createdByUserName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ExpenseInput:
+      type: object
+      required: [date, categoryId, amount, paymentMode]
+      properties:
+        date:
+          type: string
+        categoryId:
+          type: integer
+        amount:
+          type: number
+        paymentMode:
+          type: string
+          enum: [cash, upi, bank]
+        paidTo:
+          type: string
+        notes:
+          type: string
+
+    ExpenseSummaryRow:
+      type: object
+      required: [categoryName, total]
+      properties:
+        categoryId:
+          type: ["integer", "null"]
+        categoryName:
+          type: string
+        total:
+          type: number
+
+    ExpenseList:
+      type: object
+      required: [items, total, byCategory]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Expense"
+        total:
+          type: number
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseSummaryRow"

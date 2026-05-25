@@ -1073,6 +1073,205 @@ export interface SearchResults {
   invoices: InvoiceSummary[];
 }
 
+export interface Worker {
+  id: number;
+  name: string;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  skill?: string | null;
+  dailyWage: number;
+  /** @nullable */
+  joinedAt?: string | null;
+  isActive: boolean;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface WorkerInput {
+  name: string;
+  phone?: string;
+  skill?: string;
+  dailyWage: number;
+  joinedAt?: string;
+  isActive?: boolean;
+  notes?: string;
+}
+
+export type WorkerAttendanceStatus = typeof WorkerAttendanceStatus[keyof typeof WorkerAttendanceStatus];
+
+
+export const WorkerAttendanceStatus = {
+  present: 'present',
+  absent: 'absent',
+  half_day: 'half_day',
+} as const;
+
+export interface WorkerAttendance {
+  id: number;
+  workerId: number;
+  /** @nullable */
+  workerName?: string | null;
+  date: string;
+  status: WorkerAttendanceStatus;
+  wageAmount: number;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type WorkerAttendanceInputStatus = typeof WorkerAttendanceInputStatus[keyof typeof WorkerAttendanceInputStatus];
+
+
+export const WorkerAttendanceInputStatus = {
+  present: 'present',
+  absent: 'absent',
+  half_day: 'half_day',
+} as const;
+
+export interface WorkerAttendanceInput {
+  workerId: number;
+  date: string;
+  status: WorkerAttendanceInputStatus;
+  notes?: string;
+}
+
+export type WorkerPaymentPaymentMode = typeof WorkerPaymentPaymentMode[keyof typeof WorkerPaymentPaymentMode];
+
+
+export const WorkerPaymentPaymentMode = {
+  cash: 'cash',
+  upi: 'upi',
+  bank: 'bank',
+} as const;
+
+export interface WorkerPayment {
+  id: number;
+  workerId: number;
+  amount: number;
+  paidOn: string;
+  paymentMode: WorkerPaymentPaymentMode;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type WorkerPaymentInputPaymentMode = typeof WorkerPaymentInputPaymentMode[keyof typeof WorkerPaymentInputPaymentMode];
+
+
+export const WorkerPaymentInputPaymentMode = {
+  cash: 'cash',
+  upi: 'upi',
+  bank: 'bank',
+} as const;
+
+export interface WorkerPaymentInput {
+  workerId: number;
+  amount: number;
+  paidOn: string;
+  paymentMode: WorkerPaymentInputPaymentMode;
+  notes?: string;
+}
+
+export type WorkerLedgerEntryKind = typeof WorkerLedgerEntryKind[keyof typeof WorkerLedgerEntryKind];
+
+
+export const WorkerLedgerEntryKind = {
+  attendance: 'attendance',
+  payment: 'payment',
+} as const;
+
+export interface WorkerLedgerEntry {
+  date: string;
+  kind: WorkerLedgerEntryKind;
+  /** @nullable */
+  status?: string | null;
+  amount: number;
+  balance: number;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface WorkerLedger {
+  workerId: number;
+  workerName: string;
+  totalEarned: number;
+  totalPaid: number;
+  balance: number;
+  entries: WorkerLedgerEntry[];
+}
+
+export interface ExpenseCategory {
+  id: number;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface ExpenseCategoryInput {
+  name: string;
+}
+
+export type ExpensePaymentMode = typeof ExpensePaymentMode[keyof typeof ExpensePaymentMode];
+
+
+export const ExpensePaymentMode = {
+  cash: 'cash',
+  upi: 'upi',
+  bank: 'bank',
+} as const;
+
+export interface Expense {
+  id: number;
+  date: string;
+  /** @nullable */
+  categoryId?: number | null;
+  categoryName: string;
+  amount: number;
+  paymentMode: ExpensePaymentMode;
+  /** @nullable */
+  paidTo?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  createdByUserId?: number | null;
+  /** @nullable */
+  createdByUserName?: string | null;
+  createdAt: string;
+}
+
+export type ExpenseInputPaymentMode = typeof ExpenseInputPaymentMode[keyof typeof ExpenseInputPaymentMode];
+
+
+export const ExpenseInputPaymentMode = {
+  cash: 'cash',
+  upi: 'upi',
+  bank: 'bank',
+} as const;
+
+export interface ExpenseInput {
+  date: string;
+  categoryId: number;
+  amount: number;
+  paymentMode: ExpenseInputPaymentMode;
+  paidTo?: string;
+  notes?: string;
+}
+
+export interface ExpenseSummaryRow {
+  /** @nullable */
+  categoryId?: number | null;
+  categoryName: string;
+  total: number;
+}
+
+export interface ExpenseList {
+  items: Expense[];
+  total: number;
+  byCategory: ExpenseSummaryRow[];
+}
+
 export type ListProductsParams = {
 search?: string;
 group?: string;
@@ -1201,5 +1400,19 @@ to?: string;
 
 export type GlobalSearchParams = {
 q: string;
+};
+
+export type ListWorkersParams = {
+includeInactive?: boolean;
+};
+
+export type ListWorkerAttendanceParams = {
+date: string;
+};
+
+export type ListExpensesParams = {
+from?: string;
+to?: string;
+categoryId?: number;
 };
 

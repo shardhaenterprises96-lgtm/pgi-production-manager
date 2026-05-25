@@ -1606,3 +1606,235 @@ export const GlobalSearchResponse = zod.object({
 })
 
 
+/**
+ * @summary List workers
+ */
+export const ListWorkersQueryParams = zod.object({
+  "includeInactive": zod.coerce.boolean().optional()
+})
+
+export const ListWorkersResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "phone": zod.string().nullish(),
+  "skill": zod.string().nullish(),
+  "dailyWage": zod.number(),
+  "joinedAt": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListWorkersResponse = zod.array(ListWorkersResponseItem)
+
+
+/**
+ * @summary Create worker
+ */
+export const CreateWorkerBody = zod.object({
+  "name": zod.string(),
+  "phone": zod.string().optional(),
+  "skill": zod.string().optional(),
+  "dailyWage": zod.number(),
+  "joinedAt": zod.string().optional(),
+  "isActive": zod.boolean().optional(),
+  "notes": zod.string().optional()
+})
+
+
+/**
+ * @summary Update worker
+ */
+export const UpdateWorkerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateWorkerBody = zod.object({
+  "name": zod.string(),
+  "phone": zod.string().optional(),
+  "skill": zod.string().optional(),
+  "dailyWage": zod.number(),
+  "joinedAt": zod.string().optional(),
+  "isActive": zod.boolean().optional(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateWorkerResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "phone": zod.string().nullish(),
+  "skill": zod.string().nullish(),
+  "dailyWage": zod.number(),
+  "joinedAt": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Deactivate worker
+ */
+export const DeleteWorkerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Get worker ledger (attendance + payments + balance)
+ */
+export const GetWorkerLedgerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetWorkerLedgerResponse = zod.object({
+  "workerId": zod.number(),
+  "workerName": zod.string(),
+  "totalEarned": zod.number(),
+  "totalPaid": zod.number(),
+  "balance": zod.number(),
+  "entries": zod.array(zod.object({
+  "date": zod.string(),
+  "kind": zod.enum(['attendance', 'payment']),
+  "status": zod.string().nullish(),
+  "amount": zod.number(),
+  "balance": zod.number(),
+  "notes": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary List attendance for a given date
+ */
+export const ListWorkerAttendanceQueryParams = zod.object({
+  "date": zod.coerce.string()
+})
+
+export const ListWorkerAttendanceResponseItem = zod.object({
+  "id": zod.number(),
+  "workerId": zod.number(),
+  "workerName": zod.string().nullish(),
+  "date": zod.string(),
+  "status": zod.enum(['present', 'absent', 'half_day']),
+  "wageAmount": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListWorkerAttendanceResponse = zod.array(ListWorkerAttendanceResponseItem)
+
+
+/**
+ * @summary Mark / update attendance for a worker on a date
+ */
+export const UpsertWorkerAttendanceBody = zod.object({
+  "workerId": zod.number(),
+  "date": zod.string(),
+  "status": zod.enum(['present', 'absent', 'half_day']),
+  "notes": zod.string().optional()
+})
+
+export const UpsertWorkerAttendanceResponse = zod.object({
+  "id": zod.number(),
+  "workerId": zod.number(),
+  "workerName": zod.string().nullish(),
+  "date": zod.string(),
+  "status": zod.enum(['present', 'absent', 'half_day']),
+  "wageAmount": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Record a payment made to a worker
+ */
+export const CreateWorkerPaymentBody = zod.object({
+  "workerId": zod.number(),
+  "amount": zod.number(),
+  "paidOn": zod.string(),
+  "paymentMode": zod.enum(['cash', 'upi', 'bank']),
+  "notes": zod.string().optional()
+})
+
+
+/**
+ * @summary List expense categories
+ */
+export const ListExpenseCategoriesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListExpenseCategoriesResponse = zod.array(ListExpenseCategoriesResponseItem)
+
+
+/**
+ * @summary Create expense category
+ */
+export const CreateExpenseCategoryBody = zod.object({
+  "name": zod.string()
+})
+
+
+/**
+ * @summary Deactivate expense category
+ */
+export const DeleteExpenseCategoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List expenses
+ */
+export const ListExpensesQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "categoryId": zod.coerce.number().optional()
+})
+
+export const ListExpensesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "date": zod.string(),
+  "categoryId": zod.number().nullish(),
+  "categoryName": zod.string(),
+  "amount": zod.number(),
+  "paymentMode": zod.enum(['cash', 'upi', 'bank']),
+  "paidTo": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdByUserId": zod.number().nullish(),
+  "createdByUserName": zod.string().nullish(),
+  "createdAt": zod.string()
+})),
+  "total": zod.number(),
+  "byCategory": zod.array(zod.object({
+  "categoryId": zod.number().nullish(),
+  "categoryName": zod.string(),
+  "total": zod.number()
+}))
+})
+
+
+/**
+ * @summary Record an expense
+ */
+export const CreateExpenseBody = zod.object({
+  "date": zod.string(),
+  "categoryId": zod.number(),
+  "amount": zod.number(),
+  "paymentMode": zod.enum(['cash', 'upi', 'bank']),
+  "paidTo": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+
+/**
+ * @summary Delete an expense
+ */
+export const DeleteExpenseParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
