@@ -53,7 +53,19 @@ type BillingItem = {
   discountPct: number;
   discountAmt: number;
   amount: number;
+  litersPerBox: number; // 0 when not applicable; used to derive line LTR
 };
+
+// Per-line liters. Prefer explicit litersPerBox multiplier, else if unit is
+// already litres treat qty as liters directly.
+function lineLiters(i: { qty: number; unit: string; litersPerBox: number }): number {
+  if (i.litersPerBox && i.litersPerBox > 0) return i.qty * i.litersPerBox;
+  const u = String(i.unit ?? "").toLowerCase();
+  if (u === "ltr" || u === "l" || u === "liter" || u === "litre" || u === "liters" || u === "litres") {
+    return i.qty;
+  }
+  return 0;
+}
 
 function parseSearch(search: string) {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
@@ -113,18 +125,23 @@ export default function Billing() {
       });
     }
     setItems(
-      (existingInvoice.items ?? []).map((it: any) => ({
-        productId: it.productId,
-        name: it.productName,
-        unit: it.unit,
-        qty: Number(it.qty),
-        rate: Number(it.rate),
-        mrp: Number(it.mrp),
-        taxPct: Number(it.taxPct),
-        discountPct: Number(it.discountPct),
-        discountAmt: Number(it.discountAmt),
-        amount: Number(it.amount),
-      })),
+      (existingInvoice.items ?? []).map((it: any) => {
+        // Re-derive litersPerBox from products catalog so the LTR column stays in sync.
+        const prod = (products ?? []).find((x: any) => x.id === it.productId);
+        return {
+          productId: it.productId,
+          name: it.productName,
+          unit: it.unit,
+          qty: Number(it.qty),
+          rate: Number(it.rate),
+          mrp: Number(it.mrp),
+          taxPct: Number(it.taxPct),
+          discountPct: Number(it.discountPct),
+          discountAmt: Number(it.discountAmt),
+          amount: Number(it.amount),
+          litersPerBox: Number(prod?.litersPerBox ?? 0) || 0,
+        };
+      }),
     );
     setPrefilled(true);
   }, [isEditMode, existingInvoice, prefilled]);
@@ -152,6 +169,7 @@ export default function Billing() {
             discountPct: 0,
             discountAmt: 0,
             amount: Math.round(amount * 100) / 100,
+            litersPerBox: Number((p as any).litersPerBox ?? 0) || 0,
           } as BillingItem;
         })
         .filter(Boolean) as BillingItem[];
@@ -783,6 +801,7 @@ export default function Billing() {
                     <TableRow className="text-xs">
                       <TableHead className="w-[220px]">Product</TableHead>
                       <TableHead className="w-16 text-right">Qty</TableHead>
+                      <TableHead className="w-16 text-right">LTR</TableHead>
                       <TableHead className="w-24 text-right">Rate (₹)</TableHead>
                       {invoiceType === "gst" && <TableHead className="w-16 text-right">Tax%</TableHead>}
                       <TableHead className="w-20 text-right">Disc%</TableHead>
@@ -793,7 +812,7 @@ export default function Billing() {
                   <TableBody>
                     {items.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm">
                           No items — go back to catalog to add products
                         </TableCell>
                       </TableRow>
@@ -813,6 +832,12 @@ export default function Billing() {
                               className="w-16 text-right h-7 text-sm"
                               data-testid={`input-qty-${idx}`}
                             />
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm" data-testid={`cell-ltr-${idx}`}>
+                            {(() => {
+                              const ltr = lineLiters(item);
+                              return ltr > 0 ? ltr.toLocaleString(undefined, { maximumFractionDigits: 3 }) : "—";
+                            })()}
                           </TableCell>
                           <TableCell className="text-right">
                             <Input
@@ -881,6 +906,18 @@ export default function Billing() {
               <CardTitle className="text-base">Invoice Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
+              {(() => {
+                const totalLtr = items.reduce((s, i) => s + lineLiters(i), 0);
+                const totalQty = items.reduce((s, i) => s + (Number(i.qty) || 0), 0);
+                return (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Total Qty / Ltr</span>
+                    <span className="tabular-nums">
+                      {totalQty.toLocaleString()} / {totalLtr > 0 ? totalLtr.toLocaleString(undefined, { maximumFractionDigits: 3 }) : "—"}
+                    </span>
+                  </div>
+                );
+              })()}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>₹{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
