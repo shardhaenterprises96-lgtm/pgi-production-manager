@@ -219,8 +219,6 @@ export default function InvoiceDetail() {
               <th className="border-r border-black px-2 py-1 text-left w-10">SNo</th>
               <th className="border-r border-black px-2 py-1 text-left">PARTICULARS</th>
               {isGst && <th className="border-r border-black px-2 py-1 text-left w-20">HSN</th>}
-              <th className="border-r border-black px-2 py-1 text-left w-24">BATCH NO.</th>
-              <th className="border-r border-black px-2 py-1 text-left w-20">EXPIRY</th>
               <th className="border-r border-black px-2 py-1 text-right w-14">QTY</th>
               <th className="border-r border-black px-2 py-1 text-left w-12">Unit</th>
               <th className="border-r border-black px-2 py-1 text-right w-16">LTR</th>
@@ -233,7 +231,7 @@ export default function InvoiceDetail() {
           </thead>
           <tbody>
             <tr>
-              <td colSpan={isGst ? (hasAnyDisc ? 13 : 12) : (hasAnyDisc ? 12 : 11)} className="px-2 py-0.5 font-semibold">
+              <td colSpan={isGst ? (hasAnyDisc ? 11 : 10) : (hasAnyDisc ? 10 : 9)} className="px-2 py-0.5 font-semibold">
                 PRODUCT:-
               </td>
             </tr>
@@ -249,8 +247,6 @@ export default function InvoiceDetail() {
                   <td className="border-r border-black px-2 py-1 align-top">{idx + 1}</td>
                   <td className="border-r border-black px-2 py-1 align-top font-semibold">{item.productName}</td>
                   {isGst && <td className="border-r border-black px-2 py-1 align-top font-mono">{item.hsnCode ?? ""}</td>}
-                  <td className="border-r border-black px-2 py-1 align-top"></td>
-                  <td className="border-r border-black px-2 py-1 align-top"></td>
                   <td className="border-r border-black px-2 py-1 text-right align-top">{num(item.qty, 0)}</td>
                   <td className="border-r border-black px-2 py-1 align-top uppercase">{item.unit}</td>
                   <td className="border-r border-black px-2 py-1 text-right align-top">{ltr > 0 ? num(ltr, 3) : ""}</td>
@@ -272,8 +268,6 @@ export default function InvoiceDetail() {
                 <td className="border-r border-black px-2 py-3">&nbsp;</td>
                 <td className="border-r border-black px-2 py-3"></td>
                 {isGst && <td className="border-r border-black px-2 py-3"></td>}
-                <td className="border-r border-black px-2 py-3"></td>
-                <td className="border-r border-black px-2 py-3"></td>
                 <td className="border-r border-black px-2 py-3"></td>
                 <td className="border-r border-black px-2 py-3"></td>
                 <td className="border-r border-black px-2 py-3"></td>
