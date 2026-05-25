@@ -19,7 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Pencil, Trash2, Loader2, UserCircle2 } from "lucide-react";
+import { Pencil, Trash2, Loader2, UserCircle2, Eye } from "lucide-react";
 
 export default function Invoices() {
   const { user } = useAuth();
@@ -33,10 +33,12 @@ export default function Invoices() {
   const isSalesman = user?.role === "salesman";
   const isAdmin = user?.role === "admin";
 
+  // Salesman scoping is enforced server-side from their session entity — no need
+  // (and incorrect) to send user.id here, which is the user-account id, not the
+  // entity id referenced by invoices.salesman_id.
   const { data: invoices, isLoading } = useListInvoices({
     search: search || undefined,
     type: type !== "all" ? (type as any) : undefined,
-    salesmanId: isSalesman ? user?.id : undefined,
   });
 
   const deleteInvoice = useDeleteInvoice();
@@ -104,17 +106,17 @@ export default function Invoices() {
                 {isAdmin && <TableHead>Created By</TableHead>}
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Status</TableHead>
-                {isAdmin && <TableHead className="text-right w-32">Actions</TableHead>}
+                <TableHead className="text-right w-32">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8">Loading...</TableCell>
+                  <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">Loading...</TableCell>
                 </TableRow>
               ) : invoices?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8">No invoices found.</TableCell>
+                  <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">No invoices found.</TableCell>
                 </TableRow>
               ) : (
                 invoices?.map((invoice) => {
@@ -151,41 +153,54 @@ export default function Invoices() {
                         {invoice.status}
                       </Badge>
                     </TableCell>
-                    {isAdmin && (
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            disabled={invoice.status === "cancelled"}
-                            onClick={() => setLocation(`/billing?edit=${invoice.id}`)}
-                            data-testid={`button-edit-invoice-${invoice.id}`}
-                            aria-label="Edit invoice"
-                            title="Edit invoice — opens full editor"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            disabled={invoice.status === "cancelled"}
-                            onClick={() =>
-                              setDeleting({
-                                id: invoice.id,
-                                invoiceNo: invoice.invoiceNo,
-                                invoiceType: invoice.invoiceType,
-                              })
-                            }
-                            data-testid={`button-delete-invoice-${invoice.id}`}
-                            aria-label="Cancel invoice"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setLocation(`/invoices/${invoice.id}`)}
+                          data-testid={`button-view-invoice-${invoice.id}`}
+                          aria-label="View invoice"
+                          title="View invoice"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              disabled={invoice.status === "cancelled"}
+                              onClick={() => setLocation(`/billing?edit=${invoice.id}`)}
+                              data-testid={`button-edit-invoice-${invoice.id}`}
+                              aria-label="Edit invoice"
+                              title="Edit invoice — opens full editor"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              disabled={invoice.status === "cancelled"}
+                              onClick={() =>
+                                setDeleting({
+                                  id: invoice.id,
+                                  invoiceNo: invoice.invoiceNo,
+                                  invoiceType: invoice.invoiceType,
+                                })
+                              }
+                              data-testid={`button-delete-invoice-${invoice.id}`}
+                              aria-label="Cancel invoice"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                   );
                 })

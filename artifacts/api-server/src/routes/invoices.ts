@@ -53,9 +53,23 @@ router.get("/invoices", async (req, res): Promise<void> => {
     return;
   }
 
+  const session = (req as any).session;
   const conditions: any[] = [];
   if (params.data.customerId) conditions.push(eq(invoicesTable.customerId, params.data.customerId));
-  if (params.data.salesmanId) conditions.push(eq(invoicesTable.salesmanId, params.data.salesmanId));
+
+  // Server-side scoping: a salesman can only ever see invoices linked to their own
+  // entity, regardless of what the client puts in the salesmanId query param. This
+  // also auto-filters the Invoices page when a salesman opens it with no filters.
+  if (session?.role === "salesman") {
+    if (!session.entityId) {
+      // Salesman user with no linked entity — return empty list rather than leaking everything.
+      res.json([]);
+      return;
+    }
+    conditions.push(eq(invoicesTable.salesmanId, session.entityId));
+  } else if (params.data.salesmanId) {
+    conditions.push(eq(invoicesTable.salesmanId, params.data.salesmanId));
+  }
   if (params.data.type) conditions.push(eq(invoicesTable.invoiceType, params.data.type));
   if (params.data.search) {
     conditions.push(
@@ -186,7 +200,11 @@ router.post("/invoices", async (req, res): Promise<void> => {
         data.billingAddress ?? null,
         data.shippingAddress ?? null,
         data.placeOfSupply,
-        data.salesmanId ?? (session?.role === "salesman" ? session.entityId : null) ?? null,
+        // Salesmen cannot spoof attribution — always stamp their own entity. Other
+        // roles (admin/accountant) may pass an explicit salesmanId.
+        session?.role === "salesman"
+          ? (session.entityId ?? null)
+          : (data.salesmanId ?? null),
         salesmanName,
         data.poNumber ?? null,
         data.eWayBillNo ?? null,
@@ -293,6 +311,18 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
   if (!inv) {
     res.status(404).json({ error: "Invoice not found" });
     return;
+  }
+
+  // Salesman scoping (defence against IDOR): a salesman may only read invoices
+  // attributed to their own entity. Return 404 (not 403) so existence isn't leaked.
+  // A salesman with no linked entity must never see any invoice — otherwise they
+  // could read unattributed (admin/counter) invoices where salesman_id IS NULL.
+  const session = (req as any).session;
+  if (session?.role === "salesman") {
+    if (!session.entityId || inv.salesmanId !== session.entityId) {
+      res.status(404).json({ error: "Invoice not found" });
+      return;
+    }
   }
 
   const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, params.data.id));

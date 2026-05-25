@@ -11,6 +11,7 @@ import Dashboard from "@/pages/dashboard";
 import Catalog from "@/pages/catalog";
 import Billing from "@/pages/billing";
 import Invoices from "@/pages/invoices";
+import InvoiceDetail from "@/pages/invoice-detail";
 import Inventory from "@/pages/inventory";
 import Customers from "@/pages/customers";
 import CustomerProfile from "@/pages/customer-profile";
@@ -33,6 +34,7 @@ function ProtectedRoutes() {
         <Route path="/catalog" component={Catalog} />
         <Route path="/billing" component={Billing} />
         <Route path="/invoices" component={Invoices} />
+        <Route path="/invoices/:id" component={InvoiceDetail} />
         <Route path="/inventory" component={Inventory} />
         <Route path="/customers" component={Customers} />
         <Route path="/customers/:id" component={CustomerProfile} />

@@ -37,8 +37,14 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  // Store session
-  (req as any).session = { userId: user.id, username: user.username, role: user.role, name: user.name };
+  // Store session — entityId is critical for salesman attribution & ledger scoping
+  (req as any).session = {
+    userId: user.id,
+    username: user.username,
+    role: user.role,
+    name: user.name,
+    entityId: user.entityId ?? null,
+  };
 
   res.json({
     id: user.id,
