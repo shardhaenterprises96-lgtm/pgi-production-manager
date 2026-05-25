@@ -850,6 +850,7 @@ export const WorkloadCardOrderType = {
   low_stock_alert: 'low_stock_alert',
   manual_order: 'manual_order',
   customer_backorder: 'customer_backorder',
+  production: 'production',
 } as const;
 
 export interface WorkloadCard {
@@ -875,6 +876,16 @@ export interface WorkloadCard {
   createdAt: string;
 }
 
+export interface AssembleItemInput {
+  /** BOM (recipe) to execute */
+  bomId: number;
+  /**
+     * Number of recipe batches to assemble (must be > 0)
+     * @minimum 0.001
+     */
+  batches: number;
+}
+
 export type WorkloadCardInputOrderType = typeof WorkloadCardInputOrderType[keyof typeof WorkloadCardInputOrderType];
 
 
@@ -882,6 +893,7 @@ export const WorkloadCardInputOrderType = {
   low_stock_alert: 'low_stock_alert',
   manual_order: 'manual_order',
   customer_backorder: 'customer_backorder',
+  production: 'production',
 } as const;
 
 export interface WorkloadCardInput {
@@ -1059,6 +1071,19 @@ export const ListWorkloadCardsStatus = {
   processing: 'processing',
   done: 'done',
 } as const;
+
+export type AssembleItem409ShortagesItem = {
+  materialProductId?: number;
+  materialProductName?: string;
+  required?: number;
+  available?: number;
+  unit?: string;
+};
+
+export type AssembleItem409 = {
+  error?: string;
+  shortages?: AssembleItem409ShortagesItem[];
+};
 
 export type GetLedgerReportParams = {
 entityId?: number;

@@ -13,4 +13,5 @@ export const WorkloadCardInputOrderType = {
   low_stock_alert: 'low_stock_alert',
   manual_order: 'manual_order',
   customer_backorder: 'customer_backorder',
+  production: 'production',
 } as const;

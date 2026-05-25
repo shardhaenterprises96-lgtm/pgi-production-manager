@@ -1049,6 +1049,50 @@ paths:
               schema:
                 $ref: "#/components/schemas/WorkloadCard"
 
+  /manufacturing/assemble:
+    post:
+      operationId: assembleItem
+      tags: [manufacturing]
+      summary: Atomically assemble a finished product from a BOM
+      description: >
+        Runs a BOM recipe in a single SERIALIZABLE transaction: creates a
+        completed workload card, debits all required raw materials, credits the
+        finished product stock, and writes stock movements. All-or-nothing —
+        if any step fails (e.g. insufficient raw material) nothing is committed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssembleItemInput"
+      responses:
+        "201":
+          description: Assembly committed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkloadCard"
+        "400":
+          description: Invalid request (bad BOM, non-positive batches, etc.)
+        "409":
+          description: Insufficient raw material to assemble
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  shortages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        materialProductId: { type: integer }
+                        materialProductName: { type: string }
+                        required: { type: number }
+                        available: { type: number }
+                        unit: { type: string }
+
   /workload/{id}:
     patch:
       operationId: updateWorkloadCard
@@ -2223,7 +2267,7 @@ components:
           type: ["string", "null"]
         orderType:
           type: string
-          enum: [low_stock_alert, manual_order, customer_backorder]
+          enum: [low_stock_alert, manual_order, customer_backorder, production]
         referenceOrderId:
           type: ["integer", "null"]
         startedAt:
@@ -2232,6 +2276,18 @@ components:
           type: ["string", "null"]
         createdAt:
           type: string
+
+    AssembleItemInput:
+      type: object
+      required: [bomId, batches]
+      properties:
+        bomId:
+          type: integer
+          description: BOM (recipe) to execute
+        batches:
+          type: number
+          description: Number of recipe batches to assemble (must be > 0)
+          minimum: 0.001
 
     WorkloadCardInput:
       type: object
@@ -2243,7 +2299,7 @@ components:
           type: number
         orderType:
           type: string
-          enum: [low_stock_alert, manual_order, customer_backorder]
+          enum: [low_stock_alert, manual_order, customer_backorder, production]
         workerId:
           type: integer
         referenceOrderId:

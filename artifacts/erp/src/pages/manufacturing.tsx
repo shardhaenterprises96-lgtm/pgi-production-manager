@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   useListBoms,
   useListWorkloadCards,
   useCreateBom,
+  useAssembleItem,
   useListProducts,
   getListBomsQueryKey,
+  getListWorkloadCardsQueryKey,
+  getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -21,132 +24,371 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Clock, PlayCircle, CheckCircle2, Factory, Plus, Trash2, Loader2,
+  Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2,
 } from "lucide-react";
 
 export default function Manufacturing() {
-  const { data: boms, isLoading: bomsLoading } = useListBoms();
-  const { data: workloads } = useListWorkloadCards();
-  const [bomDialogOpen, setBomDialogOpen] = useState(false);
-
-  const pendingCards = workloads?.filter(c => c.status === "pending") || [];
-  const processingCards = workloads?.filter(c => c.status === "processing") || [];
-  const doneCards = workloads?.filter(c => c.status === "done") || [];
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Manufacturing Station</h1>
-          <p className="text-muted-foreground mt-2">Manage BOMs (recipes) and production pipeline.</p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Manufacturing</h1>
+        <p className="text-muted-foreground mt-2">
+          Define recipes and assemble finished products from raw materials.
+        </p>
       </div>
 
-      <Tabs defaultValue="pipeline" className="w-full">
+      <Tabs defaultValue="bom" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="pipeline">Production Pipeline</TabsTrigger>
-          <TabsTrigger value="boms">BOM Master (Recipes)</TabsTrigger>
+          <TabsTrigger value="bom" data-testid="tab-bom">Bill of Material</TabsTrigger>
+          <TabsTrigger value="assemble" data-testid="tab-assemble">Assemble Item</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pipeline" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <PipelineColumn title="Pending" icon={<Clock className="h-4 w-4 text-amber-500" />} cards={pendingCards} empty="No pending tasks" />
-            <PipelineColumn title="Processing" icon={<PlayCircle className="h-4 w-4 text-blue-500" />} cards={processingCards} empty="No active processing" />
-            <PipelineColumn title="Done" icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} cards={doneCards} empty="No completed tasks" />
-          </div>
+        <TabsContent value="bom" className="mt-6">
+          <BomTab />
         </TabsContent>
 
-        <TabsContent value="boms" className="mt-6 space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setBomDialogOpen(true)} data-testid="button-create-bom">
-              <Plus className="w-4 h-4 mr-2" /> Create BOM (Recipe)
-            </Button>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {bomsLoading ? (
-              <div className="col-span-3 text-center py-12 text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-              </div>
-            ) : !boms || boms.length === 0 ? (
-              <div className="col-span-3 text-center py-12 border border-dashed rounded-lg">
-                <Factory className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
-                <h3 className="text-lg font-medium">No BOMs found</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Create a Bill of Materials to define what raw materials go into each finished product.
-                </p>
-                <Button onClick={() => setBomDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" /> Create First BOM
-                </Button>
-              </div>
-            ) : (
-              boms.map((bom: any) => (
-                <Card key={bom.id}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg line-clamp-1">{bom.finishedProductName}</CardTitle>
-                    <div className="text-sm text-muted-foreground">Output: {bom.outputQuantity} units per batch</div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xs font-semibold mb-2 uppercase text-muted-foreground">Materials Required</div>
-                    <ul className="space-y-2 text-sm">
-                      {bom.items.slice(0, 5).map((item: any) => (
-                        <li key={item.id} className="flex justify-between border-b border-border/50 pb-1 last:border-0">
-                          <span className="line-clamp-1">{item.materialProductName}</span>
-                          <span className="font-medium ml-4 shrink-0 tabular-nums">{item.quantity} {item.unit}</span>
-                        </li>
-                      ))}
-                      {bom.items.length > 5 && (
-                        <li className="text-xs text-center text-muted-foreground pt-1">+{bom.items.length - 5} more items</li>
-                      )}
-                    </ul>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+        <TabsContent value="assemble" className="mt-6">
+          <AssembleTab />
         </TabsContent>
       </Tabs>
-
-      <CreateBomDialog open={bomDialogOpen} onOpenChange={setBomDialogOpen} />
     </div>
   );
 }
 
-function PipelineColumn({ title, icon, cards, empty }: { title: string; icon: React.ReactNode; cards: any[]; empty: string }) {
+// ----------------------------- BOM TAB -----------------------------
+
+function BomTab() {
+  const { data: boms, isLoading } = useListBoms();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between border-b pb-2">
-        <h3 className="font-semibold flex items-center gap-2">{icon} {title}</h3>
-        <Badge variant="secondary">{cards.length}</Badge>
+      <div className="flex justify-end">
+        <Button onClick={() => setDialogOpen(true)} data-testid="button-create-bom">
+          <Plus className="w-4 h-4 mr-2" /> Create BOM
+        </Button>
       </div>
-      <div className="space-y-3">
-        {cards.map(card => <WorkloadCardUI key={card.id} card={card} />)}
-        {cards.length === 0 && <div className="text-sm text-muted-foreground text-center py-4">{empty}</div>}
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {isLoading ? (
+          <div className="col-span-full text-center py-12 text-muted-foreground">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+          </div>
+        ) : !boms || boms.length === 0 ? (
+          <div className="col-span-full text-center py-12 border border-dashed rounded-lg">
+            <Factory className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
+            <h3 className="text-lg font-medium">No BOMs found</h3>
+            <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+              A Bill of Material defines which raw materials and quantities go into one batch of a finished product.
+            </p>
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Create First BOM
+            </Button>
+          </div>
+        ) : (
+          boms.map((bom: any) => (
+            <Card key={bom.id} data-testid={`bom-card-${bom.id}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg line-clamp-1">{bom.finishedProductName}</CardTitle>
+                <div className="text-sm text-muted-foreground">
+                  Output: {bom.outputQuantity} per batch
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xs font-semibold mb-2 uppercase text-muted-foreground">
+                  Materials Required
+                </div>
+                <ul className="space-y-2 text-sm">
+                  {bom.items.slice(0, 5).map((item: any) => (
+                    <li key={item.id} className="flex justify-between border-b border-border/50 pb-1 last:border-0">
+                      <span className="line-clamp-1">{item.materialProductName}</span>
+                      <span className="font-medium ml-4 shrink-0 tabular-nums">
+                        {item.quantity} {item.unit}
+                      </span>
+                    </li>
+                  ))}
+                  {bom.items.length > 5 && (
+                    <li className="text-xs text-center text-muted-foreground pt-1">
+                      +{bom.items.length - 5} more items
+                    </li>
+                  )}
+                </ul>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
+
+      <CreateBomDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 }
 
-function WorkloadCardUI({ card }: { card: any }) {
+// --------------------------- ASSEMBLE TAB ---------------------------
+
+function AssembleTab() {
+  const { data: boms, isLoading: bomsLoading } = useListBoms();
+  const { data: products } = useListProducts({});
+  const { data: workloads } = useListWorkloadCards();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const assembleItem = useAssembleItem();
+
+  const [bomId, setBomId] = useState<string>("");
+  const [batches, setBatches] = useState<string>("1");
+  const [submitting, setSubmitting] = useState(false);
+
+  const selectedBom = useMemo(
+    () => boms?.find((b: any) => String(b.id) === bomId),
+    [boms, bomId],
+  );
+
+  const productById = useMemo(() => {
+    const m = new Map<number, any>();
+    products?.forEach((p: any) => m.set(p.id, p));
+    return m;
+  }, [products]);
+
+  const batchCount = Math.max(0, Number(batches) || 0);
+  const outputUnits = selectedBom ? batchCount * Number(selectedBom.outputQuantity) : 0;
+
+  type Requirement = {
+    materialProductId: number;
+    materialProductName: string;
+    unit: string;
+    required: number;
+    available: number;
+    sufficient: boolean;
+  };
+
+  const requirements: Requirement[] = useMemo(() => {
+    if (!selectedBom) return [];
+    return selectedBom.items.map((it: any) => {
+      const required = Number(it.quantity) * batchCount;
+      const prod = productById.get(it.materialProductId);
+      const available = Number(prod?.currentStock ?? 0);
+      return {
+        materialProductId: it.materialProductId,
+        materialProductName: it.materialProductName,
+        unit: it.unit,
+        required,
+        available,
+        sufficient: available >= required,
+      };
+    });
+  }, [selectedBom, batchCount, productById]);
+
+  const anyShortage = requirements.some(r => !r.sufficient);
+  const canAssemble =
+    !!selectedBom && batchCount > 0 && !anyShortage && !submitting;
+
+  const recentAssemblies = useMemo(() => {
+    return (workloads ?? [])
+      .filter((c: any) => c.status === "done")
+      .slice(0, 6);
+  }, [workloads]);
+
+  const handleAssemble = async () => {
+    if (!selectedBom || batchCount <= 0) return;
+    setSubmitting(true);
+    try {
+      // Single atomic call — server runs the entire recipe (debit raw,
+      // credit finished, write movements, create the done workload card) in
+      // one SERIALIZABLE transaction. No orphan state possible on failure.
+      await assembleItem.mutateAsync({
+        data: { bomId: selectedBom.id, batches: batchCount },
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getListWorkloadCardsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }),
+      ]);
+
+      toast({
+        title: "Assembly complete",
+        description: `Produced ${outputUnits} of ${selectedBom.finishedProductName}. Raw materials were debited.`,
+      });
+      setBatches("1");
+    } catch (err: any) {
+      let title = "Assembly failed";
+      let desc = err?.message ?? "Server error";
+      try {
+        const body = err?.response ? await err.response.json() : null;
+        if (body?.error) desc = String(body.error).slice(0, 300);
+        if (Array.isArray(body?.shortages) && body.shortages.length > 0) {
+          title = "Insufficient raw material";
+          desc = body.shortages
+            .map((s: any) => `${s.materialProductName}: need ${s.required} ${s.unit}, have ${s.available}`)
+            .join("; ");
+        }
+      } catch {}
+      toast({ title, description: desc, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (bomsLoading) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+      </div>
+    );
+  }
+
+  if (!boms || boms.length === 0) {
+    return (
+      <div className="text-center py-12 border border-dashed rounded-lg">
+        <Factory className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
+        <h3 className="text-lg font-medium">No BOMs available</h3>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+          To assemble items, first define a Bill of Material in the BOM tab so the system knows
+          which raw materials are consumed.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <Card className="shadow-sm border-border/60 hover:border-border transition-colors">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div className="font-mono text-[10px] text-muted-foreground">#{card.id}</div>
-          <Badge variant="outline" className="text-[10px] uppercase">{card.orderType?.replace('_', ' ')}</Badge>
-        </div>
-        <h4 className="font-semibold text-sm leading-tight mb-3 line-clamp-2">{card.productName}</h4>
-        <div className="flex justify-between items-end mt-4">
-          <div className="text-2xl font-bold text-primary">
-            {card.targetQty} <span className="text-xs font-normal text-muted-foreground">units</span>
+    <div className="grid gap-6 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PackageCheck className="w-5 h-5 text-primary" />
+            Assemble a Finished Product
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="md:col-span-2 space-y-1.5">
+              <Label>Recipe (BOM) *</Label>
+              <Select value={bomId} onValueChange={setBomId}>
+                <SelectTrigger data-testid="select-assemble-bom">
+                  <SelectValue placeholder="Choose a recipe..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {boms.map((b: any) => (
+                    <SelectItem key={b.id} value={String(b.id)}>
+                      {b.finishedProductName}
+                      <span className="text-muted-foreground text-xs ml-2">
+                        ({b.outputQuantity} / batch)
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Batches *</Label>
+              <Input
+                type="number" min="1" step="1"
+                value={batches}
+                onChange={(e) => setBatches(e.target.value)}
+                data-testid="input-assemble-batches"
+              />
+            </div>
           </div>
-          {card.status === "pending" && <Button size="sm" variant="secondary" className="h-7 text-xs">Start</Button>}
-          {card.status === "processing" && <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white">Complete</Button>}
-        </div>
-      </CardContent>
-    </Card>
+
+          {selectedBom && (
+            <>
+              <div className="rounded-lg border bg-muted/30 p-3 flex items-center justify-between">
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Will produce</span>{" "}
+                  <span className="font-semibold text-foreground" data-testid="text-output-units">
+                    {outputUnits}
+                  </span>{" "}
+                  <span className="text-muted-foreground">units of</span>{" "}
+                  <span className="font-semibold">{selectedBom.finishedProductName}</span>
+                </div>
+                <Badge variant="outline">{batchCount} × {selectedBom.outputQuantity}</Badge>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-base">Material Consumption Check</Label>
+                <div className="rounded-lg border divide-y">
+                  <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs uppercase text-muted-foreground font-medium bg-muted/50">
+                    <div className="col-span-5">Material</div>
+                    <div className="col-span-3 text-right">Required</div>
+                    <div className="col-span-3 text-right">In Stock</div>
+                    <div className="col-span-1 text-right"></div>
+                  </div>
+                  {requirements.map((r) => (
+                    <div
+                      key={r.materialProductId}
+                      className="grid grid-cols-12 gap-2 px-3 py-2.5 text-sm items-center"
+                      data-testid={`req-row-${r.materialProductId}`}
+                    >
+                      <div className="col-span-5 line-clamp-1">{r.materialProductName}</div>
+                      <div className="col-span-3 text-right tabular-nums">
+                        {r.required.toLocaleString()} {r.unit}
+                      </div>
+                      <div className={`col-span-3 text-right tabular-nums ${r.sufficient ? "" : "text-destructive font-semibold"}`}>
+                        {r.available.toLocaleString()} {r.unit}
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        {r.sufficient ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-destructive" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {anyShortage && batchCount > 0 && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Insufficient raw material for one or more inputs. Reduce batch count or restock.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={handleAssemble}
+              disabled={!canAssemble}
+              data-testid="button-assemble"
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <PackageCheck className="w-4 h-4 mr-2" />
+              Assemble Now
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Recent Assemblies</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentAssemblies.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No assemblies yet.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {recentAssemblies.map((c: any) => (
+                <li key={c.id} className="text-sm border-b border-border/50 pb-2 last:border-0 last:pb-0">
+                  <div className="font-medium line-clamp-1">{c.productName}</div>
+                  <div className="text-xs text-muted-foreground flex justify-between mt-0.5">
+                    <span>Qty {c.targetQty}</span>
+                    <span>{c.completedAt ? new Date(c.completedAt).toLocaleString() : ""}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
+
+// --------------------------- CREATE BOM DIALOG ---------------------------
 
 type MaterialRow = { materialProductId: string; quantity: string; unit: string };
 
@@ -155,9 +397,7 @@ function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const { toast } = useToast();
   const createBom = useCreateBom();
 
-  // Finished products: only those flagged for manufacturing
   const { data: finishedProducts } = useListProducts({ forManufacturing: true });
-  // Materials: all products (raw materials are typically "not for sale" / internal items)
   const { data: allProducts } = useListProducts({});
 
   const [finishedProductId, setFinishedProductId] = useState("");
@@ -178,7 +418,6 @@ function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const addItemRow = () => setItems((prev) => [...prev, { materialProductId: "", quantity: "", unit: "" }]);
   const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
 
-  // When material is picked, auto-fill its unit
   const onPickMaterial = (i: number, productId: string) => {
     const prod = allProducts?.find((p: any) => String(p.id) === productId);
     updateItem(i, { materialProductId: productId, unit: prod?.unit ?? "" });
@@ -218,7 +457,6 @@ function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
             const body = err?.response ? await err.response.json() : null;
             if (body?.error) desc = String(body.error).slice(0, 300);
           } catch {}
-          console.error("BOM create error", err);
           toast({ title: "Failed to create BOM", description: desc, variant: "destructive" });
         },
       },

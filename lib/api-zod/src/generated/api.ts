@@ -1236,7 +1236,7 @@ export const ListWorkloadCardsResponseItem = zod.object({
   "status": zod.enum(['pending', 'processing', 'done']),
   "workerId": zod.number().nullish(),
   "workerName": zod.string().nullish(),
-  "orderType": zod.enum(['low_stock_alert', 'manual_order', 'customer_backorder']).optional(),
+  "orderType": zod.enum(['low_stock_alert', 'manual_order', 'customer_backorder', 'production']).optional(),
   "referenceOrderId": zod.number().nullish(),
   "startedAt": zod.string().nullish(),
   "completedAt": zod.string().nullish(),
@@ -1251,9 +1251,24 @@ export const ListWorkloadCardsResponse = zod.array(ListWorkloadCardsResponseItem
 export const CreateWorkloadCardBody = zod.object({
   "productId": zod.number(),
   "targetQty": zod.number(),
-  "orderType": zod.enum(['low_stock_alert', 'manual_order', 'customer_backorder']),
+  "orderType": zod.enum(['low_stock_alert', 'manual_order', 'customer_backorder', 'production']),
   "workerId": zod.number().optional(),
   "referenceOrderId": zod.number().optional()
+})
+
+
+/**
+ * Runs a BOM recipe in a single SERIALIZABLE transaction: creates a completed workload card, debits all required raw materials, credits the finished product stock, and writes stock movements. All-or-nothing — if any step fails (e.g. insufficient raw material) nothing is committed.
+
+ * @summary Atomically assemble a finished product from a BOM
+ */
+export const assembleItemBodyBatchesMin = 0.001;
+
+
+
+export const AssembleItemBody = zod.object({
+  "bomId": zod.number().describe('BOM (recipe) to execute'),
+  "batches": zod.number().min(assembleItemBodyBatchesMin).describe('Number of recipe batches to assemble (must be > 0)')
 })
 
 
@@ -1278,7 +1293,7 @@ export const UpdateWorkloadCardResponse = zod.object({
   "status": zod.enum(['pending', 'processing', 'done']),
   "workerId": zod.number().nullish(),
   "workerName": zod.string().nullish(),
-  "orderType": zod.enum(['low_stock_alert', 'manual_order', 'customer_backorder']).optional(),
+  "orderType": zod.enum(['low_stock_alert', 'manual_order', 'customer_backorder', 'production']).optional(),
   "referenceOrderId": zod.number().nullish(),
   "startedAt": zod.string().nullish(),
   "completedAt": zod.string().nullish(),

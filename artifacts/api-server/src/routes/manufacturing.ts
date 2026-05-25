@@ -16,6 +16,7 @@ import {
   ListWorkloadCardsQueryParams,
   CreateWorkloadCardBody,
   UpdateWorkloadCardBody,
+  AssembleItemBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 
@@ -315,11 +316,15 @@ router.patch("/workload/:id", async (req, res): Promise<void> => {
 
         await client.query("COMMIT");
       } catch (err) {
+        // Propagate failure: do NOT silently mark the card as 'done' when the
+        // recipe transaction rolled back — that would corrupt the stock ledger.
         await client.query("ROLLBACK");
         logger.error({ err }, "Failed to execute manufacturing recipe");
-      } finally {
         client.release();
+        res.status(500).json({ error: "Failed to execute manufacturing recipe" });
+        return;
       }
+      client.release();
     }
   }
 
@@ -330,6 +335,130 @@ router.patch("/workload/:id", async (req, res): Promise<void> => {
     .from(productsTable).where(eq(productsTable.id, card.productId));
 
   res.json(formatWorkloadCard(card, product?.name ?? null, product?.imageUrl ?? null));
+});
+
+// POST /manufacturing/assemble
+// Atomic: create a completed workload card, debit raw materials, credit
+// finished stock, write all stock movements — all in one SERIALIZABLE
+// transaction. Prevents orphan workload cards on partial failure.
+router.post("/manufacturing/assemble", async (req, res): Promise<void> => {
+  const parsed = AssembleItemBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { bomId, batches } = parsed.data;
+  if (Number(batches) <= 0) {
+    res.status(400).json({ error: "batches must be greater than 0" });
+    return;
+  }
+
+  const [bom] = await db.select().from(bomsTable).where(eq(bomsTable.id, bomId));
+  if (!bom) {
+    res.status(404).json({ error: "BOM not found" });
+    return;
+  }
+  const bomItems = await db
+    .select({
+      item: bomItemsTable,
+      materialName: productsTable.name,
+    })
+    .from(bomItemsTable)
+    .leftJoin(productsTable, eq(bomItemsTable.materialProductId, productsTable.id))
+    .where(eq(bomItemsTable.bomId, bomId));
+
+  const outputUnits = Number(bom.outputQuantity) * Number(batches);
+
+  const client = await pool.connect();
+  let cardId: number | null = null;
+  try {
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    // Sufficiency check inside the txn so SELECT participates in the snapshot
+    const shortages: Array<{
+      materialProductId: number;
+      materialProductName: string | null;
+      required: number;
+      available: number;
+      unit: string;
+    }> = [];
+    for (const { item, materialName } of bomItems) {
+      const required = Number(item.quantity) * Number(batches);
+      const stockRow = await client.query(
+        `SELECT current_stock FROM products WHERE id = $1 AND deleted_at IS NULL`,
+        [item.materialProductId],
+      );
+      const available = Number(stockRow.rows[0]?.current_stock ?? 0);
+      if (available < required) {
+        shortages.push({
+          materialProductId: item.materialProductId,
+          materialProductName: materialName ?? null,
+          required,
+          available,
+          unit: item.unit,
+        });
+      }
+    }
+    if (shortages.length > 0) {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "Insufficient raw material", shortages });
+      return;
+    }
+
+    // Create the workload card already marked done — single row, no orphan state
+    const session = (req as any).session;
+    const userId = session?.userId ?? 1;
+    const now = new Date();
+    const cardRes = await client.query(
+      `INSERT INTO workload_cards
+         (product_id, target_qty, status, order_type, started_at, completed_at)
+       VALUES ($1, $2, 'done', 'production', $3, $3)
+       RETURNING id`,
+      [bom.finishedProductId, String(outputUnits), now],
+    );
+    cardId = cardRes.rows[0].id;
+
+    // Debit raw materials
+    for (const { item } of bomItems) {
+      const consumeQty = Number(item.quantity) * Number(batches);
+      await client.query(
+        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
+         VALUES ($1, 'manufacturing_consume', $2, 'Manufacturing batch', $3, 'workload', $4)`,
+        [item.materialProductId, consumeQty, cardId, userId],
+      );
+      await client.query(
+        `UPDATE products SET current_stock = current_stock - $1 WHERE id = $2`,
+        [consumeQty, item.materialProductId],
+      );
+    }
+
+    // Credit finished good
+    await client.query(
+      `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
+       VALUES ($1, 'manufacturing_produce', $2, 'Manufacturing complete', $3, 'workload', $4)`,
+      [bom.finishedProductId, outputUnits, cardId, userId],
+    );
+    await client.query(
+      `UPDATE products SET current_stock = current_stock + $1 WHERE id = $2`,
+      [outputUnits, bom.finishedProductId],
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logger.error({ err }, "Assemble failed");
+    res.status(500).json({ error: "Failed to assemble item" });
+    return;
+  } finally {
+    client.release();
+  }
+
+  const [card] = await db.select().from(workloadCardsTable).where(eq(workloadCardsTable.id, cardId!));
+  const [product] = await db
+    .select({ name: productsTable.name, imageUrl: productsTable.imageUrl })
+    .from(productsTable)
+    .where(eq(productsTable.id, card.productId));
+  res.status(201).json(formatWorkloadCard(card, product?.name ?? null, product?.imageUrl ?? null));
 });
 
 function formatBom(bom: any, productName: string | null, items: any[]) {

@@ -22,6 +22,8 @@ import type {
 import type {
   Account,
   AccountInput,
+  AssembleItem409,
+  AssembleItemInput,
   AuditEntry,
   AuthSession,
   Bom,
@@ -3895,6 +3897,79 @@ export const useCreateWorkloadCard = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateWorkloadCardMutationOptions(options));
+    }
+
+export const getAssembleItemUrl = () => {
+
+
+
+
+  return `/api/manufacturing/assemble`
+}
+
+/**
+ * Runs a BOM recipe in a single SERIALIZABLE transaction: creates a completed workload card, debits all required raw materials, credits the finished product stock, and writes stock movements. All-or-nothing — if any step fails (e.g. insufficient raw material) nothing is committed.
+
+ * @summary Atomically assemble a finished product from a BOM
+ */
+export const assembleItem = async (assembleItemInput: AssembleItemInput, options?: RequestInit): Promise<WorkloadCard> => {
+
+  return customFetch<WorkloadCard>(getAssembleItemUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      assembleItemInput,)
+  }
+);}
+
+
+
+
+export const getAssembleItemMutationOptions = <TError = ErrorType<void | AssembleItem409>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assembleItem>>, TError,{data: BodyType<AssembleItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assembleItem>>, TError,{data: BodyType<AssembleItemInput>}, TContext> => {
+
+const mutationKey = ['assembleItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assembleItem>>, {data: BodyType<AssembleItemInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  assembleItem(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssembleItemMutationResult = NonNullable<Awaited<ReturnType<typeof assembleItem>>>
+    export type AssembleItemMutationBody = BodyType<AssembleItemInput>
+    export type AssembleItemMutationError = ErrorType<void | AssembleItem409>
+
+    /**
+ * @summary Atomically assemble a finished product from a BOM
+ */
+export const useAssembleItem = <TError = ErrorType<void | AssembleItem409>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assembleItem>>, TError,{data: BodyType<AssembleItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof assembleItem>>,
+        TError,
+        {data: BodyType<AssembleItemInput>},
+        TContext
+      > => {
+      return useMutation(getAssembleItemMutationOptions(options));
     }
 
 export const getUpdateWorkloadCardUrl = (id: number,) => {
