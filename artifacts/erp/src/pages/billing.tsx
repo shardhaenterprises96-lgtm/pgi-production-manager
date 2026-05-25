@@ -674,8 +674,10 @@ export default function Billing() {
                               min={0}
                               value={item.rate}
                               onChange={(e) => updateItem(idx, "rate", Number(e.target.value))}
-                              className="w-24 text-right h-7 text-sm"
+                              className="w-24 text-right h-7 text-sm disabled:opacity-100 disabled:cursor-not-allowed"
                               data-testid={`input-rate-${idx}`}
+                              disabled={user?.role !== "admin"}
+                              title={user?.role !== "admin" ? "Only admin can edit rate" : undefined}
                             />
                           </TableCell>
                           {invoiceType === "gst" && (
