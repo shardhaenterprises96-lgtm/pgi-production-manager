@@ -4,6 +4,7 @@ import {
   useListPurchases,
   useCreatePurchase,
   useListEntities,
+  useCreateEntity,
   useListProducts,
   getListPurchasesQueryKey,
   getListProductsQueryKey,
@@ -25,7 +26,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Truck, Plus, Trash2, Loader2, FileText, Save,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Truck, Plus, Trash2, Loader2, FileText, Save, UserPlus,
 } from "lucide-react";
 
 export default function Purchases() {
@@ -88,6 +92,7 @@ function NewPurchaseTab() {
   const { toast } = useToast();
 
   const [vendorId, setVendorId] = useState<string>("");
+  const [vendorDialogOpen, setVendorDialogOpen] = useState(false);
   const [vendorBillNo, setVendorBillNo] = useState("");
   const [billType, setBillType] = useState<"gst" | "non_gst">("gst");
   const [placeOfSupply, setPlaceOfSupply] = useState("Maharashtra");
@@ -209,23 +214,35 @@ function NewPurchaseTab() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Vendor</Label>
-              <Select value={vendorId} onValueChange={setVendorId}>
-                <SelectTrigger data-testid="select-vendor">
-                  <SelectValue placeholder="Select vendor (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(vendors ?? []).length === 0 && (
-                    <div className="px-2 py-3 text-sm text-muted-foreground">
-                      No vendors yet. Add one in Customers (set type = vendor).
-                    </div>
-                  )}
-                  {(vendors ?? []).map((v: any) => (
-                    <SelectItem key={v.id} value={String(v.id)}>
-                      {v.name}{v.mobile ? ` · ${v.mobile}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={vendorId} onValueChange={setVendorId}>
+                  <SelectTrigger data-testid="select-vendor" className="flex-1">
+                    <SelectValue placeholder="Select vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(vendors ?? []).length === 0 && (
+                      <div className="px-2 py-3 text-sm text-muted-foreground">
+                        No vendors yet. Click + to add one.
+                      </div>
+                    )}
+                    {(vendors ?? []).map((v: any) => (
+                      <SelectItem key={v.id} value={String(v.id)}>
+                        {v.name}{v.mobile ? ` · ${v.mobile}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setVendorDialogOpen(true)}
+                  data-testid="button-add-vendor"
+                  title="Add new vendor"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Vendor Bill #</Label>
@@ -379,6 +396,12 @@ function NewPurchaseTab() {
         </CardContent>
       </Card>
 
+      <AddVendorDialog
+        open={vendorDialogOpen}
+        onOpenChange={setVendorDialogOpen}
+        onCreated={(v) => setVendorId(String(v.id))}
+      />
+
       <Card className="h-fit sticky top-4">
         <CardHeader>
           <CardTitle className="text-base">Summary</CardTitle>
@@ -421,6 +444,130 @@ function NewPurchaseTab() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function AddVendorDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: (vendor: any) => void;
+}) {
+  const createEntity = useCreateEntity();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [gstin, setGstin] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("Maharashtra");
+  const [address, setAddress] = useState("");
+
+  const reset = () => {
+    setName(""); setMobile(""); setGstin(""); setCity(""); setState("Maharashtra"); setAddress("");
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !mobile.trim()) {
+      toast({ title: "Name and mobile are required", variant: "destructive" });
+      return;
+    }
+    try {
+      const created = await createEntity.mutateAsync({
+        data: {
+          type: "vendor",
+          name: name.trim(),
+          mobile: mobile.trim(),
+          gstin: gstin.trim() || undefined,
+          city: city.trim() || undefined,
+          state: state.trim() || undefined,
+          address: address.trim() || undefined,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: getListEntitiesQueryKey() });
+      onCreated(created);
+      toast({ title: "Vendor added", description: `${created.name} is now available.` });
+      reset();
+      onOpenChange(false);
+    } catch (err: any) {
+      let desc = err?.message ?? "Server error";
+      try {
+        const body = err?.response ? await err.response.json() : null;
+        if (body?.error) desc = String(body.error).slice(0, 300);
+      } catch {}
+      toast({ title: "Could not add vendor", description: desc, variant: "destructive" });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add New Vendor</DialogTitle>
+          <DialogDescription>
+            Quick-add a supplier to use on this purchase bill.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Name <span className="text-destructive">*</span></Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Acme Plastics Pvt Ltd"
+                data-testid="input-new-vendor-name"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Mobile <span className="text-destructive">*</span></Label>
+              <Input
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                placeholder="9999900001"
+                data-testid="input-new-vendor-mobile"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>GSTIN</Label>
+              <Input
+                value={gstin}
+                onChange={(e) => setGstin(e.target.value)}
+                placeholder="27AAACA1234A1Z5"
+                data-testid="input-new-vendor-gstin"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>City</Label>
+              <Input value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>State</Label>
+              <Input value={state} onChange={(e) => setState(e.target.value)} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Address</Label>
+              <Textarea rows={2} value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={createEntity.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createEntity.isPending} data-testid="button-submit-new-vendor">
+              {createEntity.isPending
+                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…</>
+                : <><UserPlus className="w-4 h-4 mr-2" /> Add Vendor</>}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
