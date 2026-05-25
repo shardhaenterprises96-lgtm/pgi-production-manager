@@ -8,9 +8,14 @@
 import type { EntityInputPricingTier } from './entityInputPricingTier';
 import type { EntityInputType } from './entityInputType';
 
+/**
+ * `name` is optional for retail customers — if omitted, the server generates a
+label like "Retail Customer (98765 43210)". Wholesale customers still require a name.
+
+ */
 export interface EntityInput {
   type: EntityInputType;
-  name: string;
+  name?: string;
   mobile: string;
   gstin?: string;
   address?: string;

@@ -457,16 +457,30 @@ export default function Catalog() {
                     <FormField
                       control={newCustomerForm.control}
                       name="name"
-                      rules={{ required: "Name is required" }}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Customer Name *</FormLabel>
-                          <FormControl>
-                            <Input data-testid="input-new-customer-name" placeholder="Full name / Business name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      rules={{
+                        validate: (value) =>
+                          newCustomerForm.getValues("pricingTier") === "wholesale" && !value?.trim()
+                            ? "Name is required for wholesale customers"
+                            : true,
+                      }}
+                      render={({ field }) => {
+                        const isWholesale = newCustomerForm.watch("pricingTier") === "wholesale";
+                        return (
+                          <FormItem>
+                            <FormLabel>
+                              Customer Name {isWholesale ? "*" : <span className="text-muted-foreground font-normal">(optional for retail)</span>}
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                data-testid="input-new-customer-name"
+                                placeholder={isWholesale ? "Business name" : "Leave blank for walk-in retail"}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <FormField

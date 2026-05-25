@@ -338,7 +338,7 @@ export const ListEntitiesResponse = zod.array(ListEntitiesResponseItem)
  */
 export const CreateEntityBody = zod.object({
   "type": zod.enum(['customer', 'vendor', 'worker', 'salesman']),
-  "name": zod.string(),
+  "name": zod.string().optional(),
   "mobile": zod.string(),
   "gstin": zod.string().optional(),
   "address": zod.string().optional(),
@@ -346,7 +346,7 @@ export const CreateEntityBody = zod.object({
   "state": zod.string().optional(),
   "pricingTier": zod.enum(['retail', 'wholesale']).optional(),
   "creditLimit": zod.number().optional()
-})
+}).describe('`name` is optional for retail customers — if omitted, the server generates a\nlabel like \"Retail Customer (98765 43210)\". Wholesale customers still require a name.\n')
 
 
 /**

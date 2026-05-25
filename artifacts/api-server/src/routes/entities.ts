@@ -71,11 +71,27 @@ router.post("/entities", async (req, res): Promise<void> => {
     return;
   }
 
+  const pricingTier = parsed.data.pricingTier ?? "retail";
+  let name = parsed.data.name?.trim() ?? "";
+
+  // Wholesale customers must have a real name (used on GST invoices)
+  if (!name && parsed.data.type === "customer" && pricingTier === "wholesale") {
+    res.status(400).json({ error: "Wholesale customers must have a name" });
+    return;
+  }
+  // Retail walk-ins can omit name — fall back to a mobile-based label
+  if (!name) {
+    name = parsed.data.type === "customer"
+      ? `Retail Customer (${parsed.data.mobile})`
+      : `${parsed.data.type[0].toUpperCase()}${parsed.data.type.slice(1)} (${parsed.data.mobile})`;
+  }
+
   const [entity] = await db
     .insert(entitiesTable)
     .values({
       ...parsed.data,
-      pricingTier: parsed.data.pricingTier ?? "retail",
+      name,
+      pricingTier,
     })
     .returning();
 
