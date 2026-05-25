@@ -53,6 +53,7 @@ export * from './ledgerEntryType';
 export * from './listEntitiesParams';
 export * from './listEntitiesType';
 export * from './listInvoicesParams';
+export * from './listInvoicesStatus';
 export * from './listInvoicesType';
 export * from './listPaymentsParams';
 export * from './listPaymentsStatus';

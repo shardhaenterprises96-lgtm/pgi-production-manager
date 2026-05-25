@@ -18,8 +18,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { Pencil, Trash2, Loader2, UserCircle2, Eye } from "lucide-react";
+import { format, startOfMonth, startOfDay, subDays } from "date-fns";
+import { Pencil, Trash2, Loader2, UserCircle2, Eye, CalendarIcon, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 export default function Invoices() {
   const { user } = useAuth();
@@ -28,10 +31,28 @@ export default function Invoices() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [type, setType] = useState<string>("all");
+  const [status, setStatus] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
   const [deleting, setDeleting] = useState<{ id: number; invoiceNo: string; invoiceType: string } | null>(null);
 
   const isSalesman = user?.role === "salesman";
   const isAdmin = user?.role === "admin";
+
+  const applyPreset = (preset: "today" | "7d" | "30d" | "mtd") => {
+    const today = startOfDay(new Date());
+    if (preset === "today") { setDateFrom(today); setDateTo(today); }
+    else if (preset === "7d") { setDateFrom(subDays(today, 6)); setDateTo(today); }
+    else if (preset === "30d") { setDateFrom(subDays(today, 29)); setDateTo(today); }
+    else if (preset === "mtd") { setDateFrom(startOfMonth(today)); setDateTo(today); }
+  };
+
+  const clearFilters = () => {
+    setSearch(""); setType("all"); setStatus("all");
+    setDateFrom(undefined); setDateTo(undefined);
+  };
+
+  const hasFilters = !!search || type !== "all" || status !== "all" || !!dateFrom || !!dateTo;
 
   // Salesman scoping is enforced server-side from their session entity — no need
   // (and incorrect) to send user.id here, which is the user-account id, not the
@@ -39,6 +60,9 @@ export default function Invoices() {
   const { data: invoices, isLoading } = useListInvoices({
     search: search || undefined,
     type: type !== "all" ? (type as any) : undefined,
+    status: status !== "all" ? (status as any) : undefined,
+    dateFrom: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+    dateTo: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined,
   });
 
   const deleteInvoice = useDeleteInvoice();
@@ -74,25 +98,100 @@ export default function Invoices() {
         <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <Input
-          placeholder="Search invoice number or customer..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-          data-testid="input-invoice-search"
-        />
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Invoice Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="gst">GST</SelectItem>
-            <SelectItem value="non_gst">Non-GST</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              placeholder="Search invoice number or customer..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-xs"
+              data-testid="input-invoice-search"
+            />
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger className="w-[150px]" data-testid="select-invoice-type">
+                <SelectValue placeholder="Invoice Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="gst">GST</SelectItem>
+                <SelectItem value="non_gst">Non-GST</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="w-[150px]" data-testid="select-invoice-status">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="saved">Saved</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn("justify-start font-normal w-[160px]", !dateFrom && "text-muted-foreground")}
+                  data-testid="button-date-from"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {dateFrom ? format(dateFrom, "dd MMM yyyy") : "From date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn("justify-start font-normal w-[160px]", !dateTo && "text-muted-foreground")}
+                  data-testid="button-date-to"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {dateTo ? format(dateTo, "dd MMM yyyy") : "To date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  disabled={(d) => (dateFrom ? d < dateFrom : false)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                data-testid="button-clear-filters"
+              >
+                <X className="h-4 w-4 mr-1" />Clear
+              </Button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Quick range:</span>
+            <Button variant="outline" size="sm" className="h-7" onClick={() => applyPreset("today")} data-testid="preset-today">Today</Button>
+            <Button variant="outline" size="sm" className="h-7" onClick={() => applyPreset("7d")} data-testid="preset-7d">Last 7 days</Button>
+            <Button variant="outline" size="sm" className="h-7" onClick={() => applyPreset("30d")} data-testid="preset-30d">Last 30 days</Button>
+            <Button variant="outline" size="sm" className="h-7" onClick={() => applyPreset("mtd")} data-testid="preset-mtd">This month</Button>
+            <span className="ml-auto text-muted-foreground" data-testid="text-result-count">
+              {isLoading ? "Loading…" : `${invoices?.length ?? 0} invoice${(invoices?.length ?? 0) === 1 ? "" : "s"}`}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-0">

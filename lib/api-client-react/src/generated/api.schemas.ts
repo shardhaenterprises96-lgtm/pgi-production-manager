@@ -993,6 +993,17 @@ salesmanId?: number;
 type?: ListInvoicesType;
 month?: string;
 year?: number;
+/**
+ * Inclusive start date (YYYY-MM-DD) for invoice date filter
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+dateFrom?: string;
+/**
+ * Inclusive end date (YYYY-MM-DD) for invoice date filter
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+dateTo?: string;
+status?: ListInvoicesStatus;
 };
 
 export type ListInvoicesType = typeof ListInvoicesType[keyof typeof ListInvoicesType];
@@ -1001,6 +1012,15 @@ export type ListInvoicesType = typeof ListInvoicesType[keyof typeof ListInvoices
 export const ListInvoicesType = {
   gst: 'gst',
   non_gst: 'non_gst',
+} as const;
+
+export type ListInvoicesStatus = typeof ListInvoicesStatus[keyof typeof ListInvoicesStatus];
+
+
+export const ListInvoicesStatus = {
+  draft: 'draft',
+  saved: 'saved',
+  cancelled: 'cancelled',
 } as const;
 
 export type ListPaymentsParams = {

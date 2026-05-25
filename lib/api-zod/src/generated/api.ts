@@ -541,13 +541,20 @@ export const GetEntityLedgerResponse = zod.object({
 /**
  * @summary List invoices
  */
+export const listInvoicesQueryDateFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listInvoicesQueryDateToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const ListInvoicesQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "customerId": zod.coerce.number().optional(),
   "salesmanId": zod.coerce.number().optional(),
   "type": zod.enum(['gst', 'non_gst']).optional(),
   "month": zod.coerce.string().optional(),
-  "year": zod.coerce.number().optional()
+  "year": zod.coerce.number().optional(),
+  "dateFrom": zod.coerce.string().regex(listInvoicesQueryDateFromRegExp).optional().describe('Inclusive start date (YYYY-MM-DD) for invoice date filter'),
+  "dateTo": zod.coerce.string().regex(listInvoicesQueryDateToRegExp).optional().describe('Inclusive end date (YYYY-MM-DD) for invoice date filter'),
+  "status": zod.enum(['draft', 'saved', 'cancelled']).optional()
 })
 
 export const ListInvoicesResponseItem = zod.object({

@@ -5,6 +5,7 @@
  * Shradha Oil Center ERP API
  * OpenAPI spec version: 0.1.0
  */
+import type { ListInvoicesStatus } from './listInvoicesStatus';
 import type { ListInvoicesType } from './listInvoicesType';
 
 export type ListInvoicesParams = {
@@ -14,4 +15,15 @@ salesmanId?: number;
 type?: ListInvoicesType;
 month?: string;
 year?: number;
+/**
+ * Inclusive start date (YYYY-MM-DD) for invoice date filter
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+dateFrom?: string;
+/**
+ * Inclusive end date (YYYY-MM-DD) for invoice date filter
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+dateTo?: string;
+status?: ListInvoicesStatus;
 };

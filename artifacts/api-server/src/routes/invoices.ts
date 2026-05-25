@@ -84,6 +84,16 @@ router.get("/invoices", async (req, res): Promise<void> => {
       sql`EXTRACT(MONTH FROM ${invoicesTable.invoiceDate}) = ${params.data.month} AND EXTRACT(YEAR FROM ${invoicesTable.invoiceDate}) = ${params.data.year}`
     );
   }
+  if (params.data.dateFrom) {
+    conditions.push(sql`${invoicesTable.invoiceDate} >= ${params.data.dateFrom}::date`);
+  }
+  if (params.data.dateTo) {
+    // Inclusive end date — match anything strictly before the next day.
+    conditions.push(sql`${invoicesTable.invoiceDate} < (${params.data.dateTo}::date + INTERVAL '1 day')`);
+  }
+  if (params.data.status) {
+    conditions.push(eq(invoicesTable.status, params.data.status));
+  }
 
   const invoices = conditions.length > 0
     ? await db.select().from(invoicesTable).where(and(...conditions)).orderBy(sql`${invoicesTable.createdAt} DESC`)
