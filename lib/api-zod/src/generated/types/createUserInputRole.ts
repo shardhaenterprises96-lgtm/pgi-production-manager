@@ -16,5 +16,4 @@ export const CreateUserInputRole = {
   manufacturing: 'manufacturing',
   accountant: 'accountant',
   customer: 'customer',
-  shop: 'shop',
 } as const;

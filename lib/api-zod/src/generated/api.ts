@@ -27,10 +27,9 @@ export const LoginBody = zod.object({
 export const LoginResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
-  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer', 'shop']),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "name": zod.string(),
-  "customerId": zod.number().nullish(),
-  "locationId": zod.number().nullish()
+  "customerId": zod.number().nullish()
 })
 
 
@@ -40,10 +39,9 @@ export const LoginResponse = zod.object({
 export const GetMeResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
-  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer', 'shop']),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "name": zod.string(),
-  "customerId": zod.number().nullish(),
-  "locationId": zod.number().nullish()
+  "customerId": zod.number().nullish()
 })
 
 
@@ -86,9 +84,8 @@ export const ListUsersResponseItem = zod.object({
   "id": zod.number(),
   "username": zod.string(),
   "name": zod.string(),
-  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer', 'shop']),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "entityId": zod.number().nullish(),
-  "locationId": zod.number().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -109,9 +106,8 @@ export const CreateUserBody = zod.object({
   "username": zod.string().min(createUserBodyUsernameMin).max(createUserBodyUsernameMax),
   "password": zod.string().min(createUserBodyPasswordMin),
   "name": zod.string().optional(),
-  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer', 'shop']),
-  "entityId": zod.number().nullish(),
-  "locationId": zod.number().nullish()
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
+  "entityId": zod.number().nullish()
 }).describe('Creates a login account. `name` falls back to the linked entity\'s name when omitted\nand an `entityId` is provided. Link a salesman\/worker\/customer entity via `entityId`\nso the login is associated with their ledger and invoice attribution.\n')
 
 
@@ -128,10 +124,9 @@ export const updateUserBodyPasswordMin = 4;
 
 export const UpdateUserBody = zod.object({
   "name": zod.string().optional(),
-  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer', 'shop']).optional(),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']).optional(),
   "isActive": zod.boolean().optional(),
   "entityId": zod.number().nullish(),
-  "locationId": zod.number().nullish(),
   "password": zod.string().min(updateUserBodyPasswordMin).optional()
 }).describe('All fields optional. Send only the fields you want to change. Set `password` to a non-empty string to reset it.')
 
@@ -139,9 +134,8 @@ export const UpdateUserResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
   "name": zod.string(),
-  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer', 'shop']),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "entityId": zod.number().nullish(),
-  "locationId": zod.number().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -1260,388 +1254,6 @@ export const CreateWorkloadCardBody = zod.object({
   "orderType": zod.enum(['low_stock_alert', 'manual_order', 'customer_backorder', 'production']),
   "workerId": zod.number().optional(),
   "referenceOrderId": zod.number().optional()
-})
-
-
-/**
- * @summary List all locations (factory, shops)
- */
-export const ListLocationsResponseItem = zod.object({
-  "id": zod.number(),
-  "code": zod.string(),
-  "name": zod.string(),
-  "type": zod.enum(['factory', 'shop', 'warehouse']),
-  "address": zod.string().nullish(),
-  "isActive": zod.boolean()
-})
-export const ListLocationsResponse = zod.array(ListLocationsResponseItem)
-
-
-/**
- * @summary List inventory for a shop location
- */
-export const ListShopInventoryQueryParams = zod.object({
-  "locationId": zod.coerce.number()
-})
-
-export const ListShopInventoryResponseItem = zod.object({
-  "id": zod.number(),
-  "locationId": zod.number(),
-  "productId": zod.number(),
-  "productName": zod.string(),
-  "itemCode": zod.string(),
-  "unit": zod.string(),
-  "imageUrl": zod.string().nullish(),
-  "currentStock": zod.string(),
-  "minStockThreshold": zod.string(),
-  "sourceType": zod.enum(['factory', 'self']),
-  "shopRetailPrice": zod.string().nullish(),
-  "factoryStock": zod.string().nullish().describe('Current factory stock for this product (for transfer planning)'),
-  "hasBom": zod.boolean().optional()
-})
-export const ListShopInventoryResponse = zod.array(ListShopInventoryResponseItem)
-
-
-/**
- * @summary Add product to a shop's inventory catalog
- */
-export const addShopInventoryBodyMinStockThresholdMin = 0;
-
-export const addShopInventoryBodyShopRetailPriceMin = 0;
-
-
-
-export const AddShopInventoryBody = zod.object({
-  "locationId": zod.number(),
-  "productId": zod.number(),
-  "minStockThreshold": zod.number().min(addShopInventoryBodyMinStockThresholdMin).optional(),
-  "sourceType": zod.enum(['factory', 'self']).optional(),
-  "shopRetailPrice": zod.number().min(addShopInventoryBodyShopRetailPriceMin).nullish()
-})
-
-
-/**
- * @summary Add every master product missing from this shop's catalog (defaults stock=0, source=factory)
- */
-export const BulkImportShopInventoryBody = zod.object({
-  "locationId": zod.number()
-})
-
-export const BulkImportShopInventoryResponse = zod.object({
-  "added": zod.number().optional()
-})
-
-
-/**
- * @summary Update shop inventory row (min threshold, source, price)
- */
-export const UpdateShopInventoryParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const updateShopInventoryBodyMinStockThresholdMin = 0;
-
-export const updateShopInventoryBodyShopRetailPriceMin = 0;
-
-export const updateShopInventoryBodyCurrentStockMin = 0;
-
-
-
-export const UpdateShopInventoryBody = zod.object({
-  "minStockThreshold": zod.number().min(updateShopInventoryBodyMinStockThresholdMin).optional(),
-  "sourceType": zod.enum(['factory', 'self']).optional(),
-  "shopRetailPrice": zod.number().min(updateShopInventoryBodyShopRetailPriceMin).nullish(),
-  "currentStock": zod.number().min(updateShopInventoryBodyCurrentStockMin).optional().describe('Admin override only — set opening stock')
-})
-
-export const UpdateShopInventoryResponse = zod.object({
-  "id": zod.number(),
-  "locationId": zod.number(),
-  "productId": zod.number(),
-  "productName": zod.string(),
-  "itemCode": zod.string(),
-  "unit": zod.string(),
-  "imageUrl": zod.string().nullish(),
-  "currentStock": zod.string(),
-  "minStockThreshold": zod.string(),
-  "sourceType": zod.enum(['factory', 'self']),
-  "shopRetailPrice": zod.string().nullish(),
-  "factoryStock": zod.string().nullish().describe('Current factory stock for this product (for transfer planning)'),
-  "hasBom": zod.boolean().optional()
-})
-
-
-/**
- * @summary Low-stock rows for a shop (drives reorder + factory workload)
- */
-export const ListShopLowStockQueryParams = zod.object({
-  "locationId": zod.coerce.number()
-})
-
-export const ListShopLowStockResponseItem = zod.object({
-  "id": zod.number(),
-  "locationId": zod.number(),
-  "productId": zod.number(),
-  "productName": zod.string(),
-  "itemCode": zod.string(),
-  "unit": zod.string(),
-  "imageUrl": zod.string().nullish(),
-  "currentStock": zod.string(),
-  "minStockThreshold": zod.string(),
-  "sourceType": zod.enum(['factory', 'self']),
-  "shopRetailPrice": zod.string().nullish(),
-  "factoryStock": zod.string().nullish().describe('Current factory stock for this product (for transfer planning)'),
-  "hasBom": zod.boolean().optional()
-})
-export const ListShopLowStockResponse = zod.array(ListShopLowStockResponseItem)
-
-
-/**
- * @summary List stock transfers
- */
-export const ListStockTransfersQueryParams = zod.object({
-  "locationId": zod.coerce.number().optional(),
-  "status": zod.coerce.string().optional()
-})
-
-export const ListStockTransfersResponseItem = zod.object({
-  "id": zod.number(),
-  "transferNo": zod.string(),
-  "fromLocationId": zod.number(),
-  "fromLocationName": zod.string().nullish(),
-  "toLocationId": zod.number(),
-  "toLocationName": zod.string().nullish(),
-  "status": zod.enum(['requested', 'dispatched', 'received', 'cancelled']),
-  "notes": zod.string().nullish(),
-  "linkedWorkloadCardId": zod.number().nullish(),
-  "createdAt": zod.string(),
-  "dispatchedAt": zod.string().nullish(),
-  "receivedAt": zod.string().nullish(),
-  "items": zod.array(zod.object({
-  "id": zod.number().optional(),
-  "productId": zod.number(),
-  "productName": zod.string(),
-  "unit": zod.string(),
-  "requestedQty": zod.string(),
-  "dispatchedQty": zod.string(),
-  "receivedQty": zod.string()
-}))
-})
-export const ListStockTransfersResponse = zod.array(ListStockTransfersResponseItem)
-
-
-/**
- * @summary Shop requests stock from factory. If any item has sourceType=factory
-AND has a BOM, a manufacturing workload card is auto-created.
-
- */
-export const createStockTransferBodyItemsItemRequestedQtyExclusiveMin = 0;
-
-
-
-
-export const CreateStockTransferBody = zod.object({
-  "fromLocationId": zod.number(),
-  "toLocationId": zod.number(),
-  "notes": zod.string().nullish(),
-  "items": zod.array(zod.object({
-  "productId": zod.number(),
-  "requestedQty": zod.number().gt(createStockTransferBodyItemsItemRequestedQtyExclusiveMin)
-})).min(1)
-})
-
-
-/**
- * @summary Factory dispatches the transfer (debits factory stock)
- */
-export const DispatchStockTransferParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const DispatchStockTransferResponse = zod.object({
-  "id": zod.number(),
-  "transferNo": zod.string(),
-  "fromLocationId": zod.number(),
-  "fromLocationName": zod.string().nullish(),
-  "toLocationId": zod.number(),
-  "toLocationName": zod.string().nullish(),
-  "status": zod.enum(['requested', 'dispatched', 'received', 'cancelled']),
-  "notes": zod.string().nullish(),
-  "linkedWorkloadCardId": zod.number().nullish(),
-  "createdAt": zod.string(),
-  "dispatchedAt": zod.string().nullish(),
-  "receivedAt": zod.string().nullish(),
-  "items": zod.array(zod.object({
-  "id": zod.number().optional(),
-  "productId": zod.number(),
-  "productName": zod.string(),
-  "unit": zod.string(),
-  "requestedQty": zod.string(),
-  "dispatchedQty": zod.string(),
-  "receivedQty": zod.string()
-}))
-})
-
-
-/**
- * @summary Shop receives the dispatched transfer (credits shop stock)
- */
-export const ReceiveStockTransferParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const ReceiveStockTransferResponse = zod.object({
-  "id": zod.number(),
-  "transferNo": zod.string(),
-  "fromLocationId": zod.number(),
-  "fromLocationName": zod.string().nullish(),
-  "toLocationId": zod.number(),
-  "toLocationName": zod.string().nullish(),
-  "status": zod.enum(['requested', 'dispatched', 'received', 'cancelled']),
-  "notes": zod.string().nullish(),
-  "linkedWorkloadCardId": zod.number().nullish(),
-  "createdAt": zod.string(),
-  "dispatchedAt": zod.string().nullish(),
-  "receivedAt": zod.string().nullish(),
-  "items": zod.array(zod.object({
-  "id": zod.number().optional(),
-  "productId": zod.number(),
-  "productName": zod.string(),
-  "unit": zod.string(),
-  "requestedQty": zod.string(),
-  "dispatchedQty": zod.string(),
-  "receivedQty": zod.string()
-}))
-})
-
-
-/**
- * @summary List POS sales for a shop (optionally for a single day)
- */
-export const ListPosSalesQueryParams = zod.object({
-  "locationId": zod.coerce.number(),
-  "date": zod.coerce.string().optional()
-})
-
-export const ListPosSalesResponseItem = zod.object({
-  "id": zod.number(),
-  "locationId": zod.number(),
-  "billNo": zod.string(),
-  "customerName": zod.string().nullish(),
-  "customerMobile": zod.string().nullish(),
-  "paymentMode": zod.enum(['cash', 'upi', 'card', 'credit']),
-  "subtotal": zod.string(),
-  "discount": zod.string(),
-  "total": zod.string(),
-  "createdAt": zod.string(),
-  "items": zod.array(zod.object({
-  "id": zod.number().optional(),
-  "productId": zod.number(),
-  "productName": zod.string(),
-  "qty": zod.string(),
-  "rate": zod.string(),
-  "amount": zod.string()
-}))
-})
-export const ListPosSalesResponse = zod.array(ListPosSalesResponseItem)
-
-
-/**
- * @summary Record a counter POS sale (atomic; debits shop inventory)
- */
-export const createPosSaleBodyDiscountMin = 0;
-
-export const createPosSaleBodyItemsItemQtyExclusiveMin = 0;
-
-export const createPosSaleBodyItemsItemRateMin = 0;
-
-
-
-
-export const CreatePosSaleBody = zod.object({
-  "locationId": zod.number(),
-  "customerName": zod.string().nullish(),
-  "customerMobile": zod.string().nullish(),
-  "paymentMode": zod.enum(['cash', 'upi', 'card', 'credit']),
-  "discount": zod.number().min(createPosSaleBodyDiscountMin).optional(),
-  "items": zod.array(zod.object({
-  "productId": zod.number(),
-  "qty": zod.number().gt(createPosSaleBodyItemsItemQtyExclusiveMin),
-  "rate": zod.number().min(createPosSaleBodyItemsItemRateMin)
-})).min(1)
-})
-
-
-/**
- * @summary Daily summary of POS sales for a shop
- */
-export const GetPosDailySummaryQueryParams = zod.object({
-  "locationId": zod.coerce.number(),
-  "date": zod.coerce.string().optional()
-})
-
-export const GetPosDailySummaryResponse = zod.object({
-  "locationId": zod.number(),
-  "date": zod.string(),
-  "totalSales": zod.string(),
-  "totalDiscount": zod.string(),
-  "totalNet": zod.string(),
-  "billCount": zod.number(),
-  "byPaymentMode": zod.array(zod.object({
-  "mode": zod.string(),
-  "total": zod.string(),
-  "count": zod.number()
-}))
-})
-
-
-/**
- * @summary List vendor purchases recorded at the shop
- */
-export const ListShopPurchasesQueryParams = zod.object({
-  "locationId": zod.coerce.number()
-})
-
-export const ListShopPurchasesResponseItem = zod.object({
-  "id": zod.number(),
-  "locationId": zod.number(),
-  "billNo": zod.string().nullish(),
-  "vendorName": zod.string(),
-  "totalAmount": zod.string(),
-  "notes": zod.string().nullish(),
-  "createdAt": zod.string(),
-  "items": zod.array(zod.object({
-  "id": zod.number().optional(),
-  "productId": zod.number(),
-  "productName": zod.string(),
-  "qty": zod.string(),
-  "rate": zod.string(),
-  "amount": zod.string()
-}))
-})
-export const ListShopPurchasesResponse = zod.array(ListShopPurchasesResponseItem)
-
-
-/**
- * @summary Record a shop-side vendor purchase (atomic; credits shop inventory)
- */
-export const createShopPurchaseBodyItemsItemQtyExclusiveMin = 0;
-
-export const createShopPurchaseBodyItemsItemRateMin = 0;
-
-
-
-
-export const CreateShopPurchaseBody = zod.object({
-  "locationId": zod.number(),
-  "billNo": zod.string().nullish(),
-  "vendorName": zod.string(),
-  "notes": zod.string().nullish(),
-  "items": zod.array(zod.object({
-  "productId": zod.number(),
-  "qty": zod.number().gt(createShopPurchaseBodyItemsItemQtyExclusiveMin),
-  "rate": zod.number().min(createShopPurchaseBodyItemsItemRateMin)
-})).min(1)
 })
 
 

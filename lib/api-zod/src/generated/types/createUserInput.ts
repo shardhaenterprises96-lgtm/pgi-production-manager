@@ -25,6 +25,4 @@ export interface CreateUserInput {
   role: CreateUserInputRole;
   /** @nullable */
   entityId?: number | null;
-  /** @nullable */
-  locationId?: number | null;
 }

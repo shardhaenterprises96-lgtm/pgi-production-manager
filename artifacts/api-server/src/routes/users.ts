@@ -35,7 +35,6 @@ function toPublic(u: typeof usersTable.$inferSelect) {
     name: u.name,
     role: u.role,
     entityId: u.entityId,
-    locationId: u.locationId ?? null,
     isActive: u.isActive,
     createdAt: u.createdAt.toISOString(),
   };
@@ -55,7 +54,6 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
   const { password, name, role, entityId } = parsed.data;
-  const locationId = (parsed.data as any).locationId as number | null | undefined;
   const username = parsed.data.username.trim();
   if (username.length < 3) {
     res.status(400).json({ error: "Username must be at least 3 characters" });
@@ -97,7 +95,6 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
         name: resolvedName,
         role,
         entityId: entityId ?? null,
-        locationId: locationId ?? null,
         isActive: true,
       })
       .returning();
@@ -159,7 +156,6 @@ router.patch("/users/:id", requireAdmin, async (req, res): Promise<void> => {
   if (parsed.data.role !== undefined) patch.role = parsed.data.role;
   if (parsed.data.isActive !== undefined) patch.isActive = parsed.data.isActive;
   if (parsed.data.entityId !== undefined) patch.entityId = parsed.data.entityId;
-  if ((parsed.data as any).locationId !== undefined) patch.locationId = (parsed.data as any).locationId;
   if (parsed.data.password !== undefined && parsed.data.password.length > 0) {
     patch.passwordHash = parsed.data.password;
   }

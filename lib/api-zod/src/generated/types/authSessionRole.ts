@@ -16,5 +16,4 @@ export const AuthSessionRole = {
   manufacturing: 'manufacturing',
   accountant: 'accountant',
   customer: 'customer',
-  shop: 'shop',
 } as const;

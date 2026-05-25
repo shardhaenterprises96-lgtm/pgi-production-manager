@@ -24,10 +24,6 @@ import Settings from "@/pages/settings";
 import Users from "@/pages/users";
 import Accounts from "@/pages/accounts";
 import CashBook from "@/pages/cashbook";
-import ShopPos from "@/pages/shop-pos";
-import ShopInventory from "@/pages/shop-inventory";
-import ShopTransfers from "@/pages/shop-transfers";
-import ShopCatalog from "@/pages/shop-catalog";
 
 const queryClient = new QueryClient();
 
@@ -52,10 +48,6 @@ function ProtectedRoutes() {
         <Route path="/cashbook" component={CashBook} />
         <Route path="/settings" component={Settings} />
         <Route path="/users" component={Users} />
-        <Route path="/shop/pos" component={ShopPos} />
-        <Route path="/shop/inventory" component={ShopInventory} />
-        <Route path="/shop/transfers" component={ShopTransfers} />
-        <Route path="/shop/catalog" component={ShopCatalog} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

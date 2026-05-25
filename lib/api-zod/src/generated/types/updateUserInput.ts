@@ -16,8 +16,6 @@ export interface UpdateUserInput {
   isActive?: boolean;
   /** @nullable */
   entityId?: number | null;
-  /** @nullable */
-  locationId?: number | null;
   /** @minLength 4 */
   password?: string;
 }

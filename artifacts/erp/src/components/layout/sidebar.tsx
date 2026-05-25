@@ -19,10 +19,6 @@ import {
   HandCoins,
   KeyRound,
   Truck,
-  Store,
-  Receipt,
-  ArrowLeftRight,
-  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -56,10 +52,6 @@ export function Sidebar() {
     { name: "Rewards", href: "/rewards", icon: Award, roles: ["admin", "customer"] },
     { name: "Manufacturing", href: "/manufacturing", icon: Factory, roles: ["admin", "manufacturing"] },
     { name: "Purchases", href: "/purchases", icon: Truck, roles: ["admin", "accountant", "store"] },
-    { name: "Counter POS", href: "/shop/pos", icon: Receipt, roles: ["admin", "shop"] },
-    { name: "Shop Inventory", href: "/shop/inventory", icon: Store, roles: ["admin", "shop"] },
-    { name: "Price Catalog", href: "/shop/catalog", icon: BookOpen, roles: ["admin", "shop"] },
-    { name: "Stock Transfers", href: "/shop/transfers", icon: ArrowLeftRight, roles: ["admin", "shop", "store", "manufacturing"] },
     { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
     { name: "User Accounts", href: "/users", icon: KeyRound, roles: ["admin"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },

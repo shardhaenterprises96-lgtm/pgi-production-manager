@@ -24,7 +24,6 @@ export const AuthSessionRole = {
   manufacturing: 'manufacturing',
   accountant: 'accountant',
   customer: 'customer',
-  shop: 'shop',
 } as const;
 
 export interface AuthSession {
@@ -34,8 +33,6 @@ export interface AuthSession {
   name: string;
   /** @nullable */
   customerId?: number | null;
-  /** @nullable */
-  locationId?: number | null;
 }
 
 export type UserAccountRole = typeof UserAccountRole[keyof typeof UserAccountRole];
@@ -48,7 +45,6 @@ export const UserAccountRole = {
   manufacturing: 'manufacturing',
   accountant: 'accountant',
   customer: 'customer',
-  shop: 'shop',
 } as const;
 
 export interface UserAccount {
@@ -58,8 +54,6 @@ export interface UserAccount {
   role: UserAccountRole;
   /** @nullable */
   entityId?: number | null;
-  /** @nullable */
-  locationId?: number | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -74,7 +68,6 @@ export const CreateUserInputRole = {
   manufacturing: 'manufacturing',
   accountant: 'accountant',
   customer: 'customer',
-  shop: 'shop',
 } as const;
 
 /**
@@ -95,8 +88,6 @@ export interface CreateUserInput {
   role: CreateUserInputRole;
   /** @nullable */
   entityId?: number | null;
-  /** @nullable */
-  locationId?: number | null;
 }
 
 export type UpdateUserInputRole = typeof UpdateUserInputRole[keyof typeof UpdateUserInputRole];
@@ -109,7 +100,6 @@ export const UpdateUserInputRole = {
   manufacturing: 'manufacturing',
   accountant: 'accountant',
   customer: 'customer',
-  shop: 'shop',
 } as const;
 
 /**
@@ -121,8 +111,6 @@ export interface UpdateUserInput {
   isActive?: boolean;
   /** @nullable */
   entityId?: number | null;
-  /** @nullable */
-  locationId?: number | null;
   /** @minLength 4 */
   password?: string;
 }
@@ -1081,288 +1069,6 @@ export interface SearchResults {
   invoices: InvoiceSummary[];
 }
 
-export type LocationType = typeof LocationType[keyof typeof LocationType];
-
-
-export const LocationType = {
-  factory: 'factory',
-  shop: 'shop',
-  warehouse: 'warehouse',
-} as const;
-
-export interface Location {
-  id: number;
-  code: string;
-  name: string;
-  type: LocationType;
-  /** @nullable */
-  address?: string | null;
-  isActive: boolean;
-}
-
-export type ShopInventoryRowSourceType = typeof ShopInventoryRowSourceType[keyof typeof ShopInventoryRowSourceType];
-
-
-export const ShopInventoryRowSourceType = {
-  factory: 'factory',
-  self: 'self',
-} as const;
-
-export interface ShopInventoryRow {
-  id: number;
-  locationId: number;
-  productId: number;
-  productName: string;
-  itemCode: string;
-  unit: string;
-  /** @nullable */
-  imageUrl?: string | null;
-  currentStock: string;
-  minStockThreshold: string;
-  sourceType: ShopInventoryRowSourceType;
-  /** @nullable */
-  shopRetailPrice?: string | null;
-  /**
-     * Current factory stock for this product (for transfer planning)
-     * @nullable
-     */
-  factoryStock?: string | null;
-  hasBom?: boolean;
-}
-
-export interface BulkImportShopInventoryInput {
-  locationId: number;
-}
-
-export interface BulkImportShopInventoryResult {
-  added?: number;
-}
-
-export type ShopInventoryInputSourceType = typeof ShopInventoryInputSourceType[keyof typeof ShopInventoryInputSourceType];
-
-
-export const ShopInventoryInputSourceType = {
-  factory: 'factory',
-  self: 'self',
-} as const;
-
-export interface ShopInventoryInput {
-  locationId: number;
-  productId: number;
-  /** @minimum 0 */
-  minStockThreshold?: number;
-  sourceType?: ShopInventoryInputSourceType;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  shopRetailPrice?: number | null;
-}
-
-export type ShopInventoryUpdateSourceType = typeof ShopInventoryUpdateSourceType[keyof typeof ShopInventoryUpdateSourceType];
-
-
-export const ShopInventoryUpdateSourceType = {
-  factory: 'factory',
-  self: 'self',
-} as const;
-
-export interface ShopInventoryUpdate {
-  /** @minimum 0 */
-  minStockThreshold?: number;
-  sourceType?: ShopInventoryUpdateSourceType;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  shopRetailPrice?: number | null;
-  /**
-     * Admin override only — set opening stock
-     * @minimum 0
-     */
-  currentStock?: number;
-}
-
-export interface StockTransferItem {
-  id?: number;
-  productId: number;
-  productName: string;
-  unit: string;
-  requestedQty: string;
-  dispatchedQty: string;
-  receivedQty: string;
-}
-
-export type StockTransferStatus = typeof StockTransferStatus[keyof typeof StockTransferStatus];
-
-
-export const StockTransferStatus = {
-  requested: 'requested',
-  dispatched: 'dispatched',
-  received: 'received',
-  cancelled: 'cancelled',
-} as const;
-
-export interface StockTransfer {
-  id: number;
-  transferNo: string;
-  fromLocationId: number;
-  /** @nullable */
-  fromLocationName?: string | null;
-  toLocationId: number;
-  /** @nullable */
-  toLocationName?: string | null;
-  status: StockTransferStatus;
-  /** @nullable */
-  notes?: string | null;
-  /** @nullable */
-  linkedWorkloadCardId?: number | null;
-  createdAt: string;
-  /** @nullable */
-  dispatchedAt?: string | null;
-  /** @nullable */
-  receivedAt?: string | null;
-  items: StockTransferItem[];
-}
-
-export interface StockTransferInputItem {
-  productId: number;
-  /** @exclusiveMinimum 0 */
-  requestedQty: number;
-}
-
-export interface StockTransferInput {
-  fromLocationId: number;
-  toLocationId: number;
-  /** @nullable */
-  notes?: string | null;
-  /** @minItems 1 */
-  items: StockTransferInputItem[];
-}
-
-export interface PosSaleItem {
-  id?: number;
-  productId: number;
-  productName: string;
-  qty: string;
-  rate: string;
-  amount: string;
-}
-
-export type PosSalePaymentMode = typeof PosSalePaymentMode[keyof typeof PosSalePaymentMode];
-
-
-export const PosSalePaymentMode = {
-  cash: 'cash',
-  upi: 'upi',
-  card: 'card',
-  credit: 'credit',
-} as const;
-
-export interface PosSale {
-  id: number;
-  locationId: number;
-  billNo: string;
-  /** @nullable */
-  customerName?: string | null;
-  /** @nullable */
-  customerMobile?: string | null;
-  paymentMode: PosSalePaymentMode;
-  subtotal: string;
-  discount: string;
-  total: string;
-  createdAt: string;
-  items: PosSaleItem[];
-}
-
-export interface PosSaleInputItem {
-  productId: number;
-  /** @exclusiveMinimum 0 */
-  qty: number;
-  /** @minimum 0 */
-  rate: number;
-}
-
-export type PosSaleInputPaymentMode = typeof PosSaleInputPaymentMode[keyof typeof PosSaleInputPaymentMode];
-
-
-export const PosSaleInputPaymentMode = {
-  cash: 'cash',
-  upi: 'upi',
-  card: 'card',
-  credit: 'credit',
-} as const;
-
-export interface PosSaleInput {
-  locationId: number;
-  /** @nullable */
-  customerName?: string | null;
-  /** @nullable */
-  customerMobile?: string | null;
-  paymentMode: PosSaleInputPaymentMode;
-  /** @minimum 0 */
-  discount?: number;
-  /** @minItems 1 */
-  items: PosSaleInputItem[];
-}
-
-export type PosDailySummaryByPaymentModeItem = {
-  mode: string;
-  total: string;
-  count: number;
-};
-
-export interface PosDailySummary {
-  locationId: number;
-  date: string;
-  totalSales: string;
-  totalDiscount: string;
-  totalNet: string;
-  billCount: number;
-  byPaymentMode: PosDailySummaryByPaymentModeItem[];
-}
-
-export interface ShopPurchaseItem {
-  id?: number;
-  productId: number;
-  productName: string;
-  qty: string;
-  rate: string;
-  amount: string;
-}
-
-export interface ShopPurchase {
-  id: number;
-  locationId: number;
-  /** @nullable */
-  billNo?: string | null;
-  vendorName: string;
-  totalAmount: string;
-  /** @nullable */
-  notes?: string | null;
-  createdAt: string;
-  items: ShopPurchaseItem[];
-}
-
-export interface ShopPurchaseInputItem {
-  productId: number;
-  /** @exclusiveMinimum 0 */
-  qty: number;
-  /** @minimum 0 */
-  rate: number;
-}
-
-export interface ShopPurchaseInput {
-  locationId: number;
-  /** @nullable */
-  billNo?: string | null;
-  vendorName: string;
-  /** @nullable */
-  notes?: string | null;
-  /** @minItems 1 */
-  items: ShopPurchaseInputItem[];
-}
-
 export type ListProductsParams = {
 search?: string;
 group?: string;
@@ -1464,39 +1170,6 @@ export const ListWorkloadCardsStatus = {
   processing: 'processing',
   done: 'done',
 } as const;
-
-export type ListShopInventoryParams = {
-locationId: number;
-};
-
-export type ListShopLowStockParams = {
-locationId: number;
-};
-
-export type ListStockTransfersParams = {
-/**
- * Filter to transfers where this is from or to location
- */
-locationId?: number;
-status?: string;
-};
-
-export type ListPosSalesParams = {
-locationId: number;
-/**
- * ISO date YYYY-MM-DD; defaults to today
- */
-date?: string;
-};
-
-export type GetPosDailySummaryParams = {
-locationId: number;
-date?: string;
-};
-
-export type ListShopPurchasesParams = {
-locationId: number;
-};
 
 export type ListPurchasesParams = {
 vendorId?: number;
