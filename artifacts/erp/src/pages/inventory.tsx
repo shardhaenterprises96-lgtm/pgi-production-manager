@@ -455,7 +455,7 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Liters per Box</Label>
+                <Label>Ltr per Pck</Label>
                 <Input
                   type="number"
                   min={0}
