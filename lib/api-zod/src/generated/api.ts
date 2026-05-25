@@ -78,6 +78,70 @@ export const UpdateRolePermissionsResponse = zod.array(UpdateRolePermissionsResp
 
 
 /**
+ * @summary List all user accounts (admin only)
+ */
+export const ListUsersResponseItem = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
+  "entityId": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListUsersResponse = zod.array(ListUsersResponseItem)
+
+
+/**
+ * @summary Create a new user account (admin only)
+ */
+export const createUserBodyUsernameMin = 3;
+export const createUserBodyUsernameMax = 32;
+
+export const createUserBodyPasswordMin = 4;
+
+
+
+export const CreateUserBody = zod.object({
+  "username": zod.string().min(createUserBodyUsernameMin).max(createUserBodyUsernameMax),
+  "password": zod.string().min(createUserBodyPasswordMin),
+  "name": zod.string().optional(),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
+  "entityId": zod.number().nullish()
+}).describe('Creates a login account. `name` falls back to the linked entity\'s name when omitted\nand an `entityId` is provided. Link a salesman\/worker\/customer entity via `entityId`\nso the login is associated with their ledger and invoice attribution.\n')
+
+
+/**
+ * @summary Update a user account — rename, change role, reset password, toggle active, or relink entity (admin only)
+ */
+export const UpdateUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateUserBodyPasswordMin = 4;
+
+
+
+export const UpdateUserBody = zod.object({
+  "name": zod.string().optional(),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']).optional(),
+  "isActive": zod.boolean().optional(),
+  "entityId": zod.number().nullish(),
+  "password": zod.string().min(updateUserBodyPasswordMin).optional()
+}).describe('All fields optional. Send only the fields you want to change. Set `password` to a non-empty string to reset it.')
+
+export const UpdateUserResponse = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
+  "entityId": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary List products
  */
 export const ListProductsQueryParams = zod.object({

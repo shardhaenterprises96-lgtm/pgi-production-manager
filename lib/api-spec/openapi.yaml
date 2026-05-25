@@ -113,6 +113,68 @@ paths:
                 items:
                   $ref: "#/components/schemas/RolePermission"
 
+  # USER ACCOUNTS (admin only)
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all user accounts (admin only)
+      responses:
+        "200":
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserAccount"
+        "403":
+          description: Admin access required
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user account (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAccount"
+        "409":
+          description: Username already taken
+
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user account — rename, change role, reset password, toggle active, or relink entity (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAccount"
+
   # PRODUCTS / INVENTORY
   /products:
     get:
@@ -1165,6 +1227,66 @@ components:
           type: string
         customerId:
           type: ["integer", "null"]
+
+    UserAccount:
+      type: object
+      required: [id, username, name, role, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, salesman, store, manufacturing, accountant, customer]
+        entityId:
+          type: ["integer", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    CreateUserInput:
+      type: object
+      required: [username, password, role]
+      description: |
+        Creates a login account. `name` falls back to the linked entity's name when omitted
+        and an `entityId` is provided. Link a salesman/worker/customer entity via `entityId`
+        so the login is associated with their ledger and invoice attribution.
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        password:
+          type: string
+          minLength: 4
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, salesman, store, manufacturing, accountant, customer]
+        entityId:
+          type: ["integer", "null"]
+
+    UpdateUserInput:
+      type: object
+      description: All fields optional. Send only the fields you want to change. Set `password` to a non-empty string to reset it.
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, salesman, store, manufacturing, accountant, customer]
+        isActive:
+          type: boolean
+        entityId:
+          type: ["integer", "null"]
+        password:
+          type: string
+          minLength: 4
 
     RolePermission:
       type: object

@@ -17,6 +17,7 @@ import {
   LogOut,
   Wallet,
   HandCoins,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,7 @@ export function Sidebar() {
     { name: "Rewards", href: "/rewards", icon: Award, roles: ["admin", "customer"] },
     { name: "Manufacturing", href: "/manufacturing", icon: Factory, roles: ["admin", "manufacturing"] },
     { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
+    { name: "User Accounts", href: "/users", icon: KeyRound, roles: ["admin"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
   ];
 

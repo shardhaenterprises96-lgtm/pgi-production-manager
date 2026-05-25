@@ -19,6 +19,7 @@ import Rewards from "@/pages/rewards";
 import Manufacturing from "@/pages/manufacturing";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
+import Users from "@/pages/users";
 import Accounts from "@/pages/accounts";
 import CashBook from "@/pages/cashbook";
 
@@ -42,6 +43,7 @@ function ProtectedRoutes() {
         <Route path="/accounts" component={Accounts} />
         <Route path="/cashbook" component={CashBook} />
         <Route path="/settings" component={Settings} />
+        <Route path="/users" component={Users} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

@@ -35,6 +35,86 @@ export interface AuthSession {
   customerId?: number | null;
 }
 
+export type UserAccountRole = typeof UserAccountRole[keyof typeof UserAccountRole];
+
+
+export const UserAccountRole = {
+  admin: 'admin',
+  salesman: 'salesman',
+  store: 'store',
+  manufacturing: 'manufacturing',
+  accountant: 'accountant',
+  customer: 'customer',
+} as const;
+
+export interface UserAccount {
+  id: number;
+  username: string;
+  name: string;
+  role: UserAccountRole;
+  /** @nullable */
+  entityId?: number | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type CreateUserInputRole = typeof CreateUserInputRole[keyof typeof CreateUserInputRole];
+
+
+export const CreateUserInputRole = {
+  admin: 'admin',
+  salesman: 'salesman',
+  store: 'store',
+  manufacturing: 'manufacturing',
+  accountant: 'accountant',
+  customer: 'customer',
+} as const;
+
+/**
+ * Creates a login account. `name` falls back to the linked entity's name when omitted
+and an `entityId` is provided. Link a salesman/worker/customer entity via `entityId`
+so the login is associated with their ledger and invoice attribution.
+
+ */
+export interface CreateUserInput {
+  /**
+     * @minLength 3
+     * @maxLength 32
+     */
+  username: string;
+  /** @minLength 4 */
+  password: string;
+  name?: string;
+  role: CreateUserInputRole;
+  /** @nullable */
+  entityId?: number | null;
+}
+
+export type UpdateUserInputRole = typeof UpdateUserInputRole[keyof typeof UpdateUserInputRole];
+
+
+export const UpdateUserInputRole = {
+  admin: 'admin',
+  salesman: 'salesman',
+  store: 'store',
+  manufacturing: 'manufacturing',
+  accountant: 'accountant',
+  customer: 'customer',
+} as const;
+
+/**
+ * All fields optional. Send only the fields you want to change. Set `password` to a non-empty string to reset it.
+ */
+export interface UpdateUserInput {
+  name?: string;
+  role?: UpdateUserInputRole;
+  isActive?: boolean;
+  /** @nullable */
+  entityId?: number | null;
+  /** @minLength 4 */
+  password?: string;
+}
+
 export interface RolePermission {
   id?: number;
   role: string;
