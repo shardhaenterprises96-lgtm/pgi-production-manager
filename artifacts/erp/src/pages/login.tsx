@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 import { useLogin } from "@workspace/api-client-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";

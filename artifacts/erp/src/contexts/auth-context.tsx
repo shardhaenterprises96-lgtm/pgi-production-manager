@@ -1,24 +1,16 @@
-import React, { createContext, useContext, useEffect } from "react";
-import { useGetMe, AuthSession } from "@workspace/api-client-react";
+import React from "react";
+import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
-
-interface AuthContextType {
-  user: AuthSession | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  hasRole: (roles: AuthSession["role"][]) => boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from "./use-auth";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading, error } = useGetMe({
-    query: { retry: false, refetchOnWindowFocus: false }
+  const { data: user, isLoading } = useGetMe({
+    query: { retry: false, refetchOnWindowFocus: false, queryKey: getGetMeQueryKey() },
   });
 
   const isAuthenticated = !!user;
 
-  const hasRole = (roles: AuthSession["role"][]) => {
+  const hasRole = (roles: NonNullable<typeof user>["role"][]) => {
     if (!user) return false;
     return roles.includes(user.role);
   };
@@ -36,12 +28,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 }

@@ -25,7 +25,7 @@ import {
 import { UserPlus, KeyRound, Loader2, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 
 const ROLES = ["admin", "salesman", "store", "manufacturing", "accountant", "customer"] as const;
 type Role = typeof ROLES[number];

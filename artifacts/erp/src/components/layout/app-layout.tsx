@@ -1,6 +1,6 @@
 import React from "react";
 import { Sidebar } from "./sidebar";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 import { Redirect } from "wouter";
 
 interface AppLayoutProps {

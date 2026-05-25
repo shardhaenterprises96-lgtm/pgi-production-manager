@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useGetDashboardSummary, useGetSalesTrend, useGetLowStockAlerts, useGetRecentInvoices } from "@workspace/api-client-react";
 import { IndianRupee, FileText, AlertTriangle, CreditCard, PackageOpen, Users, TrendingUp } from "lucide-react";
