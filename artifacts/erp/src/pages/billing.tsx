@@ -312,21 +312,49 @@ export default function Billing() {
               {/* Payment mode selector */}
               <div className="space-y-2">
                 <Label>Payment Mode</Label>
-                <div className="grid grid-cols-5 gap-2">
-                  {(["cash", "upi", "cheque", "bank_transfer", "credit"] as const).map((mode) => (
+                {/* Primary: Cash & UPI — large prominent cards */}
+                <div className="grid grid-cols-2 gap-3">
+                  {(["cash", "upi"] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => setPaymentMode(mode)}
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all
+                      className={`flex items-center gap-3 p-4 rounded-xl border-2 font-semibold transition-all
+                        ${paymentMode === mode
+                          ? "border-primary bg-primary/10 text-primary shadow-sm"
+                          : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                        }`}
+                      data-testid={`mode-${mode}`}
+                    >
+                      <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0
+                        ${paymentMode === mode ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                        {modeIcons[mode]}
+                      </span>
+                      <div className="text-left">
+                        <div className="text-base">{mode === "cash" ? "Cash" : "UPI"}</div>
+                        <div className="text-xs font-normal text-muted-foreground mt-0.5">
+                          {mode === "cash" ? "Instant — no reference needed" : "GPay / PhonePe / BHIM"}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {/* Secondary: Cheque, Bank Transfer, Credit */}
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {(["cheque", "bank_transfer", "credit"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setPaymentMode(mode)}
+                      className={`flex flex-col items-center gap-1.5 py-2.5 px-2 rounded-lg border text-xs font-medium transition-all
                         ${paymentMode === mode
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:border-primary/50 text-muted-foreground hover:text-foreground"
+                          : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
                         }`}
                       data-testid={`mode-${mode}`}
                     >
                       {modeIcons[mode]}
-                      {mode === "bank_transfer" ? "Bank" : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      {mode === "bank_transfer" ? "Bank Transfer" : mode.charAt(0).toUpperCase() + mode.slice(1)}
                     </button>
                   ))}
                 </div>
