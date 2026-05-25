@@ -73,7 +73,23 @@ router.post("/payments", async (req, res): Promise<void> => {
         notes: parsed.data.notes ?? null,
         approvedById: session.userId,
         approvedAt: new Date(),
+        accountId: parsed.data.accountId ?? null,
+        collectedAt: parsed.data.accountId ? new Date() : null,
+        collectedById: parsed.data.accountId ? session.userId : null,
       }).returning();
+
+      // If deposited directly to an account, verify it exists & is active, then bump its balance
+      if (parsed.data.accountId) {
+        const upd = await client.query(
+          `UPDATE accounts SET current_balance = current_balance + $1
+           WHERE id = $2 AND is_active = true
+           RETURNING id`,
+          [parsed.data.amount, parsed.data.accountId]
+        );
+        if (upd.rowCount === 0) {
+          throw new Error(`Account ${parsed.data.accountId} not found or inactive`);
+        }
+      }
 
       // Deduct from outstanding
       await client.query(
@@ -214,6 +230,9 @@ function formatPayment(p: any) {
     notes: p.notes ?? null,
     createdAt: p.createdAt?.toISOString(),
     approvedAt: p.approvedAt ? p.approvedAt.toISOString() : null,
+    accountId: p.accountId ?? null,
+    accountName: p.accountName ?? null,
+    collectedAt: p.collectedAt ? p.collectedAt.toISOString() : null,
   };
 }
 

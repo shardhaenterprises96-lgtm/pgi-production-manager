@@ -5,12 +5,10 @@
  * Shradha Oil Center ERP API
  * OpenAPI spec version: 0.1.0
  */
-import type { PaymentInputMode } from './paymentInputMode';
 
-export interface PaymentInput {
-  customerId: number;
+export interface CollectCashInput {
+  salesmanId: number;
+  accountId: number;
   amount: number;
-  mode: PaymentInputMode;
   notes?: string;
-  accountId?: number;
 }

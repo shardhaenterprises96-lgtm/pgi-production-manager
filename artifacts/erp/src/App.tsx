@@ -19,6 +19,8 @@ import Rewards from "@/pages/rewards";
 import Manufacturing from "@/pages/manufacturing";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
+import Accounts from "@/pages/accounts";
+import CashBook from "@/pages/cashbook";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,8 @@ function ProtectedRoutes() {
         <Route path="/rewards" component={Rewards} />
         <Route path="/manufacturing" component={Manufacturing} />
         <Route path="/reports" component={Reports} />
+        <Route path="/accounts" component={Accounts} />
+        <Route path="/cashbook" component={CashBook} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>

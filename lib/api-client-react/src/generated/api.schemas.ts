@@ -509,6 +509,12 @@ export interface Payment {
   createdAt: string;
   /** @nullable */
   approvedAt?: string | null;
+  /** @nullable */
+  accountId?: number | null;
+  /** @nullable */
+  accountName?: string | null;
+  /** @nullable */
+  collectedAt?: string | null;
 }
 
 export type PaymentInputMode = typeof PaymentInputMode[keyof typeof PaymentInputMode];
@@ -526,6 +532,68 @@ export interface PaymentInput {
   customerId: number;
   amount: number;
   mode: PaymentInputMode;
+  notes?: string;
+  accountId?: number;
+}
+
+export type AccountType = typeof AccountType[keyof typeof AccountType];
+
+
+export const AccountType = {
+  cash: 'cash',
+  upi: 'upi',
+  bank: 'bank',
+} as const;
+
+export interface Account {
+  id: number;
+  name: string;
+  type: AccountType;
+  /** @nullable */
+  identifier?: string | null;
+  openingBalance: number;
+  currentBalance: number;
+  isActive: boolean;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type AccountInputType = typeof AccountInputType[keyof typeof AccountInputType];
+
+
+export const AccountInputType = {
+  cash: 'cash',
+  upi: 'upi',
+  bank: 'bank',
+} as const;
+
+export interface AccountInput {
+  name: string;
+  type: AccountInputType;
+  identifier?: string;
+  openingBalance?: number;
+  notes?: string;
+  isActive?: boolean;
+}
+
+export interface SalesmanCashSummary {
+  salesmanId: number;
+  salesmanName: string;
+  pendingCash: number;
+  paymentCount: number;
+}
+
+export interface CashbookSummary {
+  salesmen: SalesmanCashSummary[];
+  totalPendingCash: number;
+  accounts: Account[];
+}
+
+export interface CollectCashInput {
+  salesmanId: number;
+  accountId: number;
+  amount: number;
   notes?: string;
 }
 
@@ -822,6 +890,12 @@ export const ListPaymentsStatus = {
   approved: 'approved',
   rejected: 'rejected',
 } as const;
+
+export type CollectCashFromSalesman200 = {
+  collectedCount: number;
+  totalAmount: number;
+  account: Account;
+};
 
 export type ListRewardProgressParams = {
 customerId?: number;

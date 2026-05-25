@@ -722,7 +722,10 @@ export const ListPaymentsResponseItem = zod.object({
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "notes": zod.string().nullish(),
   "createdAt": zod.string(),
-  "approvedAt": zod.string().nullish()
+  "approvedAt": zod.string().nullish(),
+  "accountId": zod.number().nullish(),
+  "accountName": zod.string().nullish(),
+  "collectedAt": zod.string().nullish()
 })
 export const ListPaymentsResponse = zod.array(ListPaymentsResponseItem)
 
@@ -734,7 +737,8 @@ export const LogPaymentBody = zod.object({
   "customerId": zod.number(),
   "amount": zod.number(),
   "mode": zod.enum(['cash', 'cheque', 'upi', 'bank_transfer', 'other']),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "accountId": zod.number().optional()
 })
 
 
@@ -757,7 +761,10 @@ export const ApprovePaymentResponse = zod.object({
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "notes": zod.string().nullish(),
   "createdAt": zod.string(),
-  "approvedAt": zod.string().nullish()
+  "approvedAt": zod.string().nullish(),
+  "accountId": zod.number().nullish(),
+  "accountName": zod.string().nullish(),
+  "collectedAt": zod.string().nullish()
 })
 
 
@@ -780,7 +787,129 @@ export const RejectPaymentResponse = zod.object({
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "notes": zod.string().nullish(),
   "createdAt": zod.string(),
-  "approvedAt": zod.string().nullish()
+  "approvedAt": zod.string().nullish(),
+  "accountId": zod.number().nullish(),
+  "accountName": zod.string().nullish(),
+  "collectedAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary List all accounts
+ */
+export const ListAccountsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "type": zod.enum(['cash', 'upi', 'bank']),
+  "identifier": zod.string().nullish(),
+  "openingBalance": zod.number(),
+  "currentBalance": zod.number(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListAccountsResponse = zod.array(ListAccountsResponseItem)
+
+
+/**
+ * @summary Create a new account
+ */
+export const CreateAccountBody = zod.object({
+  "name": zod.string(),
+  "type": zod.enum(['cash', 'upi', 'bank']),
+  "identifier": zod.string().optional(),
+  "openingBalance": zod.number().optional(),
+  "notes": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update an account
+ */
+export const UpdateAccountParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateAccountBody = zod.object({
+  "name": zod.string(),
+  "type": zod.enum(['cash', 'upi', 'bank']),
+  "identifier": zod.string().optional(),
+  "openingBalance": zod.number().optional(),
+  "notes": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateAccountResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "type": zod.enum(['cash', 'upi', 'bank']),
+  "identifier": zod.string().nullish(),
+  "openingBalance": zod.number(),
+  "currentBalance": zod.number(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete (deactivate) an account
+ */
+export const DeleteAccountParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Get cash book summary (per-salesman pending cash + account balances)
+ */
+export const GetCashbookResponse = zod.object({
+  "salesmen": zod.array(zod.object({
+  "salesmanId": zod.number(),
+  "salesmanName": zod.string(),
+  "pendingCash": zod.number(),
+  "paymentCount": zod.number()
+})),
+  "totalPendingCash": zod.number(),
+  "accounts": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "type": zod.enum(['cash', 'upi', 'bank']),
+  "identifier": zod.string().nullish(),
+  "openingBalance": zod.number(),
+  "currentBalance": zod.number(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Record cash collected from a salesman and deposit into an account
+ */
+export const CollectCashFromSalesmanBody = zod.object({
+  "salesmanId": zod.number(),
+  "accountId": zod.number(),
+  "amount": zod.number(),
+  "notes": zod.string().optional()
+})
+
+export const CollectCashFromSalesmanResponse = zod.object({
+  "collectedCount": zod.number(),
+  "totalAmount": zod.number(),
+  "account": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "type": zod.enum(['cash', 'upi', 'bank']),
+  "identifier": zod.string().nullish(),
+  "openingBalance": zod.number(),
+  "currentBalance": zod.number(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
 })
 
 

@@ -16,6 +16,9 @@ export const paymentsTable = pgTable("payments", {
   notes: text("notes"),
   approvedById: integer("approved_by_id"),
   approvedAt: timestamp("approved_at", { withTimezone: true }),
+  accountId: integer("account_id"), // which account the money went into; null = held by salesman, pending collection
+  collectedAt: timestamp("collected_at", { withTimezone: true }),
+  collectedById: integer("collected_by_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

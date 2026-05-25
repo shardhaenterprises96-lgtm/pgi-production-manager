@@ -26,4 +26,10 @@ export interface Payment {
   createdAt: string;
   /** @nullable */
   approvedAt?: string | null;
+  /** @nullable */
+  accountId?: number | null;
+  /** @nullable */
+  accountName?: string | null;
+  /** @nullable */
+  collectedAt?: string | null;
 }

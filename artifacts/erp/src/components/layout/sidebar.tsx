@@ -14,7 +14,9 @@ import {
   Factory, 
   BarChart3, 
   Settings,
-  LogOut
+  LogOut,
+  Wallet,
+  HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +45,8 @@ export function Sidebar() {
     { name: "Inventory", href: "/inventory", icon: Package, roles: ["admin", "store"] },
     { name: "Customers", href: "/customers", icon: Users, roles: ["admin", "salesman", "accountant"] },
     { name: "Payments", href: "/payments", icon: CreditCard, roles: ["admin", "salesman", "accountant"] },
+    { name: "Cash Book", href: "/cashbook", icon: HandCoins, roles: ["admin", "accountant"] },
+    { name: "Accounts", href: "/accounts", icon: Wallet, roles: ["admin", "accountant"] },
     { name: "Rewards", href: "/rewards", icon: Award, roles: ["admin", "customer"] },
     { name: "Manufacturing", href: "/manufacturing", icon: Factory, roles: ["admin", "manufacturing"] },
     { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },

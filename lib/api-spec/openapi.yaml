@@ -630,6 +630,118 @@ paths:
               schema:
                 $ref: "#/components/schemas/Payment"
 
+  # ACCOUNTS (Cash / UPI / Bank)
+  /accounts:
+    get:
+      operationId: listAccounts
+      tags: [accounts]
+      summary: List all accounts
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+    post:
+      operationId: createAccount
+      tags: [accounts]
+      summary: Create a new account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+
+  /accounts/{id}:
+    put:
+      operationId: updateAccount
+      tags: [accounts]
+      summary: Update an account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+    delete:
+      operationId: deleteAccount
+      tags: [accounts]
+      summary: Delete (deactivate) an account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # CASH BOOK — salesman cash collection
+  /cashbook:
+    get:
+      operationId: getCashbook
+      tags: [accounts]
+      summary: Get cash book summary (per-salesman pending cash + account balances)
+      responses:
+        "200":
+          description: Cashbook summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CashbookSummary"
+
+  /cashbook/collect:
+    post:
+      operationId: collectCashFromSalesman
+      tags: [accounts]
+      summary: Record cash collected from a salesman and deposit into an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectCashInput"
+      responses:
+        "200":
+          description: Collected
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collectedCount, totalAmount, account]
+                properties:
+                  collectedCount:
+                    type: integer
+                  totalAmount:
+                    type: number
+                  account:
+                    $ref: "#/components/schemas/Account"
+
   # REWARD SCHEMES
   /reward-schemes:
     get:
@@ -1635,6 +1747,12 @@ components:
           type: string
         approvedAt:
           type: ["string", "null"]
+        accountId:
+          type: ["integer", "null"]
+        accountName:
+          type: ["string", "null"]
+        collectedAt:
+          type: ["string", "null"]
 
     PaymentInput:
       type: object
@@ -1647,6 +1765,91 @@ components:
         mode:
           type: string
           enum: [cash, cheque, upi, bank_transfer, other]
+        notes:
+          type: string
+        accountId:
+          type: integer
+
+    Account:
+      type: object
+      required: [id, name, type, openingBalance, currentBalance, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [cash, upi, bank]
+        identifier:
+          type: ["string", "null"]
+        openingBalance:
+          type: number
+        currentBalance:
+          type: number
+        isActive:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    AccountInput:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [cash, upi, bank]
+        identifier:
+          type: string
+        openingBalance:
+          type: number
+        notes:
+          type: string
+        isActive:
+          type: boolean
+
+    SalesmanCashSummary:
+      type: object
+      required: [salesmanId, salesmanName, pendingCash, paymentCount]
+      properties:
+        salesmanId:
+          type: integer
+        salesmanName:
+          type: string
+        pendingCash:
+          type: number
+        paymentCount:
+          type: integer
+
+    CashbookSummary:
+      type: object
+      required: [salesmen, totalPendingCash, accounts]
+      properties:
+        salesmen:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesmanCashSummary"
+        totalPendingCash:
+          type: number
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Account"
+
+    CollectCashInput:
+      type: object
+      required: [salesmanId, accountId, amount]
+      properties:
+        salesmanId:
+          type: integer
+        accountId:
+          type: integer
+        amount:
+          type: number
         notes:
           type: string
 
