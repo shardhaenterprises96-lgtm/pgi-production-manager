@@ -23,8 +23,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Factory, Loader2, PackageCheck, AlertCircle, CheckCircle2, Package, Search, X,
-  ListChecks, AlertTriangle, Play, Hammer,
+  ListChecks, AlertTriangle,
 } from "lucide-react";
 
 export default function Manufacturing() {
@@ -149,15 +152,19 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
     return (created as any).id;
   };
 
-  const handleStartProcessing = async (productId: number, suggestedQty: number) => {
+  const handleSetStatus = async (
+    productId: number,
+    newStatus: "pending" | "processing",
+    suggestedQty: number,
+  ) => {
     setBusyProductId(productId);
     try {
       const cardId = await ensureCard(productId, suggestedQty);
-      await updateCard.mutateAsync({ id: cardId, data: { status: "processing" } });
+      await updateCard.mutateAsync({ id: cardId, data: { status: newStatus } });
       await refreshLists();
-      toast({ title: "Marked as processing" });
+      toast({ title: `Marked as ${newStatus}` });
     } catch (err: any) {
-      toast({ title: "Failed to start", description: err?.message ?? "Server error", variant: "destructive" });
+      toast({ title: "Failed to update", description: err?.message ?? "Server error", variant: "destructive" });
     } finally {
       setBusyProductId(null);
     }
@@ -243,12 +250,11 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
 
       <div className="rounded-lg border overflow-hidden">
         <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs uppercase text-muted-foreground font-medium bg-muted/50">
-          <div className="col-span-4">Product</div>
+          <div className="col-span-5">Product</div>
           <div className="col-span-1 text-right">Stock</div>
           <div className="col-span-1 text-right">Min</div>
           <div className="col-span-2 text-right">Shortage</div>
-          <div className="col-span-1 text-center">Status</div>
-          <div className="col-span-3 text-right">Action</div>
+          <div className="col-span-3 text-center">Change Status</div>
         </div>
         <div className="divide-y">
           {alerts.map((a: any) => {
@@ -264,20 +270,13 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
             const isBusy = busyProductId === a.id;
             const hasBom = !!bom;
 
-            const statusBadge =
-              status === "processing" ? (
-                <Badge className="bg-blue-600 hover:bg-blue-600 text-white">Processing</Badge>
-              ) : (
-                <Badge variant="secondary">Pending</Badge>
-              );
-
             return (
               <div
                 key={a.id}
                 className="grid grid-cols-12 gap-3 px-4 py-3 items-center"
                 data-testid={`workload-row-${a.id}`}
               >
-                <div className="col-span-4 min-w-0 flex items-center gap-3">
+                <div className="col-span-5 min-w-0 flex items-center gap-3">
                   <div className="w-12 h-12 rounded-md border bg-muted/30 shrink-0 overflow-hidden flex items-center justify-center">
                     {imageUrl ? (
                       <img
@@ -322,39 +321,59 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                     {shortage.toLocaleString()} {unit}
                   </Badge>
                 </div>
-                <div className="col-span-1 flex justify-center" data-testid={`status-${a.id}`}>
-                  {statusBadge}
-                </div>
-                <div className="col-span-3 flex justify-end gap-2">
+                <div className="col-span-3 flex justify-center" data-testid={`status-${a.id}`}>
                   {hasBom ? (
-                    <>
-                      {status === "pending" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isBusy}
-                          onClick={() => handleStartProcessing(a.id, shortage || 1)}
-                          data-testid={`button-start-${a.id}`}
-                        >
-                          {isBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1" />}
-                          Process
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        disabled={isBusy}
-                        onClick={() => handleOpenDone(a.id, a.name, unit, shortage || 1)}
-                        data-testid={`button-done-${a.id}`}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                    <Select
+                      value={status}
+                      disabled={isBusy}
+                      onValueChange={(next) => {
+                        if (next === status) return;
+                        if (next === "done") {
+                          handleOpenDone(a.id, a.name, unit, shortage || 1);
+                        } else if (next === "pending" || next === "processing") {
+                          handleSetStatus(a.id, next, shortage || 1);
+                        }
+                      }}
+                    >
+                      <SelectTrigger
+                        className={`w-44 ${
+                          status === "processing"
+                            ? "border-blue-500 text-blue-700 dark:text-blue-300"
+                            : "border-border"
+                        }`}
+                        data-testid={`select-status-${a.id}`}
                       >
-                        <Hammer className="w-3.5 h-3.5 mr-1" />
-                        Done
-                      </Button>
-                    </>
+                        {isBusy ? (
+                          <span className="flex items-center gap-2 text-xs">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating…
+                          </span>
+                        ) : (
+                          <SelectValue />
+                        )}
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                            Pending
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="processing">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-500" />
+                            Processing
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="done">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-green-600" />
+                            Done (enter qty…)
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   ) : (
-                    <Button size="sm" variant="outline" disabled>
-                      No Recipe
-                    </Button>
+                    <Badge variant="outline">No Recipe</Badge>
                   )}
                 </div>
               </div>
