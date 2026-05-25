@@ -1,6 +1,6 @@
-# Shradha Oil Center ERP
+# Shradha Enterprises ERP
 
-A production-ready hybrid ERP and B2B E-Commerce web application for Shradha Oil Center (Vipro Brand) — a lubricating oil and grease trading/manufacturing company.
+A production-ready hybrid ERP and B2B E-Commerce web application for Shradha Enterprises (Vipro Brand) — a lubricating oil and grease trading/manufacturing company.
 
 ## Run & Operate
 

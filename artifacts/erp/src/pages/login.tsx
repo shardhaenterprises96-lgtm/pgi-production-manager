@@ -76,7 +76,7 @@ export default function Login() {
           <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center text-primary-foreground mb-6 shadow-lg shadow-primary/20">
             <Factory className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-sidebar-foreground">Shradha Oil Center</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-sidebar-foreground">Shradha Enterprises</h1>
           <p className="text-sidebar-foreground/60 mt-2">Vipro ERP System</p>
         </div>
 
@@ -127,7 +127,7 @@ export default function Login() {
         </Card>
         
         <div className="text-center text-sm text-sidebar-foreground/40">
-          &copy; {new Date().getFullYear()} Shradha Oil Center. All rights reserved.
+          &copy; {new Date().getFullYear()} Shradha Enterprises. All rights reserved.
         </div>
       </div>
     </div>

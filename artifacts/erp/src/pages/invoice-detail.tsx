@@ -183,10 +183,10 @@ export default function InvoiceDetail() {
         <div className="grid grid-cols-12 border-b border-black">
           <div className="col-span-7 border-r border-black p-3 flex gap-3">
             <div className="w-16 h-16 rounded-full border border-black flex items-center justify-center text-[10px] text-center shrink-0">
-              SHRADHA<br/>OIL
+              SHRADHA<br/>ENT.
             </div>
             <div className="flex-1">
-              <div className="font-bold text-lg tracking-wide">SHRADHA OIL CENTER</div>
+              <div className="font-bold text-lg tracking-wide">SHRADHA ENTERPRISES</div>
               <div className="text-[12px]">SOLAPUR</div>
               <div className="text-[12px]">Contact : 9921338726</div>
               {isGst && <div className="text-[12px]">GSTIN :- 27BFTPC0657J1Z5</div>}
@@ -389,7 +389,7 @@ export default function InvoiceDetail() {
                 </tr>
                 <tr>
                   <td colSpan={2} className="px-3 pt-2 pb-1 text-right font-semibold">
-                    For, SHRADHA OIL CENTER
+                    For, SHRADHA ENTERPRISES
                   </td>
                 </tr>
                 <tr>
