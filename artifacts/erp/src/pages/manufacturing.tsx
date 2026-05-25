@@ -5,8 +5,11 @@ import {
   useAssembleItem,
   useListProducts,
   useGetLowStockAlerts,
+  useCreateWorkloadCard,
+  useUpdateWorkloadCard,
   getListWorkloadCardsQueryKey,
   getListProductsQueryKey,
+  getGetLowStockAlertsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -17,8 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Factory, Loader2, PackageCheck, AlertCircle, CheckCircle2, Package, Search, X,
-  ListChecks, ArrowRight, AlertTriangle,
+  ListChecks, AlertTriangle, Play, Hammer,
 } from "lucide-react";
 
 export default function Manufacturing() {
@@ -63,15 +69,32 @@ export default function Manufacturing() {
 }
 
 // --------------------------- WORKLOAD TAB ---------------------------
-// Shows products that are below their minimum stock threshold. If a BOM exists
-// for the product, the user can jump straight into Assemble Item with that
-// recipe pre-selected. Otherwise we hint that they need to either reorder or
-// create a BOM.
+// Each low-stock product gets a status: Pending → Processing → Done.
+//  • Pending  : no active card OR a card exists in 'pending' state
+//  • Processing: card exists in 'processing' state (work has started)
+//  • Done     : worker confirms produced qty; server runs the BOM recipe in a
+//                SERIALIZABLE txn (consume raw, produce finished) so the
+//                item drops off this list automatically once stock is restored.
 
 function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => void }) {
   const { data: alerts, isLoading } = useGetLowStockAlerts();
   const { data: boms } = useListBoms();
   const { data: products } = useListProducts();
+  const { data: workloadCards } = useListWorkloadCards();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const createCard = useCreateWorkloadCard();
+  const updateCard = useUpdateWorkloadCard();
+
+  // Dialog state for Mark Done qty prompt
+  const [doneDialog, setDoneDialog] = useState<{
+    productId: number;
+    productName: string;
+    unit: string;
+    suggestedQty: number;
+    cardId: number | null; // null means we need to create the card first
+  } | null>(null);
+  const [busyProductId, setBusyProductId] = useState<number | null>(null);
 
   const bomByFinishedProduct = useMemo(() => {
     const m = new Map<number, any>();
@@ -84,6 +107,101 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
     (products ?? []).forEach((p: any) => m.set(p.id, p));
     return m;
   }, [products]);
+
+  // Most recent active (pending/processing) card per product. If a worker
+  // accidentally created multiple, we honour the latest one.
+  const activeCardByProduct = useMemo(() => {
+    const m = new Map<number, any>();
+    (workloadCards ?? [])
+      .filter((c: any) => c.status === "pending" || c.status === "processing")
+      .forEach((c: any) => {
+        const prev = m.get(c.productId);
+        if (!prev || new Date(c.createdAt) > new Date(prev.createdAt)) {
+          m.set(c.productId, c);
+        }
+      });
+    return m;
+  }, [workloadCards]);
+
+  const refreshLists = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: getListWorkloadCardsQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getGetLowStockAlertsQueryKey() }),
+    ]);
+  };
+
+  // Ensure a workload card exists for the product and is in the desired
+  // status. Used by both "Start Processing" and "Mark Done" flows.
+  const ensureCard = async (
+    productId: number,
+    suggestedQty: number,
+  ): Promise<number> => {
+    const existing = activeCardByProduct.get(productId);
+    if (existing) return existing.id;
+    const created = await createCard.mutateAsync({
+      data: {
+        productId,
+        targetQty: suggestedQty,
+        orderType: "low_stock_alert",
+      },
+    });
+    return (created as any).id;
+  };
+
+  const handleStartProcessing = async (productId: number, suggestedQty: number) => {
+    setBusyProductId(productId);
+    try {
+      const cardId = await ensureCard(productId, suggestedQty);
+      await updateCard.mutateAsync({ id: cardId, data: { status: "processing" } });
+      await refreshLists();
+      toast({ title: "Marked as processing" });
+    } catch (err: any) {
+      toast({ title: "Failed to start", description: err?.message ?? "Server error", variant: "destructive" });
+    } finally {
+      setBusyProductId(null);
+    }
+  };
+
+  const handleOpenDone = (productId: number, productName: string, unit: string, suggestedQty: number) => {
+    const card = activeCardByProduct.get(productId);
+    setDoneDialog({
+      productId,
+      productName,
+      unit,
+      suggestedQty: card ? Number(card.targetQty) : suggestedQty,
+      cardId: card?.id ?? null,
+    });
+  };
+
+  const handleConfirmDone = async (finalQty: number) => {
+    if (!doneDialog) return;
+    setBusyProductId(doneDialog.productId);
+    try {
+      // Ensure a card exists with the entered qty as its baseline target —
+      // this also covers the "skip processing, go straight to done" path.
+      const cardId = doneDialog.cardId ?? await ensureCard(doneDialog.productId, finalQty);
+      await updateCard.mutateAsync({
+        id: cardId,
+        data: { status: "done", targetQty: finalQty },
+      });
+      await refreshLists();
+      toast({
+        title: "Production complete",
+        description: `Added ${finalQty} ${doneDialog.unit} of ${doneDialog.productName}. Raw materials debited.`,
+      });
+      setDoneDialog(null);
+    } catch (err: any) {
+      let desc = err?.message ?? "Server error";
+      try {
+        const body = err?.response ? await err.response.json() : null;
+        if (body?.error) desc = String(body.error).slice(0, 300);
+      } catch {}
+      toast({ title: "Failed to complete", description: desc, variant: "destructive" });
+    } finally {
+      setBusyProductId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -115,7 +233,7 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
             Production Workload
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Products that have fallen below their minimum stock threshold — top of the queue first.
+            Products below minimum stock. Move each item Pending → Processing → Done; on Done, confirm produced qty and stock auto-adjusts.
           </p>
         </div>
         <Badge variant="destructive" data-testid="badge-workload-count">
@@ -126,10 +244,11 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
       <div className="rounded-lg border overflow-hidden">
         <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs uppercase text-muted-foreground font-medium bg-muted/50">
           <div className="col-span-4">Product</div>
-          <div className="col-span-2 text-right">In Stock</div>
-          <div className="col-span-2 text-right">Min Threshold</div>
+          <div className="col-span-1 text-right">Stock</div>
+          <div className="col-span-1 text-right">Min</div>
           <div className="col-span-2 text-right">Shortage</div>
-          <div className="col-span-2 text-right">Action</div>
+          <div className="col-span-1 text-center">Status</div>
+          <div className="col-span-3 text-right">Action</div>
         </div>
         <div className="divide-y">
           {alerts.map((a: any) => {
@@ -137,8 +256,21 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
             const product = productById.get(a.id);
             const imageUrl = product?.imageUrl;
             const itemCode = product?.itemCode;
+            const unit = a.unit ?? "";
             const shortage = Math.max(0, Number(a.minStockThreshold) - Number(a.currentStock));
             const critical = Number(a.currentStock) <= 0;
+            const card = activeCardByProduct.get(a.id);
+            const status: "pending" | "processing" = card?.status === "processing" ? "processing" : "pending";
+            const isBusy = busyProductId === a.id;
+            const hasBom = !!bom;
+
+            const statusBadge =
+              status === "processing" ? (
+                <Badge className="bg-blue-600 hover:bg-blue-600 text-white">Processing</Badge>
+              ) : (
+                <Badge variant="secondary">Pending</Badge>
+              );
+
             return (
               <div
                 key={a.id}
@@ -168,39 +300,57 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                     {itemCode && (
                       <div className="text-[11px] text-muted-foreground font-mono">{itemCode}</div>
                     )}
-                    {bom ? (
+                    {hasBom ? (
                       <div className="text-xs text-muted-foreground mt-0.5">
                         Recipe ready · {bom.outputQuantity} per batch · {bom.items.length} materials
                       </div>
                     ) : (
                       <div className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
-                        No BOM defined — reorder from vendor or set up a recipe
+                        No BOM defined — set up a recipe before producing
                       </div>
                     )}
                   </div>
                 </div>
-                <div className={`col-span-2 text-right tabular-nums font-medium ${critical ? "text-destructive" : ""}`}>
-                  {Number(a.currentStock).toLocaleString()} {a.unit ?? ""}
+                <div className={`col-span-1 text-right tabular-nums font-medium ${critical ? "text-destructive" : ""}`}>
+                  {Number(a.currentStock).toLocaleString()} {unit}
                 </div>
-                <div className="col-span-2 text-right tabular-nums text-muted-foreground">
-                  {Number(a.minStockThreshold).toLocaleString()} {a.unit ?? ""}
+                <div className="col-span-1 text-right tabular-nums text-muted-foreground">
+                  {Number(a.minStockThreshold).toLocaleString()} {unit}
                 </div>
                 <div className="col-span-2 text-right tabular-nums">
                   <Badge variant={critical ? "destructive" : "secondary"}>
-                    {shortage.toLocaleString()} {a.unit ?? ""}
+                    {shortage.toLocaleString()} {unit}
                   </Badge>
                 </div>
-                <div className="col-span-2 flex justify-end">
-                  {bom ? (
-                    <Button
-                      size="sm"
-                      onClick={() => onStartAssemble(bom.id)}
-                      data-testid={`button-assemble-from-workload-${a.id}`}
-                    >
-                      <PackageCheck className="w-3.5 h-3.5 mr-1" />
-                      Assemble
-                      <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                    </Button>
+                <div className="col-span-1 flex justify-center" data-testid={`status-${a.id}`}>
+                  {statusBadge}
+                </div>
+                <div className="col-span-3 flex justify-end gap-2">
+                  {hasBom ? (
+                    <>
+                      {status === "pending" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isBusy}
+                          onClick={() => handleStartProcessing(a.id, shortage || 1)}
+                          data-testid={`button-start-${a.id}`}
+                        >
+                          {isBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1" />}
+                          Process
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        disabled={isBusy}
+                        onClick={() => handleOpenDone(a.id, a.name, unit, shortage || 1)}
+                        data-testid={`button-done-${a.id}`}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Hammer className="w-3.5 h-3.5 mr-1" />
+                        Done
+                      </Button>
+                    </>
                   ) : (
                     <Button size="sm" variant="outline" disabled>
                       No Recipe
@@ -212,7 +362,107 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
           })}
         </div>
       </div>
+
+      <MarkDoneDialog
+        state={doneDialog}
+        submitting={busyProductId != null && doneDialog != null}
+        onCancel={() => setDoneDialog(null)}
+        onConfirm={handleConfirmDone}
+      />
     </div>
+  );
+}
+
+// --------------------------- MARK DONE DIALOG ---------------------------
+
+function MarkDoneDialog({
+  state,
+  submitting,
+  onCancel,
+  onConfirm,
+}: {
+  state: {
+    productId: number;
+    productName: string;
+    unit: string;
+    suggestedQty: number;
+    cardId: number | null;
+  } | null;
+  submitting: boolean;
+  onCancel: () => void;
+  onConfirm: (qty: number) => void;
+}) {
+  const [qty, setQty] = useState("");
+  const [touched, setTouched] = useState(false);
+
+  React.useEffect(() => {
+    if (state) {
+      setQty(String(state.suggestedQty || ""));
+      setTouched(false);
+    }
+  }, [state]);
+
+  const numQty = Number(qty);
+  const valid = isFinite(numQty) && numQty > 0;
+
+  return (
+    <Dialog open={state != null} onOpenChange={(v) => { if (!v && !submitting) onCancel(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Mark Done — How much produced?</DialogTitle>
+          <DialogDescription>
+            {state && (
+              <>
+                Enter the actual quantity of <span className="font-medium text-foreground">{state.productName}</span> that came off the line.
+                The system will debit raw materials per the recipe and credit this finished stock.
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-2">
+          <Label htmlFor="done-qty">Produced Qty *</Label>
+          <div className="relative">
+            <Input
+              id="done-qty"
+              type="number"
+              min="0"
+              step="0.001"
+              autoFocus
+              value={qty}
+              onChange={(e) => { setQty(e.target.value); setTouched(true); }}
+              data-testid="input-done-qty"
+              className="pr-16"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground uppercase">
+              {state?.unit}
+            </span>
+          </div>
+          {touched && !valid && (
+            <p className="text-xs text-destructive">Enter a quantity greater than zero.</p>
+          )}
+          {state && (
+            <p className="text-xs text-muted-foreground">
+              Suggested: {state.suggestedQty} {state.unit} (current shortage)
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel} disabled={submitting} data-testid="button-done-cancel">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => valid && onConfirm(numQty)}
+            disabled={!valid || submitting}
+            data-testid="button-done-confirm"
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            <PackageCheck className="w-4 h-4 mr-2" />
+            Confirm & Produce
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -277,6 +277,17 @@ router.patch("/workload/:id", async (req, res): Promise<void> => {
     if (parsed.data.status === "done") {
       updateData.completedAt = new Date();
 
+      // If the worker provided a final produced qty at done-time, that's the
+      // source of truth for both the recipe math and the persisted card.
+      const finalQty = parsed.data.targetQty != null
+        ? Number(parsed.data.targetQty)
+        : Number(existing.targetQty);
+      if (!isFinite(finalQty) || finalQty <= 0) {
+        res.status(400).json({ error: "targetQty must be > 0 when marking done" });
+        return;
+      }
+      updateData.targetQty = String(finalQty);
+
       // Execute BOM recipe: consume raw materials, produce finished good
       const client = await pool.connect();
       try {
@@ -285,9 +296,8 @@ router.patch("/workload/:id", async (req, res): Promise<void> => {
         const [bom] = await db.select().from(bomsTable).where(eq(bomsTable.finishedProductId, existing.productId));
         if (bom) {
           const bomItems = await db.select().from(bomItemsTable).where(eq(bomItemsTable.bomId, bom.id));
-          const targetQty = Number(existing.targetQty);
           const outputQty = Number(bom.outputQuantity);
-          const batchMultiplier = targetQty / outputQty;
+          const batchMultiplier = finalQty / outputQty;
 
           for (const item of bomItems) {
             const consumeQty = Number(item.quantity) * batchMultiplier;
@@ -307,11 +317,11 @@ router.patch("/workload/:id", async (req, res): Promise<void> => {
         await client.query(
           `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
            VALUES ($1, 'manufacturing_produce', $2, 'Manufacturing complete', $3, 'workload', 1)`,
-          [existing.productId, existing.targetQty, id]
+          [existing.productId, finalQty, id]
         );
         await client.query(
           `UPDATE products SET current_stock = current_stock + $1 WHERE id = $2`,
-          [existing.targetQty, existing.productId]
+          [finalQty, existing.productId]
         );
 
         await client.query("COMMIT");

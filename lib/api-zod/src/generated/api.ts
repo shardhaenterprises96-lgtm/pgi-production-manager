@@ -1407,9 +1407,14 @@ export const UpdateWorkloadCardParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const updateWorkloadCardBodyTargetQtyMin = 0.001;
+
+
+
 export const UpdateWorkloadCardBody = zod.object({
   "status": zod.enum(['pending', 'processing', 'done']).optional(),
-  "workerId": zod.number().optional()
+  "workerId": zod.number().optional(),
+  "targetQty": zod.number().min(updateWorkloadCardBodyTargetQtyMin).optional().describe('Final produced quantity. Only used when transitioning status to\n\'done\' — overrides the card\'s original targetQty so the worker can\nconfirm what actually came off the line. Must be > 0.\n')
 })
 
 export const UpdateWorkloadCardResponse = zod.object({

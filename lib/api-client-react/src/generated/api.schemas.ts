@@ -1007,6 +1007,14 @@ export const WorkloadCardUpdateStatus = {
 export interface WorkloadCardUpdate {
   status?: WorkloadCardUpdateStatus;
   workerId?: number;
+  /**
+     * Final produced quantity. Only used when transitioning status to
+  'done' — overrides the card's original targetQty so the worker can
+  confirm what actually came off the line. Must be > 0.
+
+     * @minimum 0.001
+     */
+  targetQty?: number;
 }
 
 export interface DashboardSummary {
