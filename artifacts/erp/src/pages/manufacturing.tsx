@@ -2,18 +2,14 @@ import React, { useState, useMemo } from "react";
 import {
   useListBoms,
   useListWorkloadCards,
-  useCreateBom,
-  useUpdateBom,
   useAssembleItem,
   useListProducts,
   useGetLowStockAlerts,
-  getListBomsQueryKey,
   getListWorkloadCardsQueryKey,
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -21,20 +17,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2, Pencil, Package, Search, X,
+  Factory, Loader2, PackageCheck, AlertCircle, CheckCircle2, Package, Search, X,
   ListChecks, ArrowRight, AlertTriangle,
 } from "lucide-react";
 
 export default function Manufacturing() {
   // Lifted state so the Workload tab can deep-link into Assemble Item with a
   // specific BOM pre-selected.
-  const [tab, setTab] = useState("bom");
+  const [tab, setTab] = useState("workload");
   const [pendingAssembleBomId, setPendingAssembleBomId] = useState<string>("");
 
   const startAssemble = (bomId: number) => {
@@ -47,20 +37,15 @@ export default function Manufacturing() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Manufacturing</h1>
         <p className="text-muted-foreground mt-2">
-          Define recipes and assemble finished products from raw materials.
+          Check what needs to be produced and assemble finished products from raw materials.
         </p>
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-3">
-          <TabsTrigger value="bom" data-testid="tab-bom">Bill of Material</TabsTrigger>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="workload" data-testid="tab-workload">Workload</TabsTrigger>
           <TabsTrigger value="assemble" data-testid="tab-assemble">Assemble Item</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="bom" className="mt-6">
-          <BomTab />
-        </TabsContent>
 
         <TabsContent value="workload" className="mt-6">
           <WorkloadTab onStartAssemble={startAssemble} />
@@ -73,110 +58,6 @@ export default function Manufacturing() {
           />
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-// ----------------------------- BOM TAB -----------------------------
-
-function BomTab() {
-  const { data: boms, isLoading } = useListBoms();
-  const { user } = useAuth();
-  // Manufacturing/shop-floor workers can view recipes but cannot create or
-  // edit them — that's an office/admin/accountant responsibility.
-  const canEdit = user?.role !== "manufacturing";
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingBom, setEditingBom] = useState<any | null>(null);
-
-  return (
-    <div className="space-y-4">
-      {canEdit && (
-        <div className="flex justify-end">
-          <Button onClick={() => setDialogOpen(true)} data-testid="button-create-bom">
-            <Plus className="w-4 h-4 mr-2" /> Create BOM
-          </Button>
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {isLoading ? (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-          </div>
-        ) : !boms || boms.length === 0 ? (
-          <div className="col-span-full text-center py-12 border border-dashed rounded-lg">
-            <Factory className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
-            <h3 className="text-lg font-medium">No BOMs found</h3>
-            <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-              A Bill of Material defines which raw materials and quantities go into one batch of a finished product.
-            </p>
-            {canEdit && (
-              <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" /> Create First BOM
-              </Button>
-            )}
-          </div>
-        ) : (
-          boms.map((bom: any) => (
-            <Card key={bom.id} data-testid={`bom-card-${bom.id}`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="text-lg line-clamp-1">{bom.finishedProductName}</CardTitle>
-                    <div className="text-sm text-muted-foreground">
-                      Output: {bom.outputQuantity} per batch
-                    </div>
-                  </div>
-                  {canEdit && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 -mt-1 -mr-2"
-                      onClick={() => setEditingBom(bom)}
-                      data-testid={`button-edit-bom-${bom.id}`}
-                      title="Edit BOM"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xs font-semibold mb-2 uppercase text-muted-foreground">
-                  Materials Required
-                </div>
-                <ul className="space-y-2 text-sm">
-                  {bom.items.slice(0, 5).map((item: any) => (
-                    <li key={item.id} className="flex justify-between border-b border-border/50 pb-1 last:border-0">
-                      <span className="line-clamp-1">{item.materialProductName}</span>
-                      <span className="font-medium ml-4 shrink-0 tabular-nums">
-                        {item.quantity} {item.unit}
-                      </span>
-                    </li>
-                  ))}
-                  {bom.items.length > 5 && (
-                    <li className="text-xs text-center text-muted-foreground pt-1">
-                      +{bom.items.length - 5} more items
-                    </li>
-                  )}
-                </ul>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-
-      <BomDialog
-        mode="create"
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-      />
-      <BomDialog
-        mode="edit"
-        bom={editingBom}
-        open={editingBom != null}
-        onOpenChange={(v) => { if (!v) setEditingBom(null); }}
-      />
     </div>
   );
 }
@@ -715,266 +596,5 @@ function AssembleTab({
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-// --------------------------- CREATE BOM DIALOG ---------------------------
-
-type MaterialRow = { materialProductId: string; quantity: string; unit: string };
-
-function BomDialog({
-  mode,
-  bom,
-  open,
-  onOpenChange,
-}: {
-  mode: "create" | "edit";
-  bom?: any | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const createBom = useCreateBom();
-  const updateBom = useUpdateBom();
-
-  const { data: finishedProducts } = useListProducts({ forManufacturing: true });
-  const { data: allProducts } = useListProducts({});
-
-  const isEdit = mode === "edit";
-  const pending = createBom.isPending || updateBom.isPending;
-
-  const [finishedProductId, setFinishedProductId] = useState("");
-  const [outputQuantity, setOutputQuantity] = useState("1");
-  const [items, setItems] = useState<MaterialRow[]>([
-    { materialProductId: "", quantity: "", unit: "" },
-  ]);
-
-  React.useEffect(() => {
-    if (!open) return;
-    if (isEdit && bom) {
-      setFinishedProductId(String(bom.finishedProductId));
-      setOutputQuantity(String(bom.outputQuantity));
-      setItems(
-        (bom.items ?? []).length > 0
-          ? bom.items.map((it: any) => ({
-              materialProductId: String(it.materialProductId),
-              quantity: String(it.quantity),
-              unit: it.unit ?? "",
-            }))
-          : [{ materialProductId: "", quantity: "", unit: "" }],
-      );
-    } else if (!isEdit) {
-      setFinishedProductId("");
-      setOutputQuantity("1");
-      setItems([{ materialProductId: "", quantity: "", unit: "" }]);
-    }
-  }, [open, isEdit, bom]);
-
-  const reset = () => {
-    setFinishedProductId(""); setOutputQuantity("1");
-    setItems([{ materialProductId: "", quantity: "", unit: "" }]);
-  };
-  const handleClose = () => { onOpenChange(false); if (!isEdit) reset(); };
-
-  const updateItem = (i: number, patch: Partial<MaterialRow>) => {
-    setItems((prev) => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it));
-  };
-  const addItemRow = () => setItems((prev) => [...prev, { materialProductId: "", quantity: "", unit: "" }]);
-  const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
-
-  const onPickMaterial = (i: number, productId: string) => {
-    const prod = allProducts?.find((p: any) => String(p.id) === productId);
-    updateItem(i, { materialProductId: productId, unit: prod?.unit ?? "" });
-  };
-
-  const handleSave = () => {
-    if (!finishedProductId) {
-      toast({ title: "Pick a finished product", variant: "destructive" });
-      return;
-    }
-    const validItems = items.filter(it => it.materialProductId && Number(it.quantity) > 0 && it.unit);
-    if (validItems.length === 0) {
-      toast({ title: "Add at least one material", description: "Each material needs product, quantity and unit.", variant: "destructive" });
-      return;
-    }
-    const mappedItems = validItems.map(it => ({
-      materialProductId: Number(it.materialProductId),
-      quantity: Number(it.quantity),
-      unit: it.unit.trim(),
-    }));
-
-    const onSuccess = () => {
-      queryClient.invalidateQueries({ queryKey: getListBomsQueryKey() });
-      toast({ title: isEdit ? "BOM updated" : "BOM created" });
-      handleClose();
-    };
-    const onError = async (err: any) => {
-      let desc = err?.message ?? "Server error";
-      try {
-        const body = err?.response ? await err.response.json() : null;
-        if (body?.error) desc = String(body.error).slice(0, 300);
-      } catch {}
-      toast({
-        title: isEdit ? "Failed to update BOM" : "Failed to create BOM",
-        description: desc,
-        variant: "destructive",
-      });
-    };
-
-    if (isEdit && bom) {
-      updateBom.mutate(
-        {
-          id: bom.id,
-          data: {
-            outputQuantity: Number(outputQuantity) || 1,
-            items: mappedItems,
-          },
-        },
-        { onSuccess, onError },
-      );
-    } else {
-      createBom.mutate(
-        {
-          data: {
-            finishedProductId: Number(finishedProductId),
-            outputQuantity: Number(outputQuantity) || 1,
-            items: mappedItems,
-          },
-        },
-        { onSuccess, onError },
-      );
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); else onOpenChange(o); }}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit BOM (Recipe)" : "Create BOM (Recipe)"}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? "Update the output quantity or the materials required per batch. The finished product cannot be changed."
-              : <>Define which raw materials &amp; quantities are required to produce one batch of a finished product. Only products marked <strong>Add for Manufacturing</strong> appear in the finished product list.</>}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <Label>Finished Product *</Label>
-              {isEdit ? (
-                <Input
-                  value={bom?.finishedProductName ?? ""}
-                  disabled
-                  data-testid="input-finished-product-locked"
-                />
-              ) : (
-                <Select value={finishedProductId} onValueChange={setFinishedProductId}>
-                  <SelectTrigger data-testid="select-finished-product">
-                    <SelectValue placeholder="Choose product to manufacture..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!finishedProducts || finishedProducts.length === 0 ? (
-                      <div className="px-3 py-4 text-sm text-muted-foreground">
-                        No products marked for manufacturing. Edit a product and turn on <strong>Add for Manufacturing</strong>.
-                      </div>
-                    ) : (
-                      finishedProducts.map((p: any) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          {p.name} <span className="text-muted-foreground text-xs ml-2">({p.itemCode})</span>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Output per Batch *</Label>
-              <Input
-                type="number" min="0" step="0.001"
-                value={outputQuantity}
-                onChange={(e) => setOutputQuantity(e.target.value)}
-                data-testid="input-output-quantity"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-base">Required Materials</Label>
-              <Button type="button" size="sm" variant="outline" onClick={addItemRow}>
-                <Plus className="w-3.5 h-3.5 mr-1" /> Add Material
-              </Button>
-            </div>
-            <div className="rounded-lg border divide-y">
-              {items.map((it, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 p-2 items-end">
-                  <div className="col-span-6 space-y-1">
-                    {i === 0 && <Label className="text-xs text-muted-foreground">Material</Label>}
-                    <Select value={it.materialProductId} onValueChange={(v) => onPickMaterial(i, v)}>
-                      <SelectTrigger data-testid={`select-material-${i}`}>
-                        <SelectValue placeholder="Pick material..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allProducts?.map((p: any) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.name}
-                            <span className="text-muted-foreground text-xs ml-2">
-                              {p.notForSale ? "(raw)" : p.addForManufacturing ? "(mfg)" : ""}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-3 space-y-1">
-                    {i === 0 && <Label className="text-xs text-muted-foreground">Quantity</Label>}
-                    <Input
-                      type="number" min="0" step="0.001"
-                      value={it.quantity}
-                      onChange={(e) => updateItem(i, { quantity: e.target.value })}
-                      placeholder="0"
-                      data-testid={`input-qty-${i}`}
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-1">
-                    {i === 0 && <Label className="text-xs text-muted-foreground">Unit</Label>}
-                    <Input
-                      value={it.unit}
-                      onChange={(e) => updateItem(i, { unit: e.target.value })}
-                      placeholder="L, kg, pcs"
-                      data-testid={`input-unit-${i}`}
-                    />
-                  </div>
-                  <div className="col-span-1 flex justify-end">
-                    <Button
-                      type="button" variant="ghost" size="icon"
-                      onClick={() => removeItem(i)}
-                      disabled={items.length === 1}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Tip: mark raw materials as <strong>Not for Sale</strong> in Inventory so they stay out of the price catalog.
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={pending}>Cancel</Button>
-          <Button onClick={handleSave} disabled={pending} data-testid="button-save-bom">
-            {pending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            {isEdit ? "Save Changes" : "Create BOM"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
