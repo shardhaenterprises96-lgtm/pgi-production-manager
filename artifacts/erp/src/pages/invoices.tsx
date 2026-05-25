@@ -76,10 +76,7 @@ export default function Invoices() {
           queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
           toast({
             title: "Invoice cancelled",
-            description:
-              deleting.invoiceType === "gst"
-                ? `${deleting.invoiceNo} cancelled. Stock reversed.`
-                : `${deleting.invoiceNo} cancelled. Stock NOT reversed (non-GST policy).`,
+            description: `${deleting.invoiceNo} cancelled. Inventory was not changed; action recorded in audit log.`,
           });
           setDeleting(null);
         },
@@ -315,9 +312,10 @@ export default function Invoices() {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel invoice {deleting?.invoiceNo}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleting?.invoiceType === "gst"
-                ? "This GST invoice will be marked Cancelled and the line-item stock will be reversed back to inventory."
-                : "This non-GST invoice will be marked Cancelled. Stock will NOT be reversed (per business policy) and the action will be written to the audit log."}
+              This invoice will be marked <strong>Cancelled</strong>. Inventory will
+              <strong> not</strong> be changed — stock is left as-is because the goods
+              have typically already left the premises. The cancellation will be
+              recorded in the system audit log.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

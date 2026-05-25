@@ -639,55 +639,65 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
   try {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
-    const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, params.data.id));
-    if (!inv) {
+    // Existence check first — distinguish 404 (no such invoice) from 409
+    // (exists but already cancelled). Read inside the txn client so it
+    // participates in the SERIALIZABLE snapshot.
+    const existsRes = await client.query(
+      `SELECT id FROM invoices WHERE id = $1`,
+      [params.data.id]
+    );
+    if (existsRes.rowCount === 0) {
       await client.query("ROLLBACK");
       res.status(404).json({ error: "Invoice not found" });
       return;
     }
 
-    // Idempotency guard — never reverse stock twice for an already-cancelled GST invoice
-    if (inv.status === "cancelled") {
+    // Business policy (per admin request): cancelling an invoice — whether GST
+    // or non-GST — does NOT touch inventory. Stock is intentionally left as-is
+    // because physical goods have usually already left the premises by the time
+    // a bill is voided. The cancellation is recorded in the audit log so the
+    // discrepancy is fully traceable.
+    //
+    // Conditional UPDATE ... RETURNING gives us atomic idempotency: if a
+    // concurrent request already flipped the status to 'cancelled', rowCount
+    // will be 0 and we respond 409 without double-writing an audit row.
+    const updated = await client.query(
+      `UPDATE invoices
+         SET status = 'cancelled'
+       WHERE id = $1 AND status <> 'cancelled'
+       RETURNING id, invoice_no, invoice_type, grand_total, customer_id, customer_name`,
+      [params.data.id]
+    );
+    if (updated.rowCount === 0) {
       await client.query("ROLLBACK");
       res.status(409).json({ error: "Invoice is already cancelled" });
       return;
     }
+    const inv = {
+      invoiceNo: updated.rows[0].invoice_no,
+      invoiceType: updated.rows[0].invoice_type,
+      grandTotal: updated.rows[0].grand_total,
+      customerId: updated.rows[0].customer_id,
+      customerName: updated.rows[0].customer_name,
+    };
 
-    // Mark as cancelled (do NOT reverse stock for non-GST per spec)
     await client.query(
-      `UPDATE invoices SET status = 'cancelled' WHERE id = $1`,
-      [params.data.id]
+      `INSERT INTO audit_log (action, description, user_id, user_name, metadata)
+       VALUES ('invoice_cancelled', $1, $2, $3, $4)`,
+      [
+        `${inv.invoiceType === "gst" ? "GST" : "Non-GST"} invoice ${inv.invoiceNo} cancelled by admin — stock NOT reversed per policy`,
+        session?.userId ?? 1,
+        session?.name ?? "Unknown",
+        JSON.stringify({
+          invoiceId: params.data.id,
+          invoiceNo: inv.invoiceNo,
+          invoiceType: inv.invoiceType,
+          grandTotal: Number(inv.grandTotal),
+          customerId: inv.customerId,
+          customerName: inv.customerName,
+        }),
+      ]
     );
-
-    // For GST invoices, reverse the stock
-    if (inv.invoiceType === "gst") {
-      const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, params.data.id));
-      for (const item of items) {
-        await client.query(
-          `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-           VALUES ($1, 'inward', $2, 'Invoice cancelled', $3, 'invoice_cancel', $4)`,
-          [item.productId, item.qty, params.data.id, session?.userId ?? 1]
-        );
-        await client.query(
-          `UPDATE products SET current_stock = current_stock + $1 WHERE id = $2`,
-          [item.qty, item.productId]
-        );
-      }
-    }
-
-    // Audit log for non-GST deletion per spec
-    if (inv.invoiceType === "non_gst") {
-      await client.query(
-        `INSERT INTO audit_log (action, description, user_id, user_name, metadata)
-         VALUES ('non_gst_invoice_cancelled', $1, $2, $3, $4)`,
-        [
-          `Non-GST invoice ${inv.invoiceNo} cancelled - stock NOT reversed per policy`,
-          session?.userId ?? 1,
-          session?.name ?? "Unknown",
-          JSON.stringify({ invoiceId: params.data.id, invoiceNo: inv.invoiceNo }),
-        ]
-      );
-    }
 
     await client.query("COMMIT");
     res.sendStatus(204);

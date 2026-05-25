@@ -39,7 +39,7 @@ A production-ready hybrid ERP and B2B E-Commerce web application for Shradha Oil
 - **Immutable stock ledger**: Stock only ever changes via `stock_movements` inserts + `products.current_stock` update in the same transaction. Never direct UPDATE to current_stock alone.
 - **SERIALIZABLE transactions for money**: Invoice creation, payment approval, and manufacturing completion all use `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE` via the raw pg pool client.
 - **Escrow payment flow**: Payments logged by salesmen are `pending`; admin payments auto-approve and immediately debit the customer ledger.
-- **Non-GST invoice deletion**: Cancels the invoice but does NOT reverse stock — writes an audit log entry instead (per business policy).
+- **Invoice deletion (admin-only)**: Cancelling any invoice — GST or non-GST — marks it Cancelled but does NOT touch inventory. Stock is left as-is because the goods have usually already left the premises; every cancellation is recorded in the audit log for traceability.
 - **Server-side invoice numbering**: `invoice_sequence` table with month/year + counter; generated inside SERIALIZABLE transaction to avoid duplicates.
 - **Signed cookie sessions**: No JWT, no localStorage — sessions stored in HttpOnly signed cookies using `SESSION_SECRET`.
 - **Flat password storage (dev mode)**: Passwords stored plaintext for demo. Replace with bcrypt before production.
