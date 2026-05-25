@@ -1,12 +1,16 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
-import { useListProducts, useCreateProduct } from "@workspace/api-client-react";
+import { useListProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -15,12 +19,40 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getListProductsQueryKey } from "@workspace/api-client-react";
 import {
   PackageSearch, PackagePlus, Upload, X, ImageIcon, Loader2, ChevronRight,
+  Pencil, Trash2, Save,
 } from "lucide-react";
 
 export default function Inventory() {
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const { data: products, isLoading } = useListProducts({ search: search || undefined });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const deleteProduct = useDeleteProduct();
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteProduct.mutate(
+      { id: deleteTarget.id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+          toast({ title: `Deleted "${deleteTarget.name}"` });
+          setDeleteTarget(null);
+        },
+        onError: async (err: any) => {
+          let desc = err?.message ?? "Server error";
+          try {
+            const body = err?.response ? await err.response.json() : null;
+            if (body?.error) desc = String(body.error).slice(0, 300);
+          } catch {}
+          toast({ title: "Failed to delete product", description: desc, variant: "destructive" });
+        },
+      },
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -57,18 +89,19 @@ export default function Inventory() {
                 <TableHead>Stock</TableHead>
                 <TableHead>Pricing (W / R)</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-28 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : products?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No products found.</TableCell>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No products found.</TableCell>
                 </TableRow>
               ) : (
                 products?.map((product) => (
@@ -100,11 +133,37 @@ export default function Inventory() {
                       ₹{product.wholesalePrice} / ₹{product.retailPrice}
                     </TableCell>
                     <TableCell>
-                      {product.notForSale ? (
-                        <Badge variant="secondary">Internal</Badge>
-                      ) : (
-                        <Badge className="bg-green-600 text-white border-transparent hover:bg-green-700">Active</Badge>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {product.notForSale ? (
+                          <Badge variant="secondary">Internal</Badge>
+                        ) : (
+                          <Badge className="bg-green-600 text-white border-transparent hover:bg-green-700">Active</Badge>
+                        )}
+                        {product.addForManufacturing && (
+                          <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-400">Mfg</Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="icon" variant="ghost" className="h-8 w-8"
+                          onClick={() => setEditProduct(product)}
+                          data-testid={`button-edit-${product.id}`}
+                          title="Edit product"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => setDeleteTarget(product)}
+                          data-testid={`button-delete-${product.id}`}
+                          title="Delete product"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -114,7 +173,35 @@ export default function Inventory() {
         </CardContent>
       </Card>
 
-      <AddProductDialog open={addOpen} onOpenChange={setAddOpen} />
+      <ProductDialog open={addOpen} onOpenChange={setAddOpen} />
+      <ProductDialog
+        open={!!editProduct}
+        onOpenChange={(v) => { if (!v) setEditProduct(null); }}
+        product={editProduct}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete product?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <strong>{deleteTarget?.name}</strong> ({deleteTarget?.itemCode}) from your catalog.
+              If the product has been used in invoices or BOMs, deletion may be blocked by the server.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteProduct.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteProduct.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -147,7 +234,8 @@ const emptyForm: ProductForm = {
   minStockThreshold: "5", notForSale: false, addForManufacturing: false, imageUrl: "",
 };
 
-function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenChange: (v: boolean) => void; product?: any }) {
+  const isEdit = !!product;
   const [tab, setTab] = useState("details");
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -156,6 +244,39 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+
+  // Hydrate form when opening for edit
+  useEffect(() => {
+    if (open && product) {
+      setForm({
+        name: product.name ?? "",
+        printName: product.printName ?? "",
+        group: product.group ?? "",
+        brand: product.brand ?? "",
+        itemCode: product.itemCode ?? "",
+        unit: product.unit ?? "",
+        purchasePrice: product.purchasePrice != null ? String(product.purchasePrice) : "",
+        mrp: product.mrp != null ? String(product.mrp) : "",
+        wholesalePrice: product.wholesalePrice != null ? String(product.wholesalePrice) : "",
+        retailPrice: product.retailPrice != null ? String(product.retailPrice) : "",
+        hsnCode: product.hsnCode ?? "",
+        taxRate: product.taxRate != null ? String(product.taxRate) : "18",
+        litersPerBox: product.litersPerBox != null ? String(product.litersPerBox) : "",
+        openingStock: product.openingStock != null ? String(product.openingStock) : "0",
+        minStockThreshold: product.minStockThreshold != null ? String(product.minStockThreshold) : "5",
+        notForSale: !!product.notForSale,
+        addForManufacturing: !!product.addForManufacturing,
+        imageUrl: product.imageUrl ?? "",
+      });
+      setImagePreview(product.imageUrl ?? "");
+      setTab("details");
+    } else if (open && !product) {
+      setForm(emptyForm);
+      setImagePreview("");
+      setTab("details");
+    }
+  }, [open, product]);
 
   const set = (field: keyof ProductForm, value: any) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -204,40 +325,60 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
       return;
     }
 
-    createProduct.mutate(
-      {
-        data: {
-          name: form.name.trim(),
-          printName: form.printName.trim() || undefined,
-          group: form.group.trim(),
-          brand: form.brand.trim(),
-          itemCode: form.itemCode.trim(),
-          unit: form.unit.trim(),
-          purchasePrice: Number(form.purchasePrice),
-          mrp: Number(form.mrp),
-          wholesalePrice: Number(form.wholesalePrice),
-          retailPrice: Number(form.retailPrice),
-          hsnCode: form.hsnCode.trim() || undefined,
-          taxRate: form.taxRate ? Number(form.taxRate) : undefined,
-          litersPerBox: form.litersPerBox ? Number(form.litersPerBox) : undefined,
-          openingStock: form.openingStock ? Number(form.openingStock) : 0,
-          minStockThreshold: form.minStockThreshold ? Number(form.minStockThreshold) : undefined,
-          notForSale: form.notForSale,
-          addForManufacturing: form.addForManufacturing,
-          imageUrl: form.imageUrl || undefined,
+    const payload: any = {
+      name: form.name.trim(),
+      printName: form.printName.trim() || undefined,
+      group: form.group.trim(),
+      brand: form.brand.trim(),
+      itemCode: form.itemCode.trim(),
+      unit: form.unit.trim(),
+      purchasePrice: Number(form.purchasePrice),
+      mrp: Number(form.mrp),
+      wholesalePrice: Number(form.wholesalePrice),
+      retailPrice: Number(form.retailPrice),
+      hsnCode: form.hsnCode.trim() || undefined,
+      taxRate: form.taxRate ? Number(form.taxRate) : undefined,
+      litersPerBox: form.litersPerBox ? Number(form.litersPerBox) : undefined,
+      minStockThreshold: form.minStockThreshold ? Number(form.minStockThreshold) : undefined,
+      notForSale: form.notForSale,
+      addForManufacturing: form.addForManufacturing,
+      imageUrl: form.imageUrl || undefined,
+    };
+
+    const handleError = async (err: any, fallback: string) => {
+      let desc = err?.message ?? "Server error";
+      try {
+        const body = err?.response ? await err.response.json() : null;
+        if (body?.error) desc = String(body.error).slice(0, 300);
+      } catch {}
+      toast({ title: fallback, description: desc, variant: "destructive" });
+    };
+
+    if (isEdit) {
+      updateProduct.mutate(
+        { id: product.id, data: payload },
+        {
+          onSuccess: (updated) => {
+            queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+            toast({ title: `Updated "${updated.name}"` });
+            handleClose();
+          },
+          onError: (err) => handleError(err, "Failed to update product"),
         },
-      },
-      {
-        onSuccess: (product) => {
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-          toast({ title: `Product "${product.name}" added successfully` });
-          handleClose();
+      );
+    } else {
+      createProduct.mutate(
+        { data: { ...payload, openingStock: form.openingStock ? Number(form.openingStock) : 0 } },
+        {
+          onSuccess: (created) => {
+            queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+            toast({ title: `Product "${created.name}" added successfully` });
+            handleClose();
+          },
+          onError: (err) => handleError(err, "Failed to create product"),
         },
-        onError: () => {
-          toast({ title: "Failed to create product", variant: "destructive" });
-        },
-      }
-    );
+      );
+    }
   };
 
   return (
@@ -245,8 +386,8 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <PackagePlus className="w-5 h-5 text-primary" />
-            Add New Product
+            {isEdit ? <Pencil className="w-5 h-5 text-primary" /> : <PackagePlus className="w-5 h-5 text-primary" />}
+            {isEdit ? `Edit Product — ${product?.name ?? ""}` : "Add New Product"}
           </DialogTitle>
         </DialogHeader>
 
@@ -411,12 +552,16 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           <TabsContent value="stock" className="space-y-4 pt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Opening Stock</Label>
+                <Label>
+                  {isEdit ? "Current Stock" : "Opening Stock"}
+                  {isEdit && <span className="ml-2 text-xs text-muted-foreground">(read-only — use stock movements)</span>}
+                </Label>
                 <Input
                   type="number" min={0}
-                  value={form.openingStock}
+                  value={isEdit ? String(product?.currentStock ?? 0) : form.openingStock}
                   onChange={(e) => set("openingStock", e.target.value)}
                   placeholder="0"
+                  disabled={isEdit}
                   data-testid="input-opening-stock"
                 />
               </div>
@@ -538,15 +683,17 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
               <Button
                 type="button"
                 onClick={handleSave}
-                disabled={createProduct.isPending}
+                disabled={createProduct.isPending || updateProduct.isPending}
                 data-testid="button-save-product"
               >
-                {createProduct.isPending ? (
+                {(createProduct.isPending || updateProduct.isPending) ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : isEdit ? (
+                  <Save className="w-4 h-4 mr-2" />
                 ) : (
                   <PackagePlus className="w-4 h-4 mr-2" />
                 )}
-                Save Product
+                {isEdit ? "Save Changes" : "Save Product"}
               </Button>
             </div>
           </TabsContent>
