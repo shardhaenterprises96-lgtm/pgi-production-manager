@@ -220,6 +220,7 @@ type ProductForm = {
   hsnCode: string;
   taxRate: string;
   litersPerBox: string;
+  unitsPerBox: string;
   openingStock: string;
   minStockThreshold: string;
   notForSale: boolean;
@@ -230,7 +231,7 @@ type ProductForm = {
 const emptyForm: ProductForm = {
   name: "", printName: "", group: "", brand: "", itemCode: "",
   unit: "", purchasePrice: "", mrp: "", wholesalePrice: "", retailPrice: "",
-  hsnCode: "", taxRate: "18", litersPerBox: "", openingStock: "0",
+  hsnCode: "", taxRate: "18", litersPerBox: "", unitsPerBox: "", openingStock: "0",
   minStockThreshold: "5", notForSale: false, addForManufacturing: false, imageUrl: "",
 };
 
@@ -263,6 +264,7 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
         hsnCode: product.hsnCode ?? "",
         taxRate: product.taxRate != null ? String(product.taxRate) : "18",
         litersPerBox: product.litersPerBox != null ? String(product.litersPerBox) : "",
+        unitsPerBox: product.unitsPerBox != null ? String(product.unitsPerBox) : "",
         openingStock: product.openingStock != null ? String(product.openingStock) : "0",
         minStockThreshold: product.minStockThreshold != null ? String(product.minStockThreshold) : "5",
         notForSale: !!product.notForSale,
@@ -339,6 +341,7 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
       hsnCode: form.hsnCode.trim() || undefined,
       taxRate: form.taxRate ? Number(form.taxRate) : undefined,
       litersPerBox: form.litersPerBox ? Number(form.litersPerBox) : undefined,
+      unitsPerBox: form.unitsPerBox ? Number(form.unitsPerBox) : undefined,
       minStockThreshold: form.minStockThreshold ? Number(form.minStockThreshold) : undefined,
       notForSale: form.notForSale,
       addForManufacturing: form.addForManufacturing,
@@ -463,6 +466,21 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
                   onChange={(e) => set("litersPerBox", e.target.value)}
                   placeholder="Volume multiplier"
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label>1 Box = ___ {form.unit?.trim() || "Units"}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.001"
+                  value={form.unitsPerBox}
+                  onChange={(e) => set("unitsPerBox", e.target.value)}
+                  placeholder="e.g. 12"
+                  data-testid="input-units-per-box"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Used on invoice to show BOX = Qty / this value.
+                </p>
               </div>
             </div>
             <div className="flex justify-end pt-2">

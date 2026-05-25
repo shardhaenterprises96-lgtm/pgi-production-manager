@@ -1486,6 +1486,8 @@ components:
           type: ["number", "null"]
         litersPerBox:
           type: ["number", "null"]
+        unitsPerBox:
+          type: ["number", "null"]
         notForSale:
           type: boolean
         addForManufacturing:
@@ -1540,6 +1542,8 @@ components:
           type: number
         litersPerBox:
           type: number
+        unitsPerBox:
+          type: number
         notForSale:
           type: boolean
         addForManufacturing:
@@ -1585,6 +1589,8 @@ components:
         taxRate:
           type: number
         litersPerBox:
+          type: number
+        unitsPerBox:
           type: number
         notForSale:
           type: boolean

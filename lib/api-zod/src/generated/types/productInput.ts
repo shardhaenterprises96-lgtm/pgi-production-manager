@@ -27,6 +27,7 @@ export interface ProductInput {
   hsnCode?: string;
   taxRate?: number;
   litersPerBox?: number;
+  unitsPerBox?: number;
   notForSale?: boolean;
   addForManufacturing?: boolean;
   minStockThreshold?: number;

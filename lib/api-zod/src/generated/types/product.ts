@@ -38,6 +38,8 @@ export interface Product {
   taxRate?: number | null;
   /** @nullable */
   litersPerBox?: number | null;
+  /** @nullable */
+  unitsPerBox?: number | null;
   notForSale: boolean;
   addForManufacturing: boolean;
   /** @nullable */

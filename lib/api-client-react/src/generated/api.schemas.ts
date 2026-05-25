@@ -171,6 +171,8 @@ export interface Product {
   taxRate?: number | null;
   /** @nullable */
   litersPerBox?: number | null;
+  /** @nullable */
+  unitsPerBox?: number | null;
   notForSale: boolean;
   addForManufacturing: boolean;
   /** @nullable */
@@ -208,6 +210,7 @@ export interface ProductInput {
   hsnCode?: string;
   taxRate?: number;
   litersPerBox?: number;
+  unitsPerBox?: number;
   notForSale?: boolean;
   addForManufacturing?: boolean;
   minStockThreshold?: number;
@@ -232,6 +235,7 @@ export interface ProductUpdate {
   hsnCode?: string;
   taxRate?: number;
   litersPerBox?: number;
+  unitsPerBox?: number;
   notForSale?: boolean;
   addForManufacturing?: boolean;
   minStockThreshold?: number;

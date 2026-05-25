@@ -63,10 +63,14 @@ export default function InvoiceDetail() {
   const { data: invoice, isLoading, error } = useGetInvoice(id, {
     query: { enabled: Number.isFinite(id), queryKey: getGetInvoiceQueryKey(id) },
   });
-  // Products catalog — used to back-fill litersPerBox for invoices that didn't store totalLiters.
+  // Products catalog — used to back-fill litersPerBox / unitsPerBox for invoices
+  // that didn't store derived totals at create time.
   const { data: products } = useListProducts({});
   const lpbByProduct = new Map<number, number>(
     (products ?? []).map((p: any) => [p.id, Number(p.litersPerBox ?? 0) || 0]),
+  );
+  const upbByProduct = new Map<number, number>(
+    (products ?? []).map((p: any) => [p.id, Number(p.unitsPerBox ?? 0) || 0]),
   );
 
   if (isLoading) {
@@ -235,7 +239,7 @@ export default function InvoiceDetail() {
               <th className="border-r border-black px-2 py-1 text-right w-14">QTY</th>
               <th className="border-r border-black px-2 py-1 text-left w-12">Unit</th>
               <th className="border-r border-black px-2 py-1 text-right w-16">LTR</th>
-              <th className="border-r border-black px-2 py-1 text-right w-20">MRP</th>
+              <th className="border-r border-black px-2 py-1 text-right w-16">BOX</th>
               <th className="border-r border-black px-2 py-1 text-right w-20">RATE</th>
               {hasAnyDisc && <th className="border-r border-black px-2 py-1 text-right w-16">DISC.</th>}
               {isGst && <th className="border-r border-black px-2 py-1 text-right w-12">GST</th>}
@@ -250,6 +254,8 @@ export default function InvoiceDetail() {
             </tr>
             {items.map((item: any, idx: number) => {
               const ltr = lineLiters(item, lpbByProduct.get(Number(item.productId)));
+              const upb = upbByProduct.get(Number(item.productId)) || 0;
+              const boxCount = upb > 0 ? (Number(item.qty) || 0) / upb : 0;
               const disc = (Number(item.discountPct) || 0) > 0
                 ? `${item.discountPct}%`
                 : (Number(item.discountAmt) || 0) > 0
@@ -264,7 +270,7 @@ export default function InvoiceDetail() {
                   <td className="border-r border-black px-2 py-1 align-top uppercase">{item.unit}</td>
                   <td className="border-r border-black px-2 py-1 text-right align-top">{ltr > 0 ? num(ltr, 3) : ""}</td>
                   <td className="border-r border-black px-2 py-1 text-right align-top">
-                    {Number(item.mrp) > 0 ? `₹ ${inr(item.mrp)}` : ""}
+                    {boxCount > 0 ? num(boxCount, 2) : ""}
                   </td>
                   <td className="border-r border-black px-2 py-1 text-right align-top">₹ {inr(item.rate)}</td>
                   {hasAnyDisc && (

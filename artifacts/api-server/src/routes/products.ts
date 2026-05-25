@@ -290,6 +290,7 @@ function formatProduct(p: any) {
     hsnCode: p.hsnCode ?? null,
     taxRate: p.taxRate != null ? Number(p.taxRate) : null,
     litersPerBox: p.litersPerBox != null ? Number(p.litersPerBox) : null,
+    unitsPerBox: p.unitsPerBox != null ? Number(p.unitsPerBox) : null,
     notForSale: p.notForSale,
     addForManufacturing: p.addForManufacturing,
     minStockThreshold: p.minStockThreshold != null ? Number(p.minStockThreshold) : null,
