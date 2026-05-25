@@ -53,7 +53,8 @@ router.get("/boms", async (_req, res): Promise<void> => {
 router.post("/boms", async (req, res): Promise<void> => {
   const parsed = CreateBomBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    req.log.warn({ body: req.body, issues: parsed.error.issues }, "BOM create validation failed");
+    res.status(400).json({ error: parsed.error.message, issues: parsed.error.issues });
     return;
   }
 

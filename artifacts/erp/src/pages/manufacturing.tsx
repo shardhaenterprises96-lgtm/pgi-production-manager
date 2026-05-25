@@ -212,8 +212,14 @@ function CreateBomDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
           toast({ title: "BOM created" });
           handleClose();
         },
-        onError: (err: any) => {
-          toast({ title: "Failed to create BOM", description: err?.message ?? "Server error", variant: "destructive" });
+        onError: async (err: any) => {
+          let desc = err?.message ?? "Server error";
+          try {
+            const body = err?.response ? await err.response.json() : null;
+            if (body?.error) desc = String(body.error).slice(0, 300);
+          } catch {}
+          console.error("BOM create error", err);
+          toast({ title: "Failed to create BOM", description: desc, variant: "destructive" });
         },
       },
     );
