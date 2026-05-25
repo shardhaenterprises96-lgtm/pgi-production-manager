@@ -465,14 +465,39 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
     const dueDateVal = data.dueDate === undefined
       ? existing.due_date
       : (data.dueDate === null || data.dueDate === "" ? null : new Date(data.dueDate));
+
+    // Resolve salesman_name canonically whenever salesman_id is provided or already
+    // set so the admin invoices list stays accurate after edits/reassignment.
+    const resolvedSalesmanId: number | null =
+      data.salesmanId === undefined ? (existing.salesman_id ?? null) : data.salesmanId;
+    let resolvedSalesmanName: string | null = existing.salesman_name ?? null;
+    if (data.salesmanId !== undefined) {
+      if (resolvedSalesmanId === null) {
+        resolvedSalesmanName = null;
+      } else {
+        const [sm] = await client.query(
+          `SELECT name FROM entities WHERE id = $1`,
+          [resolvedSalesmanId]
+        ).then((r) => [r.rows[0]]);
+        resolvedSalesmanName = sm?.name ?? null;
+      }
+    } else if (resolvedSalesmanId !== null && !resolvedSalesmanName) {
+      // Heal legacy rows that have salesman_id but no name persisted.
+      const [sm] = await client.query(
+        `SELECT name FROM entities WHERE id = $1`,
+        [resolvedSalesmanId]
+      ).then((r) => [r.rows[0]]);
+      resolvedSalesmanName = sm?.name ?? null;
+    }
+
     await client.query(
       `UPDATE invoices SET
          invoice_type = $1, invoice_date = $2, due_date = $3, customer_id = $4, customer_name = $5,
          customer_gstin = $6, billing_address = $7, shipping_address = $8, place_of_supply = $9,
-         salesman_id = $10, po_number = $11, e_way_bill_no = $12,
-         subtotal = $13, total_discount = $14, total_tax = $15, cgst = $16, sgst = $17, igst = $18,
-         freight = $19, round_off = $20, grand_total = $21, balance_due = $22, status = $23
-       WHERE id = $24`,
+         salesman_id = $10, salesman_name = $11, po_number = $12, e_way_bill_no = $13,
+         subtotal = $14, total_discount = $15, total_tax = $16, cgst = $17, sgst = $18, igst = $19,
+         freight = $20, round_off = $21, grand_total = $22, balance_due = $23, status = $24
+       WHERE id = $25`,
       [
         data.invoiceType ?? existing.invoice_type,
         data.invoiceDate ?? existing.invoice_date,
@@ -483,7 +508,8 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
         data.billingAddress === undefined ? existing.billing_address : data.billingAddress,
         data.shippingAddress === undefined ? existing.shipping_address : data.shippingAddress,
         placeOfSupply,
-        data.salesmanId === undefined ? existing.salesman_id : data.salesmanId,
+        resolvedSalesmanId,
+        resolvedSalesmanName,
         data.poNumber === undefined ? existing.po_number : data.poNumber,
         data.eWayBillNo === undefined ? existing.e_way_bill_no : data.eWayBillNo,
         String(subtotal), String(totalDiscount), String(totalTax),

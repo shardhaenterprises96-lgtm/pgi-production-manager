@@ -19,7 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Loader2, UserCircle2 } from "lucide-react";
 
 export default function Invoices() {
   const { user } = useAuth();
@@ -101,6 +101,7 @@ export default function Invoices() {
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Customer</TableHead>
+                {isAdmin && <TableHead>Created By</TableHead>}
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Status</TableHead>
                 {isAdmin && <TableHead className="text-right w-32">Actions</TableHead>}
@@ -109,21 +110,41 @@ export default function Invoices() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">Loading...</TableCell>
+                  <TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8">Loading...</TableCell>
                 </TableRow>
               ) : invoices?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">No invoices found.</TableCell>
+                  <TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8">No invoices found.</TableCell>
                 </TableRow>
               ) : (
-                invoices?.map((invoice) => (
-                  <TableRow key={invoice.id} data-testid={`row-invoice-${invoice.id}`}>
-                    <TableCell className="font-medium">{invoice.invoiceNo}</TableCell>
+                invoices?.map((invoice) => {
+                  const bySalesman = isAdmin && !!invoice.salesmanName;
+                  return (
+                  <TableRow
+                    key={invoice.id}
+                    data-testid={`row-invoice-${invoice.id}`}
+                    className={bySalesman ? "bg-amber-50/60 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/30 border-l-2 border-l-amber-500" : undefined}
+                  >
+                    <TableCell className={bySalesman ? "font-mono font-semibold italic text-amber-900 dark:text-amber-200" : "font-medium"}>
+                      {invoice.invoiceNo}
+                    </TableCell>
                     <TableCell>{format(new Date(invoice.invoiceDate), "MMM dd, yyyy")}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{invoice.invoiceType === "gst" ? "GST" : "Non-GST"}</Badge>
                     </TableCell>
                     <TableCell>{invoice.customerName || "Cash Sale"}</TableCell>
+                    {isAdmin && (
+                      <TableCell data-testid={`cell-created-by-${invoice.id}`}>
+                        {invoice.salesmanName ? (
+                          <span className="inline-flex items-center gap-1.5 font-semibold italic text-amber-700 dark:text-amber-300">
+                            <UserCircle2 className="h-3.5 w-3.5" />
+                            {invoice.salesmanName}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Admin / Counter</span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right font-bold">₹{invoice.grandTotal.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={invoice.status === "saved" ? "default" : invoice.status === "draft" ? "secondary" : "destructive"}>
@@ -166,7 +187,8 @@ export default function Invoices() {
                       </TableCell>
                     )}
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>
