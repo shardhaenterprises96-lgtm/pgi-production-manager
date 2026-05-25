@@ -28,11 +28,13 @@ export const productsTable = pgTable("products", {
   addForManufacturing: boolean("add_for_manufacturing").notNull().default(false),
   minStockThreshold: numeric("min_stock_threshold", { precision: 12, scale: 3 }),
   imageUrl: text("image_url"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
   index("products_group_idx").on(t.group),
   index("products_brand_idx").on(t.brand),
+  index("products_deleted_at_idx").on(t.deletedAt),
 ]);
 
 export const stockMovementsTable = pgTable("stock_movements", {

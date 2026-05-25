@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { sql, isNotNull, and, ilike, or } from "drizzle-orm";
+import { sql, isNotNull, isNull, and, ilike, or } from "drizzle-orm";
 import { pool } from "@workspace/db";
 import {
   invoicesTable,
@@ -36,10 +36,10 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
       [month, year]
     ),
     queryOne(`SELECT COALESCE(SUM(outstanding_balance), 0) as total FROM entities WHERE type = 'customer'`),
-    queryOne(`SELECT COUNT(*) as count FROM products WHERE min_stock_threshold IS NOT NULL AND current_stock < min_stock_threshold`),
+    queryOne(`SELECT COUNT(*) as count FROM products WHERE deleted_at IS NULL AND min_stock_threshold IS NOT NULL AND current_stock < min_stock_threshold`),
     queryOne(`SELECT COUNT(*) as count FROM payments WHERE status = 'pending'`),
     queryOne(`SELECT COUNT(*) as count FROM workload_cards WHERE status IN ('pending', 'processing')`),
-    queryOne(`SELECT COUNT(*) as count FROM products WHERE current_stock > 0`),
+    queryOne(`SELECT COUNT(*) as count FROM products WHERE deleted_at IS NULL AND current_stock > 0`),
     queryOne(`SELECT COUNT(*) as count FROM entities WHERE type = 'customer'`),
   ]);
 
@@ -79,6 +79,7 @@ router.get("/dashboard/low-stock", async (_req, res): Promise<void> => {
     .from(productsTable)
     .where(
       and(
+        isNull(productsTable.deletedAt),
         isNotNull(productsTable.minStockThreshold),
         sql`${productsTable.currentStock} < ${productsTable.minStockThreshold}`
       )
@@ -208,7 +209,10 @@ router.get("/search", async (req, res): Promise<void> => {
 
   const [products, entities, invoices] = await Promise.all([
     db.select().from(productsTable).where(
-      or(ilike(productsTable.name, pattern), ilike(productsTable.itemCode, pattern))
+      and(
+        isNull(productsTable.deletedAt),
+        or(ilike(productsTable.name, pattern), ilike(productsTable.itemCode, pattern))
+      )
     ).limit(5),
     db.select().from(entitiesTable).where(
       or(ilike(entitiesTable.name, pattern), ilike(entitiesTable.mobile, pattern))

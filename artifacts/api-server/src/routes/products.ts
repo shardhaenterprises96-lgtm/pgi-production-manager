@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and, sql, or } from "drizzle-orm";
+import { eq, ilike, and, sql, or, isNull } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   productsTable,
@@ -30,7 +30,7 @@ router.get("/products", async (req, res): Promise<void> => {
   const { search, group, brand, forSale, forManufacturing } = params.data;
 
   let query = db.select().from(productsTable);
-  const conditions: any[] = [];
+  const conditions: any[] = [isNull(productsTable.deletedAt)];
 
   if (search) {
     conditions.push(
@@ -46,9 +46,7 @@ router.get("/products", async (req, res): Promise<void> => {
   if (forSale === true) conditions.push(eq(productsTable.notForSale, false));
   if (forManufacturing === true) conditions.push(eq(productsTable.addForManufacturing, true));
 
-  const products = conditions.length > 0
-    ? await query.where(and(...conditions)).orderBy(productsTable.name)
-    : await query.orderBy(productsTable.name);
+  const products = await query.where(and(...conditions)).orderBy(productsTable.name);
 
   res.json(products.map(formatProduct));
 });
@@ -102,6 +100,7 @@ router.get("/products/groups", async (_req, res): Promise<void> => {
   const result = await db
     .selectDistinct({ group: productsTable.group })
     .from(productsTable)
+    .where(isNull(productsTable.deletedAt))
     .orderBy(productsTable.group);
   res.json(result.map((r) => r.group));
 });
@@ -111,6 +110,7 @@ router.get("/products/brands", async (_req, res): Promise<void> => {
   const result = await db
     .selectDistinct({ brand: productsTable.brand })
     .from(productsTable)
+    .where(isNull(productsTable.deletedAt))
     .orderBy(productsTable.brand);
   res.json(result.map((r) => r.brand));
 });
@@ -126,7 +126,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   const [product] = await db
     .select()
     .from(productsTable)
-    .where(eq(productsTable.id, params.data.id));
+    .where(and(eq(productsTable.id, params.data.id), isNull(productsTable.deletedAt)));
 
   if (!product) {
     res.status(404).json({ error: "Product not found" });
@@ -189,12 +189,20 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  // Soft-delete: products are referenced by invoice_items, stock_movements,
+  // BOMs, and rewards. A hard DELETE would either violate FK constraints or
+  // destroy historical invoice/audit context. Instead we set deleted_at so
+  // the product disappears from catalog/inventory listings while existing
+  // references continue to resolve.
   const [product] = await db
-    .delete(productsTable)
-    .where(eq(productsTable.id, params.data.id))
+    .update(productsTable)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(productsTable.id, params.data.id), isNull(productsTable.deletedAt)))
     .returning();
 
   if (!product) {
+    // Either no such product, or it was already deleted — treat both as 404
+    // so the UI's optimistic refresh resolves cleanly.
     res.status(404).json({ error: "Product not found" });
     return;
   }
