@@ -1258,6 +1258,134 @@ export const CreateWorkloadCardBody = zod.object({
 
 
 /**
+ * @summary List purchase bills
+ */
+export const ListPurchasesQueryParams = zod.object({
+  "vendorId": zod.coerce.number().optional(),
+  "status": zod.coerce.string().optional()
+})
+
+export const ListPurchasesResponseItem = zod.object({
+  "id": zod.number(),
+  "billNo": zod.string(),
+  "vendorBillNo": zod.string().nullish(),
+  "billDate": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "billType": zod.enum(['gst', 'non_gst']),
+  "vendorId": zod.number().nullish(),
+  "vendorName": zod.string().nullish(),
+  "vendorGstin": zod.string().nullish(),
+  "placeOfSupply": zod.string(),
+  "notes": zod.string().nullish(),
+  "subtotal": zod.string(),
+  "totalDiscount": zod.string().optional(),
+  "totalTax": zod.string().optional(),
+  "cgst": zod.string().optional(),
+  "sgst": zod.string().optional(),
+  "igst": zod.string().optional(),
+  "freight": zod.string().optional(),
+  "roundOff": zod.string().optional(),
+  "grandTotal": zod.string(),
+  "amountPaid": zod.string().optional(),
+  "balanceDue": zod.string().optional(),
+  "status": zod.string(),
+  "createdAt": zod.string().optional(),
+  "items": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "hsnCode": zod.string().nullish(),
+  "qty": zod.string(),
+  "unit": zod.string(),
+  "rate": zod.string(),
+  "discountPct": zod.string().optional(),
+  "discountAmt": zod.string().optional(),
+  "taxPct": zod.string().optional(),
+  "amount": zod.string()
+})).optional()
+})
+export const ListPurchasesResponse = zod.array(ListPurchasesResponseItem)
+
+
+/**
+ * @summary Create a purchase bill (atomic; adds stock + vendor payable)
+ */
+
+
+
+export const CreatePurchaseBody = zod.object({
+  "vendorBillNo": zod.string().optional(),
+  "billDate": zod.string().optional(),
+  "dueDate": zod.string().optional(),
+  "billType": zod.enum(['gst', 'non_gst']),
+  "vendorId": zod.number().optional(),
+  "vendorName": zod.string().optional(),
+  "vendorGstin": zod.string().optional(),
+  "placeOfSupply": zod.string().optional(),
+  "notes": zod.string().optional(),
+  "freight": zod.number().optional(),
+  "roundOff": zod.number().optional(),
+  "items": zod.array(zod.object({
+  "productId": zod.number(),
+  "qty": zod.number(),
+  "unit": zod.string(),
+  "rate": zod.number(),
+  "discountPct": zod.number().optional(),
+  "discountAmt": zod.number().optional(),
+  "taxPct": zod.number().optional()
+})).min(1)
+})
+
+
+/**
+ * @summary Get a purchase bill with line items
+ */
+export const GetPurchaseParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPurchaseResponse = zod.object({
+  "id": zod.number(),
+  "billNo": zod.string(),
+  "vendorBillNo": zod.string().nullish(),
+  "billDate": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "billType": zod.enum(['gst', 'non_gst']),
+  "vendorId": zod.number().nullish(),
+  "vendorName": zod.string().nullish(),
+  "vendorGstin": zod.string().nullish(),
+  "placeOfSupply": zod.string(),
+  "notes": zod.string().nullish(),
+  "subtotal": zod.string(),
+  "totalDiscount": zod.string().optional(),
+  "totalTax": zod.string().optional(),
+  "cgst": zod.string().optional(),
+  "sgst": zod.string().optional(),
+  "igst": zod.string().optional(),
+  "freight": zod.string().optional(),
+  "roundOff": zod.string().optional(),
+  "grandTotal": zod.string(),
+  "amountPaid": zod.string().optional(),
+  "balanceDue": zod.string().optional(),
+  "status": zod.string(),
+  "createdAt": zod.string().optional(),
+  "items": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "hsnCode": zod.string().nullish(),
+  "qty": zod.string(),
+  "unit": zod.string(),
+  "rate": zod.string(),
+  "discountPct": zod.string().optional(),
+  "discountAmt": zod.string().optional(),
+  "taxPct": zod.string().optional(),
+  "amount": zod.string()
+})).optional()
+})
+
+
+/**
  * Runs a BOM recipe in a single SERIALIZABLE transaction: creates a completed workload card, debits all required raw materials, credits the finished product stock, and writes stock movements. All-or-nothing — if any step fails (e.g. insufficient raw material) nothing is committed.
 
  * @summary Atomically assemble a finished product from a BOM

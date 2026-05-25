@@ -18,6 +18,7 @@ import CustomerProfile from "@/pages/customer-profile";
 import Payments from "@/pages/payments";
 import Rewards from "@/pages/rewards";
 import Manufacturing from "@/pages/manufacturing";
+import Purchases from "@/pages/purchases";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import Users from "@/pages/users";
@@ -41,6 +42,7 @@ function ProtectedRoutes() {
         <Route path="/payments" component={Payments} />
         <Route path="/rewards" component={Rewards} />
         <Route path="/manufacturing" component={Manufacturing} />
+        <Route path="/purchases" component={Purchases} />
         <Route path="/reports" component={Reports} />
         <Route path="/accounts" component={Accounts} />
         <Route path="/cashbook" component={CashBook} />

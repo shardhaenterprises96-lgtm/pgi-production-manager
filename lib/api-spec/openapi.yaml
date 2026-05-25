@@ -1049,6 +1049,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/WorkloadCard"
 
+  /purchases:
+    get:
+      operationId: listPurchases
+      tags: [purchases]
+      summary: List purchase bills
+      parameters:
+        - name: vendorId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Purchases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Purchase"
+    post:
+      operationId: createPurchase
+      tags: [purchases]
+      summary: Create a purchase bill (atomic; adds stock + vendor payable)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePurchaseInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Purchase"
+
+  /purchases/{id}:
+    get:
+      operationId: getPurchase
+      tags: [purchases]
+      summary: Get a purchase bill with line items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Purchase
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Purchase"
+
   /manufacturing/assemble:
     post:
       operationId: assembleItem
@@ -2276,6 +2336,89 @@ components:
           type: ["string", "null"]
         createdAt:
           type: string
+
+    PurchaseItem:
+      type: object
+      required: [productId, productName, qty, unit, rate, amount]
+      properties:
+        id: { type: integer }
+        productId: { type: integer }
+        productName: { type: string }
+        hsnCode: { type: ["string", "null"] }
+        qty: { type: string }
+        unit: { type: string }
+        rate: { type: string }
+        discountPct: { type: string }
+        discountAmt: { type: string }
+        taxPct: { type: string }
+        amount: { type: string }
+
+    Purchase:
+      type: object
+      required: [id, billNo, billDate, billType, placeOfSupply, subtotal, grandTotal, status]
+      properties:
+        id: { type: integer }
+        billNo: { type: string }
+        vendorBillNo: { type: ["string", "null"] }
+        billDate: { type: string }
+        dueDate: { type: ["string", "null"] }
+        billType:
+          type: string
+          enum: [gst, non_gst]
+        vendorId: { type: ["integer", "null"] }
+        vendorName: { type: ["string", "null"] }
+        vendorGstin: { type: ["string", "null"] }
+        placeOfSupply: { type: string }
+        notes: { type: ["string", "null"] }
+        subtotal: { type: string }
+        totalDiscount: { type: string }
+        totalTax: { type: string }
+        cgst: { type: string }
+        sgst: { type: string }
+        igst: { type: string }
+        freight: { type: string }
+        roundOff: { type: string }
+        grandTotal: { type: string }
+        amountPaid: { type: string }
+        balanceDue: { type: string }
+        status: { type: string }
+        createdAt: { type: string }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseItem"
+
+    CreatePurchaseInput:
+      type: object
+      required: [billType, items]
+      properties:
+        vendorBillNo: { type: string }
+        billDate: { type: string }
+        dueDate: { type: string }
+        billType:
+          type: string
+          enum: [gst, non_gst]
+        vendorId: { type: integer }
+        vendorName: { type: string }
+        vendorGstin: { type: string }
+        placeOfSupply: { type: string }
+        notes: { type: string }
+        freight: { type: number }
+        roundOff: { type: number }
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [productId, qty, unit, rate]
+            properties:
+              productId: { type: integer }
+              qty: { type: number }
+              unit: { type: string }
+              rate: { type: number }
+              discountPct: { type: number }
+              discountAmt: { type: number }
+              taxPct: { type: number }
 
     AssembleItemInput:
       type: object

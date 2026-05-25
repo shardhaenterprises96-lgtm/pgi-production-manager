@@ -2,6 +2,7 @@ export * from "./users";
 export * from "./products";
 export * from "./entities";
 export * from "./invoices";
+export * from "./purchases";
 export * from "./payments";
 export * from "./rewards";
 export * from "./manufacturing";

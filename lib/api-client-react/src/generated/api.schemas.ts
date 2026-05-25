@@ -876,6 +876,97 @@ export interface WorkloadCard {
   createdAt: string;
 }
 
+export interface PurchaseItem {
+  id?: number;
+  productId: number;
+  productName: string;
+  /** @nullable */
+  hsnCode?: string | null;
+  qty: string;
+  unit: string;
+  rate: string;
+  discountPct?: string;
+  discountAmt?: string;
+  taxPct?: string;
+  amount: string;
+}
+
+export type PurchaseBillType = typeof PurchaseBillType[keyof typeof PurchaseBillType];
+
+
+export const PurchaseBillType = {
+  gst: 'gst',
+  non_gst: 'non_gst',
+} as const;
+
+export interface Purchase {
+  id: number;
+  billNo: string;
+  /** @nullable */
+  vendorBillNo?: string | null;
+  billDate: string;
+  /** @nullable */
+  dueDate?: string | null;
+  billType: PurchaseBillType;
+  /** @nullable */
+  vendorId?: number | null;
+  /** @nullable */
+  vendorName?: string | null;
+  /** @nullable */
+  vendorGstin?: string | null;
+  placeOfSupply: string;
+  /** @nullable */
+  notes?: string | null;
+  subtotal: string;
+  totalDiscount?: string;
+  totalTax?: string;
+  cgst?: string;
+  sgst?: string;
+  igst?: string;
+  freight?: string;
+  roundOff?: string;
+  grandTotal: string;
+  amountPaid?: string;
+  balanceDue?: string;
+  status: string;
+  createdAt?: string;
+  items?: PurchaseItem[];
+}
+
+export type CreatePurchaseInputBillType = typeof CreatePurchaseInputBillType[keyof typeof CreatePurchaseInputBillType];
+
+
+export const CreatePurchaseInputBillType = {
+  gst: 'gst',
+  non_gst: 'non_gst',
+} as const;
+
+export type CreatePurchaseInputItemsItem = {
+  productId: number;
+  qty: number;
+  unit: string;
+  rate: number;
+  discountPct?: number;
+  discountAmt?: number;
+  taxPct?: number;
+};
+
+export interface CreatePurchaseInput {
+  vendorBillNo?: string;
+  billDate?: string;
+  dueDate?: string;
+  billType: CreatePurchaseInputBillType;
+  vendorId?: number;
+  vendorName?: string;
+  vendorGstin?: string;
+  placeOfSupply?: string;
+  notes?: string;
+  freight?: number;
+  roundOff?: number;
+  /** @minItems 1 */
+  items: CreatePurchaseInputItemsItem[];
+}
+
 export interface AssembleItemInput {
   /** BOM (recipe) to execute */
   bomId: number;
@@ -1071,6 +1162,11 @@ export const ListWorkloadCardsStatus = {
   processing: 'processing',
   done: 'done',
 } as const;
+
+export type ListPurchasesParams = {
+vendorId?: number;
+status?: string;
+};
 
 export type AssembleItem409ShortagesItem = {
   materialProductId?: number;
