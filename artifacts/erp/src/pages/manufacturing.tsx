@@ -190,12 +190,19 @@ function BomTab() {
 function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => void }) {
   const { data: alerts, isLoading } = useGetLowStockAlerts();
   const { data: boms } = useListBoms();
+  const { data: products } = useListProducts();
 
   const bomByFinishedProduct = useMemo(() => {
     const m = new Map<number, any>();
     (boms ?? []).forEach((b: any) => m.set(b.finishedProductId, b));
     return m;
   }, [boms]);
+
+  const productById = useMemo(() => {
+    const m = new Map<number, any>();
+    (products ?? []).forEach((p: any) => m.set(p.id, p));
+    return m;
+  }, [products]);
 
   if (isLoading) {
     return (
@@ -246,28 +253,50 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
         <div className="divide-y">
           {alerts.map((a: any) => {
             const bom = bomByFinishedProduct.get(a.id);
+            const product = productById.get(a.id);
+            const imageUrl = product?.imageUrl;
+            const itemCode = product?.itemCode;
             const shortage = Math.max(0, Number(a.minStockThreshold) - Number(a.currentStock));
             const critical = Number(a.currentStock) <= 0;
             return (
               <div
                 key={a.id}
-                className="grid grid-cols-12 gap-2 px-4 py-3 items-center"
+                className="grid grid-cols-12 gap-3 px-4 py-3 items-center"
                 data-testid={`workload-row-${a.id}`}
               >
-                <div className="col-span-4 min-w-0">
-                  <div className="font-medium line-clamp-1 flex items-center gap-2">
-                    {critical && <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />}
-                    {a.name}
+                <div className="col-span-4 min-w-0 flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-md border bg-muted/30 shrink-0 overflow-hidden flex items-center justify-center">
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={a.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <Package className="w-5 h-5 text-muted-foreground/40" />
+                    )}
                   </div>
-                  {bom ? (
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      Recipe ready · {bom.outputQuantity} per batch · {bom.items.length} materials
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium line-clamp-1 flex items-center gap-2">
+                      {critical && <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />}
+                      {a.name}
                     </div>
-                  ) : (
-                    <div className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
-                      No BOM defined — reorder from vendor or set up a recipe
-                    </div>
-                  )}
+                    {itemCode && (
+                      <div className="text-[11px] text-muted-foreground font-mono">{itemCode}</div>
+                    )}
+                    {bom ? (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Recipe ready · {bom.outputQuantity} per batch · {bom.items.length} materials
+                      </div>
+                    ) : (
+                      <div className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                        No BOM defined — reorder from vendor or set up a recipe
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className={`col-span-2 text-right tabular-nums font-medium ${critical ? "text-destructive" : ""}`}>
                   {Number(a.currentStock).toLocaleString()} {a.unit ?? ""}
