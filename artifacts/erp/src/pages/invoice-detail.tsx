@@ -99,7 +99,8 @@ export default function InvoiceDetail() {
       {/* Print stylesheet — hides app chrome and tightens the invoice for A4 */}
       <style>{`
         @media print {
-          @page { size: A4 landscape; margin: 8mm; }
+          @page { size: A5 landscape; margin: 5mm; }
+          .invoice-sheet { font-size: 9.5px !important; }
           body { background: white !important; }
           .no-print, [data-no-print], .sidebar, nav, header.app-header { display: none !important; }
           .invoice-sheet { box-shadow: none !important; border: 1px solid #000 !important; }
