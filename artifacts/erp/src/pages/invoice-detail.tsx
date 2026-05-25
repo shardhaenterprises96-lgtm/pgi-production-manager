@@ -1,5 +1,5 @@
 import { useRoute, useLocation } from "wouter";
-import { useGetInvoice, getGetInvoiceQueryKey } from "@workspace/api-client-react";
+import { useGetInvoice, getGetInvoiceQueryKey, useListProducts } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,14 @@ const num = (n: any, d = 2) => {
   return v.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
 };
 
-// Per-line liters: prefer explicit totalLiters from API, else infer if unit itself is litres.
-function lineLiters(item: any): number {
-  if (item.totalLiters != null && Number.isFinite(Number(item.totalLiters))) return Number(item.totalLiters);
+// Per-line liters: prefer explicit totalLiters from API, else multiply qty by the
+// product's litersPerBox (from products catalog), else infer if unit itself is litres.
+function lineLiters(item: any, productLpb?: number | null): number {
+  if (item.totalLiters != null && Number.isFinite(Number(item.totalLiters)) && Number(item.totalLiters) > 0) {
+    return Number(item.totalLiters);
+  }
+  const lpb = Number(productLpb ?? 0);
+  if (lpb > 0) return (Number(item.qty) || 0) * lpb;
   const u = String(item.unit ?? "").toLowerCase();
   if (u === "ltr" || u === "l" || u === "liter" || u === "litre" || u === "liters" || u === "litres") {
     return Number(item.qty) || 0;
@@ -58,6 +63,11 @@ export default function InvoiceDetail() {
   const { data: invoice, isLoading, error } = useGetInvoice(id, {
     query: { enabled: Number.isFinite(id), queryKey: getGetInvoiceQueryKey(id) },
   });
+  // Products catalog — used to back-fill litersPerBox for invoices that didn't store totalLiters.
+  const { data: products } = useListProducts({});
+  const lpbByProduct = new Map<number, number>(
+    (products ?? []).map((p: any) => [p.id, Number(p.litersPerBox ?? 0) || 0]),
+  );
 
   if (isLoading) {
     return (
@@ -88,7 +98,10 @@ export default function InvoiceDetail() {
 
   const items = invoice.items ?? [];
   const totalQty = items.reduce((s: number, i: any) => s + (Number(i.qty) || 0), 0);
-  const totalLtr = items.reduce((s: number, i: any) => s + lineLiters(i), 0);
+  const totalLtr = items.reduce(
+    (s: number, i: any) => s + lineLiters(i, lpbByProduct.get(Number(i.productId))),
+    0,
+  );
   const hasAnyDisc = items.some((i: any) => (Number(i.discountPct) || 0) > 0 || (Number(i.discountAmt) || 0) > 0);
 
   // Round-off display: only show if non-zero
@@ -236,7 +249,7 @@ export default function InvoiceDetail() {
               </td>
             </tr>
             {items.map((item: any, idx: number) => {
-              const ltr = lineLiters(item);
+              const ltr = lineLiters(item, lpbByProduct.get(Number(item.productId)));
               const disc = (Number(item.discountPct) || 0) > 0
                 ? `${item.discountPct}%`
                 : (Number(item.discountAmt) || 0) > 0
@@ -296,9 +309,9 @@ export default function InvoiceDetail() {
                 <li>Subject to Solapur jurisdiction.</li>
               </ol>
             </div>
-            <div className="mt-auto pt-2 flex justify-between text-[12px] font-semibold">
-              <span>Total Qty : {num(totalQty, 0)}</span>
-              <span>Total Ltr : {num(totalLtr, 3)}</span>
+            <div className="mt-auto pt-2 text-[12px] font-semibold space-y-0.5">
+              <div>Total Qty : {num(totalQty, 0)}</div>
+              <div>Total Ltr : {num(totalLtr, 3)}</div>
             </div>
           </div>
           <div className="col-span-2 border-r border-black p-2 flex flex-col items-center justify-center text-center">
