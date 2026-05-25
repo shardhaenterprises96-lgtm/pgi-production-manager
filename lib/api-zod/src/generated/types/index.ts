@@ -44,6 +44,7 @@ export * from './invoiceItemInput';
 export * from './invoiceStatus';
 export * from './invoiceSummary';
 export * from './invoiceUpdate';
+export * from './invoiceUpdateInvoiceType';
 export * from './invoiceUpdateStatus';
 export * from './ledgerEntry';
 export * from './ledgerEntryType';

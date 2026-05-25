@@ -4,11 +4,14 @@ import { useAuth } from "@/contexts/auth-context";
 import {
   useListProducts,
   useCreateInvoice,
+  useUpdateInvoice,
+  useGetInvoice,
   useLogPayment,
   useListAccounts,
   getListInvoicesQueryKey,
   getListPaymentsQueryKey,
   getListAccountsQueryKey,
+  getGetInvoiceQueryKey,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +60,7 @@ function parseSearch(search: string) {
   return {
     cart: params.get("cart"),
     customer: params.get("customer"),
+    edit: params.get("edit"),
   };
 }
 
@@ -67,6 +71,8 @@ export default function Billing() {
   const queryClient = useQueryClient();
 
   const params = parseSearch(window.location.search);
+  const editId = params.edit ? Number(params.edit) : null;
+  const isEditMode = editId !== null && !Number.isNaN(editId);
 
   // Parse customer from URL
   const [customer, setCustomer] = useState<any>(() => {
@@ -82,6 +88,46 @@ export default function Billing() {
   const [savedInvoice, setSavedInvoice] = useState<any>(null);
 
   const { data: products } = useListProducts({ forSale: true });
+  const { data: existingInvoice } = useGetInvoice(
+    editId as number,
+    { query: { enabled: isEditMode } as any },
+  );
+
+  // Prefill state from existing invoice when in edit mode
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    if (!isEditMode || !existingInvoice || prefilled) return;
+    setInvoiceType(existingInvoice.invoiceType as any);
+    setInvoiceDate(String(existingInvoice.invoiceDate).slice(0, 10));
+    setPlaceOfSupply(existingInvoice.placeOfSupply || "Maharashtra");
+    setFreight(Number(existingInvoice.freight ?? 0));
+    if (existingInvoice.customerId || existingInvoice.customerName) {
+      setCustomer({
+        id: existingInvoice.customerId,
+        name: existingInvoice.customerName,
+        gstin: existingInvoice.customerGstin,
+        address: existingInvoice.billingAddress,
+        state: existingInvoice.placeOfSupply,
+        pricingTier: "retail",
+        outstandingBalance: 0,
+      });
+    }
+    setItems(
+      (existingInvoice.items ?? []).map((it: any) => ({
+        productId: it.productId,
+        name: it.productName,
+        unit: it.unit,
+        qty: Number(it.qty),
+        rate: Number(it.rate),
+        mrp: Number(it.mrp),
+        taxPct: Number(it.taxPct),
+        discountPct: Number(it.discountPct),
+        discountAmt: Number(it.discountAmt),
+        amount: Number(it.amount),
+      })),
+    );
+    setPrefilled(true);
+  }, [isEditMode, existingInvoice, prefilled]);
 
   // Populate items from cart URL param
   useEffect(() => {
@@ -156,6 +202,7 @@ export default function Billing() {
   const finalTotal = Math.round(grandTotal);
 
   const createInvoice = useCreateInvoice();
+  const updateInvoice = useUpdateInvoice();
   const logPayment = useLogPayment();
 
   // Payment state (shown after invoice save)
@@ -192,31 +239,51 @@ export default function Billing() {
       toast({ title: "No items", description: "Add at least one product before saving.", variant: "destructive" });
       return;
     }
-    createInvoice.mutate(
-      {
-        data: {
-          invoiceType,
-          invoiceDate,
-          placeOfSupply,
-          customerId: customer?.id,
-          customerName: customer?.name,
-          customerGstin: customer?.gstin,
-          billingAddress: customer?.address,
-          freight,
-          roundOff,
-          items: items.map((i) => ({
-            productId: i.productId,
-            qty: i.qty,
-            unit: i.unit,
-            rate: i.rate,
-            mrp: i.mrp,
-            taxPct: invoiceType === "gst" ? i.taxPct : 0,
-            discountPct: i.discountPct,
-            discountAmt: i.discountAmt,
-            cessPct: 0,
-          })),
+    const payload = {
+      invoiceType,
+      invoiceDate,
+      placeOfSupply,
+      customerId: customer?.id,
+      customerName: customer?.name,
+      customerGstin: customer?.gstin,
+      billingAddress: customer?.address,
+      freight,
+      roundOff,
+      items: items.map((i) => ({
+        productId: i.productId,
+        qty: i.qty,
+        unit: i.unit,
+        rate: i.rate,
+        mrp: i.mrp,
+        taxPct: invoiceType === "gst" ? i.taxPct : 0,
+        discountPct: i.discountPct,
+        discountAmt: i.discountAmt,
+        cessPct: 0,
+      })),
+    };
+
+    if (isEditMode && editId) {
+      updateInvoice.mutate(
+        { id: editId, data: payload as any },
+        {
+          onSuccess: (invoice) => {
+            queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getGetInvoiceQueryKey(editId) });
+            toast({ title: `Invoice ${invoice.invoiceNo} updated`, description: "Stock and customer ledger adjusted." });
+            setLocation("/invoices");
+          },
+          onError: async (err: any) => {
+            let desc = err?.message ?? "Update failed";
+            try { const j = await err?.response?.json?.(); if (j?.error) desc = String(j.error).slice(0, 300); } catch {}
+            toast({ title: "Failed to update invoice", description: desc, variant: "destructive" });
+          },
         },
-      },
+      );
+      return;
+    }
+
+    createInvoice.mutate(
+      { data: payload },
       {
         onSuccess: (invoice) => {
           queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
@@ -578,7 +645,14 @@ export default function Billing() {
           <Button variant="ghost" size="icon" onClick={() => setLocation("/catalog")} data-testid="button-back-catalog">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Create Invoice</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {isEditMode ? `Edit Invoice ${existingInvoice?.invoiceNo ?? ""}` : "Create Invoice"}
+          </h1>
+          {isEditMode && (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+              Editing — stock &amp; customer balance will be re-adjusted on save
+            </Badge>
+          )}
         </div>
         <div className="flex gap-2">
           <Select value={invoiceType} onValueChange={(v: "gst" | "non_gst") => setInvoiceType(v)}>
@@ -592,11 +666,11 @@ export default function Billing() {
           </Select>
           <Button
             onClick={handleSave}
-            disabled={createInvoice.isPending || items.length === 0}
+            disabled={createInvoice.isPending || updateInvoice.isPending || items.length === 0}
             data-testid="button-save-invoice"
           >
-            {createInvoice.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Invoice
+            {(createInvoice.isPending || updateInvoice.isPending) ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            {isEditMode ? "Update Invoice" : "Save Invoice"}
           </Button>
           <Button variant="outline" onClick={() => window.print()} data-testid="button-print-invoice">
             <Printer className="w-4 h-4 mr-2" /> Print
@@ -882,15 +956,15 @@ export default function Billing() {
             className="w-full"
             size="lg"
             onClick={handleSave}
-            disabled={createInvoice.isPending || items.length === 0}
+            disabled={createInvoice.isPending || updateInvoice.isPending || items.length === 0}
             data-testid="button-save-invoice-bottom"
           >
-            {createInvoice.isPending ? (
+            {(createInvoice.isPending || updateInvoice.isPending) ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
-            Save & Generate Invoice
+            {isEditMode ? "Update Invoice" : "Save & Generate Invoice"}
           </Button>
 
           <Button

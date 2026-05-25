@@ -300,6 +300,11 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
 });
 
 // PATCH /invoices/:id  — admin only
+// Two modes:
+//   1. Header-only patch (no `items` in body): updates status / dueDate / select header fields,
+//      no stock or ledger impact.
+//   2. Full edit (body includes `items`): inside a SERIALIZABLE transaction, reverses the
+//      previous stock movements + ledger entry, then re-applies them with the new payload.
 router.patch("/invoices/:id", async (req, res): Promise<void> => {
   const session = (req as any).session;
   if (session?.role !== "admin") {
@@ -311,48 +316,244 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-
   const parsed = UpdateInvoiceBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-
-  // Prevent cancellation via PATCH — it skips stock-reversal / audit side-effects.
-  // Cancellation must go through DELETE /invoices/:id, which runs the proper cancellation workflow.
   if (parsed.data.status === "cancelled") {
     res.status(400).json({ error: "Use DELETE /invoices/:id to cancel an invoice (runs stock reversal + audit)." });
     return;
   }
 
-  const updates: Record<string, unknown> = {};
-  if (parsed.data.status !== undefined) updates.status = parsed.data.status;
-  if (parsed.data.dueDate !== undefined) {
-    if (parsed.data.dueDate === null || parsed.data.dueDate === "") {
-      updates.dueDate = null;
-    } else {
-      const d = new Date(parsed.data.dueDate);
-      if (Number.isNaN(d.getTime())) {
-        res.status(400).json({ error: "Invalid dueDate" });
-        return;
+  const invoiceId = params.data.id;
+  const data = parsed.data;
+  const isFullEdit = Array.isArray(data.items);
+
+  // ─────────────── Mode 1: header-only patch ───────────────
+  if (!isFullEdit) {
+    const updates: Record<string, unknown> = {};
+    if (data.status !== undefined) updates.status = data.status;
+    if (data.dueDate !== undefined) {
+      if (data.dueDate === null || data.dueDate === "") {
+        updates.dueDate = null;
+      } else {
+        const d = new Date(data.dueDate);
+        if (Number.isNaN(d.getTime())) {
+          res.status(400).json({ error: "Invalid dueDate" });
+          return;
+        }
+        updates.dueDate = d;
       }
-      updates.dueDate = d;
     }
-  }
-
-  const [inv] = await db
-    .update(invoicesTable)
-    .set(updates)
-    .where(eq(invoicesTable.id, params.data.id))
-    .returning();
-
-  if (!inv) {
-    res.status(404).json({ error: "Invoice not found" });
+    const [inv] = await db
+      .update(invoicesTable)
+      .set(updates)
+      .where(eq(invoicesTable.id, invoiceId))
+      .returning();
+    if (!inv) { res.status(404).json({ error: "Invoice not found" }); return; }
+    const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, inv.id));
+    res.json(formatInvoice(inv, items));
     return;
   }
 
-  const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, inv.id));
-  res.json(formatInvoice(inv, items));
+  // ─────────────── Mode 2: full edit with stock + ledger reversal ───────────────
+  if (!data.items || data.items.length === 0) {
+    res.status(400).json({ error: "Full edit requires at least one line item" });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    // Lock the invoice row for the duration of the txn
+    const existingRes = await client.query(`SELECT * FROM invoices WHERE id = $1 FOR UPDATE`, [invoiceId]);
+    if (existingRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Invoice not found" });
+      return;
+    }
+    const existing = existingRes.rows[0];
+    if (existing.status === "cancelled") {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "Cannot edit a cancelled invoice" });
+      return;
+    }
+    // Block edits when payment has already been collected — changing the customer or
+    // totals would desync the payment ledger because payments are customer-level, not
+    // invoice-linked. Admin must cancel + re-issue instead.
+    if (Number(existing.amount_paid ?? 0) > 0) {
+      await client.query("ROLLBACK");
+      res.status(409).json({
+        error: `Cannot edit invoice — ₹${Number(existing.amount_paid).toFixed(2)} has already been collected. Cancel and re-issue instead.`,
+      });
+      return;
+    }
+
+    // 1. Reverse old line-item stock movements (inward)
+    const oldItemsRes = await client.query(`SELECT * FROM invoice_items WHERE invoice_id = $1`, [invoiceId]);
+    for (const oi of oldItemsRes.rows) {
+      await client.query(
+        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
+         VALUES ($1, 'inward', $2, $3, $4, 'invoice_edit_reversal', $5)`,
+        [oi.product_id, oi.qty, `Invoice ${existing.invoice_no} edit — reverse old qty`, invoiceId, session?.userId ?? 1]
+      );
+      await client.query(`UPDATE products SET current_stock = current_stock + $1 WHERE id = $2`, [oi.qty, oi.product_id]);
+    }
+    await client.query(`DELETE FROM invoice_items WHERE invoice_id = $1`, [invoiceId]);
+
+    // 2. Reverse old customer outstanding + ledger entry (if there was a customer)
+    const oldGrandTotal = Number(existing.grand_total);
+    const oldCustomerId: number | null = existing.customer_id;
+    if (oldCustomerId) {
+      await client.query(
+        `UPDATE entities SET outstanding_balance = outstanding_balance - $1 WHERE id = $2`,
+        [oldGrandTotal, oldCustomerId]
+      );
+      const balRes = await client.query(`SELECT outstanding_balance FROM entities WHERE id = $1`, [oldCustomerId]);
+      const newBal = balRes.rows[0]?.outstanding_balance ?? 0;
+      await client.query(
+        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
+         VALUES ($1, NOW(), $2, 0, $3, $4, 'invoice_edit_reversal', $5, $6)`,
+        [oldCustomerId, `Invoice ${existing.invoice_no} edited — reversal`, oldGrandTotal, newBal, invoiceId, existing.invoice_no]
+      );
+    }
+
+    // 3. Recalculate new totals from new payload (same logic as POST /invoices)
+    const isGst = (data.invoiceType ?? existing.invoice_type) === "gst";
+    const placeOfSupply = data.placeOfSupply ?? existing.place_of_supply;
+    const isInterstate = placeOfSupply !== "Maharashtra";
+    let subtotal = 0, totalDiscount = 0, totalTax = 0, cgst = 0, sgst = 0, igst = 0;
+    const processedItems = data.items.map((item) => {
+      const qty = Number(item.qty);
+      const rate = Number(item.rate);
+      const discPct = Number(item.discountPct ?? 0);
+      const discAmt = Number(item.discountAmt ?? 0);
+      const taxPct = isGst ? Number(item.taxPct ?? 0) : 0;
+      const cessPct = Number(item.cessPct ?? 0);
+      const baseAmt = qty * rate;
+      const effectiveDisc = discAmt > 0 ? discAmt : (baseAmt * discPct / 100);
+      const taxableAmt = baseAmt - effectiveDisc;
+      const taxAmt = taxableAmt * taxPct / 100;
+      const cessAmt = taxableAmt * cessPct / 100;
+      const amount = taxableAmt + taxAmt + cessAmt;
+      subtotal += taxableAmt; totalDiscount += effectiveDisc; totalTax += taxAmt;
+      if (isGst) {
+        if (isInterstate) igst += taxAmt; else { cgst += taxAmt / 2; sgst += taxAmt / 2; }
+      }
+      const qtyBoxes = item.qtyBoxes != null ? Number(item.qtyBoxes) : null;
+      const litersPerBox = item.litersPerBox != null ? Number(item.litersPerBox) : null;
+      const totalLiters = qtyBoxes != null && litersPerBox != null ? qtyBoxes * litersPerBox : null;
+      return {
+        ...item,
+        qty: String(qty), rate: String(rate), mrp: String(item.mrp),
+        discountPct: String(discPct), discountAmt: String(effectiveDisc),
+        taxPct: String(taxPct), cessPct: String(cessPct),
+        netPrice: String(rate - rate * discPct / 100),
+        amount: String(amount),
+        qtyBoxesVal: qtyBoxes != null ? String(qtyBoxes) : null,
+        totalLitersVal: totalLiters != null ? String(totalLiters) : null,
+      };
+    });
+    const freight = Number(data.freight ?? existing.freight ?? 0);
+    const roundOff = Number(data.roundOff ?? existing.round_off ?? 0);
+    const newGrandTotal = subtotal + totalTax + freight + roundOff;
+    const amountPaid = Number(existing.amount_paid ?? 0);
+    const balanceDue = newGrandTotal - amountPaid;
+
+    // 4. Update invoice header + new totals
+    const dueDateVal = data.dueDate === undefined
+      ? existing.due_date
+      : (data.dueDate === null || data.dueDate === "" ? null : new Date(data.dueDate));
+    await client.query(
+      `UPDATE invoices SET
+         invoice_type = $1, invoice_date = $2, due_date = $3, customer_id = $4, customer_name = $5,
+         customer_gstin = $6, billing_address = $7, shipping_address = $8, place_of_supply = $9,
+         salesman_id = $10, po_number = $11, e_way_bill_no = $12,
+         subtotal = $13, total_discount = $14, total_tax = $15, cgst = $16, sgst = $17, igst = $18,
+         freight = $19, round_off = $20, grand_total = $21, balance_due = $22, status = $23
+       WHERE id = $24`,
+      [
+        data.invoiceType ?? existing.invoice_type,
+        data.invoiceDate ?? existing.invoice_date,
+        dueDateVal,
+        data.customerId === undefined ? existing.customer_id : data.customerId,
+        data.customerName === undefined ? existing.customer_name : data.customerName,
+        data.customerGstin === undefined ? existing.customer_gstin : data.customerGstin,
+        data.billingAddress === undefined ? existing.billing_address : data.billingAddress,
+        data.shippingAddress === undefined ? existing.shipping_address : data.shippingAddress,
+        placeOfSupply,
+        data.salesmanId === undefined ? existing.salesman_id : data.salesmanId,
+        data.poNumber === undefined ? existing.po_number : data.poNumber,
+        data.eWayBillNo === undefined ? existing.e_way_bill_no : data.eWayBillNo,
+        String(subtotal), String(totalDiscount), String(totalTax),
+        String(cgst), String(sgst), String(igst),
+        String(freight), String(roundOff), String(newGrandTotal), String(balanceDue),
+        data.status ?? existing.status,
+        invoiceId,
+      ]
+    );
+
+    // 5. Insert new line items + outward stock movements
+    for (const item of processedItems) {
+      const prodName = (await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, item.productId)))[0]?.name ?? "Unknown";
+      await client.query(
+        `INSERT INTO invoice_items (invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+        [invoiceId, item.productId, prodName, null, item.qty, item.qtyBoxesVal, item.totalLitersVal, item.unit, item.rate, item.mrp, item.discountPct, item.discountAmt, item.taxPct, item.cessPct, item.netPrice, item.amount]
+      );
+      await client.query(
+        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
+         VALUES ($1, 'outward', $2, $3, $4, 'invoice_edit', $5)`,
+        [item.productId, item.qty, `Invoice ${existing.invoice_no} edit — new qty`, invoiceId, session?.userId ?? 1]
+      );
+      await client.query(`UPDATE products SET current_stock = current_stock - $1 WHERE id = $2`, [item.qty, item.productId]);
+    }
+
+    // 6. Apply new customer outstanding + ledger entry (if new customer set)
+    const newCustomerId: number | null = data.customerId === undefined ? oldCustomerId : data.customerId;
+    if (newCustomerId) {
+      await client.query(
+        `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE id = $2`,
+        [newGrandTotal, newCustomerId]
+      );
+      const balRes = await client.query(`SELECT outstanding_balance FROM entities WHERE id = $1`, [newCustomerId]);
+      const newBal = balRes.rows[0]?.outstanding_balance ?? 0;
+      await client.query(
+        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
+         VALUES ($1, NOW(), $2, $3, 0, $4, 'invoice_edit', $5, $6)`,
+        [newCustomerId, `Invoice ${existing.invoice_no} (edited)`, newGrandTotal, newBal, invoiceId, existing.invoice_no]
+      );
+    }
+
+    // 7. Audit log
+    await client.query(
+      `INSERT INTO audit_log (action, description, user_id, user_name, metadata)
+       VALUES ('invoice_edited', $1, $2, $3, $4)`,
+      [
+        `Invoice ${existing.invoice_no} edited: ₹${oldGrandTotal} → ₹${newGrandTotal.toFixed(2)} (${oldItemsRes.rows.length} → ${processedItems.length} items)`,
+        session?.userId ?? 1,
+        session?.name ?? "Unknown",
+        JSON.stringify({
+          invoiceId, invoiceNo: existing.invoice_no,
+          oldGrandTotal, newGrandTotal, oldItemCount: oldItemsRes.rows.length, newItemCount: processedItems.length,
+          oldCustomerId, newCustomerId,
+        }),
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    const [fullInv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+    const newItems = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceId));
+    res.json(formatInvoice(fullInv, newItems));
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logger.error({ err }, "Failed to edit invoice");
+    res.status(500).json({ error: "Failed to edit invoice" });
+  } finally {
+    client.release();
+  }
 });
 
 // DELETE /invoices/:id  — admin only

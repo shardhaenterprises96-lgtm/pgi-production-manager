@@ -640,8 +640,34 @@ export const UpdateInvoiceParams = zod.object({
 
 export const UpdateInvoiceBody = zod.object({
   "status": zod.enum(['draft', 'saved', 'cancelled']).optional(),
-  "dueDate": zod.string().optional()
-})
+  "dueDate": zod.string().optional(),
+  "invoiceType": zod.enum(['gst', 'non_gst']).optional(),
+  "invoiceDate": zod.string().optional(),
+  "customerId": zod.number().nullish(),
+  "customerName": zod.string().nullish(),
+  "customerGstin": zod.string().nullish(),
+  "billingAddress": zod.string().nullish(),
+  "shippingAddress": zod.string().nullish(),
+  "placeOfSupply": zod.string().optional(),
+  "salesmanId": zod.number().nullish(),
+  "poNumber": zod.string().nullish(),
+  "eWayBillNo": zod.string().nullish(),
+  "freight": zod.number().optional(),
+  "roundOff": zod.number().optional(),
+  "items": zod.array(zod.object({
+  "productId": zod.number(),
+  "qty": zod.number(),
+  "qtyBoxes": zod.number().optional(),
+  "litersPerBox": zod.number().optional(),
+  "unit": zod.string(),
+  "rate": zod.number(),
+  "mrp": zod.number(),
+  "discountPct": zod.number().optional(),
+  "discountAmt": zod.number().optional(),
+  "taxPct": zod.number().optional(),
+  "cessPct": zod.number().optional()
+})).optional().describe('When present, fully replaces line items and triggers stock\/ledger reversal+reapply.')
+}).describe('Update an existing invoice. Two modes:\n- Header-only patch: send only status\/dueDate (no stock or ledger impact).\n- Full edit: include `items` to fully replace line items, totals, customer, freight, etc.\n  The server reverses the previous stock movements and ledger entry inside a SERIALIZABLE\n  transaction and re-applies them with the new payload.\n')
 
 export const UpdateInvoiceResponse = zod.object({
   "id": zod.number(),

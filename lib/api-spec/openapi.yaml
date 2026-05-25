@@ -1693,12 +1693,50 @@ components:
 
     InvoiceUpdate:
       type: object
+      description: |
+        Update an existing invoice. Two modes:
+        - Header-only patch: send only status/dueDate (no stock or ledger impact).
+        - Full edit: include `items` to fully replace line items, totals, customer, freight, etc.
+          The server reverses the previous stock movements and ledger entry inside a SERIALIZABLE
+          transaction and re-applies them with the new payload.
       properties:
         status:
           type: string
           enum: [draft, saved, cancelled]
         dueDate:
           type: string
+        invoiceType:
+          type: string
+          enum: [gst, non_gst]
+        invoiceDate:
+          type: string
+        customerId:
+          type: ["integer", "null"]
+        customerName:
+          type: ["string", "null"]
+        customerGstin:
+          type: ["string", "null"]
+        billingAddress:
+          type: ["string", "null"]
+        shippingAddress:
+          type: ["string", "null"]
+        placeOfSupply:
+          type: string
+        salesmanId:
+          type: ["integer", "null"]
+        poNumber:
+          type: ["string", "null"]
+        eWayBillNo:
+          type: ["string", "null"]
+        freight:
+          type: number
+        roundOff:
+          type: number
+        items:
+          type: array
+          description: When present, fully replaces line items and triggers stock/ledger reversal+reapply.
+          items:
+            $ref: "#/components/schemas/InvoiceItemInput"
 
     InvoiceSummary:
       type: object

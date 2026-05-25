@@ -456,9 +456,48 @@ export const InvoiceUpdateStatus = {
   cancelled: 'cancelled',
 } as const;
 
+export type InvoiceUpdateInvoiceType = typeof InvoiceUpdateInvoiceType[keyof typeof InvoiceUpdateInvoiceType];
+
+
+export const InvoiceUpdateInvoiceType = {
+  gst: 'gst',
+  non_gst: 'non_gst',
+} as const;
+
+/**
+ * Update an existing invoice. Two modes:
+- Header-only patch: send only status/dueDate (no stock or ledger impact).
+- Full edit: include `items` to fully replace line items, totals, customer, freight, etc.
+  The server reverses the previous stock movements and ledger entry inside a SERIALIZABLE
+  transaction and re-applies them with the new payload.
+
+ */
 export interface InvoiceUpdate {
   status?: InvoiceUpdateStatus;
   dueDate?: string;
+  invoiceType?: InvoiceUpdateInvoiceType;
+  invoiceDate?: string;
+  /** @nullable */
+  customerId?: number | null;
+  /** @nullable */
+  customerName?: string | null;
+  /** @nullable */
+  customerGstin?: string | null;
+  /** @nullable */
+  billingAddress?: string | null;
+  /** @nullable */
+  shippingAddress?: string | null;
+  placeOfSupply?: string;
+  /** @nullable */
+  salesmanId?: number | null;
+  /** @nullable */
+  poNumber?: string | null;
+  /** @nullable */
+  eWayBillNo?: string | null;
+  freight?: number;
+  roundOff?: number;
+  /** When present, fully replaces line items and triggers stock/ledger reversal+reapply. */
+  items?: InvoiceItemInput[];
 }
 
 export interface InvoiceSummary {
