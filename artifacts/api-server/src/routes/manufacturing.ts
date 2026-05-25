@@ -50,8 +50,13 @@ router.get("/boms", async (_req, res): Promise<void> => {
   res.json(result);
 });
 
-// POST /boms
+// POST /boms — admin only
 router.post("/boms", async (req, res): Promise<void> => {
+  const session = (req as any).session;
+  if (session?.role !== "admin") {
+    res.status(403).json({ error: "Only administrators can create BOMs" });
+    return;
+  }
   const parsed = CreateBomBody.safeParse(req.body);
   if (!parsed.success) {
     req.log.warn({ body: req.body, issues: parsed.error.issues }, "BOM create validation failed");
@@ -143,8 +148,13 @@ router.get("/boms/:id", async (req, res): Promise<void> => {
   res.json(formatBom(bom, product?.name ?? null, items));
 });
 
-// PATCH /boms/:id
+// PATCH /boms/:id — admin only
 router.patch("/boms/:id", async (req, res): Promise<void> => {
+  const session = (req as any).session;
+  if (session?.role !== "admin") {
+    res.status(403).json({ error: "Only administrators can edit BOMs" });
+    return;
+  }
   const params = UpdateBomParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
