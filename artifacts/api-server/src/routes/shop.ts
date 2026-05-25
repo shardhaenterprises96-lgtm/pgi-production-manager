@@ -138,6 +138,31 @@ router.get("/shop/low-stock", async (req, res): Promise<void> => {
   } catch (err: any) { res.status(400).json({ error: err?.message ?? "Failed" }); }
 });
 
+// Bulk: add every active master product that isn't yet in this shop's catalog.
+// Defaults: sourceType=factory, minThreshold=0, shopRetailPrice=null (uses master retail).
+router.post("/shop/inventory/bulk-import", async (req, res): Promise<void> => {
+  const g = gate(req, res, { roles: ["admin", "shop"], scopeLocation: true, requestedLocation: Number(req.body?.locationId) });
+  if (!g.ok) return;
+  const locationId = g.effectiveLocationId!;
+  try {
+    const result = await pool.query(
+      `INSERT INTO shop_inventory (location_id, product_id, current_stock, min_stock_threshold, source_type)
+       SELECT $1, p.id, 0, 0, 'factory'
+       FROM products p
+       WHERE p.deleted_at IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM shop_inventory si
+           WHERE si.location_id = $1 AND si.product_id = p.id
+         )
+       RETURNING id`,
+      [locationId],
+    );
+    res.json({ added: result.rowCount ?? 0 });
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message ?? "Failed" });
+  }
+});
+
 router.post("/shop/inventory", async (req, res): Promise<void> => {
   // Only admin can add a product to a shop's catalog.
   const g = gate(req, res, { roles: ["admin"] });

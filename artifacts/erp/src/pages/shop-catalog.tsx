@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import {
   useListLocations,
   useListShopInventory,
+  useListProducts,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,24 +22,57 @@ export default function ShopCatalogPage() {
     else if (!locationId && shops.length) setLocationId(shops[0].id);
   }, [user?.locationId, shops.length]);
 
-  const { data: rows, isLoading } = useListShopInventory({ locationId } as any);
+  const { data: shopRows, isLoading: invLoading } = useListShopInventory({ locationId } as any);
+  const { data: products, isLoading: prodLoading } = useListProducts();
+  const isLoading = invLoading || prodLoading;
   const [search, setSearch] = useState("");
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
-  const [groupBy, setGroupBy] = useState<"none" | "source">("none");
+  const [groupBy, setGroupBy] = useState<"none" | "brand">("brand");
+
+  // Master catalog ALWAYS shows every product. Overlay shop-specific stock/price
+  // when row exists in shop_inventory; otherwise fall back to master retailPrice
+  // and stock=0 / not-stocked label.
+  const merged = useMemo(() => {
+    const shopMap = new Map<number, any>();
+    for (const r of (shopRows ?? []) as any[]) shopMap.set(r.productId, r);
+    return ((products ?? []) as any[])
+      .filter((p) => !p.deletedAt)
+      .map((p) => {
+        const shop = shopMap.get(p.id);
+        return {
+          productId: p.id,
+          productName: p.name,
+          itemCode: p.itemCode,
+          unit: p.unit,
+          imageUrl: p.imageUrl,
+          brand: p.brand || "Other",
+          // Prefer shop-set price; fall back to master retail price.
+          price: shop?.shopRetailPrice != null ? Number(shop.shopRetailPrice) : Number(p.retailPrice ?? 0),
+          currentStock: shop ? Number(shop.currentStock) : 0,
+          isStocked: !!shop,
+          sourceType: shop?.sourceType ?? null,
+        };
+      });
+  }, [products, shopRows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = (rows ?? []) as any[];
+    let list = merged;
     if (q) list = list.filter((r) => r.productName.toLowerCase().includes(q) || r.itemCode.toLowerCase().includes(q));
-    if (hideOutOfStock) list = list.filter((r) => Number(r.currentStock) > 0);
+    if (hideOutOfStock) list = list.filter((r) => r.currentStock > 0);
     return list;
-  }, [rows, search, hideOutOfStock]);
+  }, [merged, search, hideOutOfStock]);
 
   const groups = useMemo(() => {
     if (groupBy === "none") return [{ label: "All Products", items: filtered }];
-    const by: Record<string, any[]> = { Factory: [], Self: [] };
-    for (const r of filtered) (r.sourceType === "factory" ? by.Factory : by.Self).push(r);
-    return Object.entries(by).filter(([, arr]) => arr.length > 0).map(([label, items]) => ({ label, items }));
+    const by = new Map<string, any[]>();
+    for (const r of filtered) {
+      const k = r.brand;
+      const arr = by.get(k) ?? [];
+      arr.push(r);
+      by.set(k, arr);
+    }
+    return [...by.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([label, items]) => ({ label, items }));
   }, [filtered, groupBy]);
 
   const shopName = shops.find((s: any) => s.id === locationId)?.name ?? "Shop";
@@ -81,7 +115,7 @@ export default function ShopCatalogPage() {
             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No grouping</SelectItem>
-              <SelectItem value="source">Group by source</SelectItem>
+              <SelectItem value="brand">Group by brand</SelectItem>
             </SelectContent>
           </Select>
           <Button variant={hideOutOfStock ? "default" : "outline"} size="sm" onClick={() => setHideOutOfStock((v) => !v)}>
@@ -138,8 +172,8 @@ export default function ShopCatalogPage() {
                 </div>
                 <div className="divide-y">
                   {grp.items.map((r: any, i: number) => {
-                    const inStock = Number(r.currentStock) > 0;
-                    const price = Number(r.shopRetailPrice ?? 0);
+                    const inStock = r.currentStock > 0;
+                    const price = r.price;
                     return (
                       <div
                         key={r.id}
@@ -155,7 +189,11 @@ export default function ShopCatalogPage() {
                           </div>
                           <div className="min-w-0">
                             <div className="font-medium truncate">{r.productName}</div>
-                            {!inStock && <div className="text-[11px] text-red-600 no-print">Out of stock</div>}
+                            {!inStock && (
+                              <div className="text-[11px] text-red-600 no-print">
+                                {r.isStocked ? "Out of stock" : "Not stocked at shop"}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="col-span-2 font-mono text-xs text-muted-foreground truncate">{r.itemCode}</div>

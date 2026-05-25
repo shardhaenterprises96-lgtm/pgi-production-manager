@@ -1321,6 +1321,18 @@ export const AddShopInventoryBody = zod.object({
 
 
 /**
+ * @summary Add every master product missing from this shop's catalog (defaults stock=0, source=factory)
+ */
+export const BulkImportShopInventoryBody = zod.object({
+  "locationId": zod.number()
+})
+
+export const BulkImportShopInventoryResponse = zod.object({
+  "added": zod.number().optional()
+})
+
+
+/**
  * @summary Update shop inventory row (min threshold, source, price)
  */
 export const UpdateShopInventoryParams = zod.object({

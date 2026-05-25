@@ -1130,6 +1130,14 @@ export interface ShopInventoryRow {
   hasBom?: boolean;
 }
 
+export interface BulkImportShopInventoryInput {
+  locationId: number;
+}
+
+export interface BulkImportShopInventoryResult {
+  added?: number;
+}
+
 export type ShopInventoryInputSourceType = typeof ShopInventoryInputSourceType[keyof typeof ShopInventoryInputSourceType];
 
 

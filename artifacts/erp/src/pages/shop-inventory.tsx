@@ -4,6 +4,7 @@ import {
   useListShopInventory,
   useAddShopInventory,
   useUpdateShopInventory,
+  useBulkImportShopInventory,
   useCreateStockTransfer,
   useListProducts,
   getListShopInventoryQueryKey,
@@ -20,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Store, AlertTriangle, Plus, ArrowUpFromLine, Package, Pencil } from "lucide-react";
+import { Store, AlertTriangle, Plus, ArrowUpFromLine, Package, Pencil, DownloadCloud } from "lucide-react";
 
 export default function ShopInventoryPage() {
   const { user } = useAuth();
@@ -42,6 +43,7 @@ export default function ShopInventoryPage() {
 
   const addRow = useAddShopInventory();
   const updateRow = useUpdateShopInventory();
+  const bulkImport = useBulkImportShopInventory();
   const createTransfer = useCreateStockTransfer();
 
   const [addOpen, setAddOpen] = useState(false);
@@ -163,6 +165,23 @@ export default function ShopInventoryPage() {
               </SelectContent>
             </Select>
           )}
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const res: any = await bulkImport.mutateAsync({ data: { locationId } });
+                toast({ title: res.added > 0 ? `Imported ${res.added} products` : "Shop already has every product" });
+                await refresh();
+              } catch (e: any) {
+                toast({ title: "Bulk import failed", description: e?.message, variant: "destructive" });
+              }
+            }}
+            disabled={bulkImport.isPending}
+            data-testid="button-bulk-import"
+            title="Add every master product not yet in this shop's catalog (stock starts at 0)"
+          >
+            <DownloadCloud className="w-4 h-4 mr-1" /> {bulkImport.isPending ? "Importing…" : "Import all products"}
+          </Button>
           <Button onClick={() => setAddOpen(true)} data-testid="button-add-product">
             <Plus className="w-4 h-4 mr-1" /> Add product to shop
           </Button>

@@ -29,6 +29,8 @@ import type {
   Bom,
   BomInput,
   BomUpdate,
+  BulkImportShopInventoryInput,
+  BulkImportShopInventoryResult,
   CashbookSummary,
   CollectCashFromSalesman200,
   CollectCashInput,
@@ -4149,6 +4151,77 @@ export const useAddShopInventory = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAddShopInventoryMutationOptions(options));
+    }
+
+export const getBulkImportShopInventoryUrl = () => {
+
+
+
+
+  return `/api/shop/inventory/bulk-import`
+}
+
+/**
+ * @summary Add every master product missing from this shop's catalog (defaults stock=0, source=factory)
+ */
+export const bulkImportShopInventory = async (bulkImportShopInventoryInput: BulkImportShopInventoryInput, options?: RequestInit): Promise<BulkImportShopInventoryResult> => {
+
+  return customFetch<BulkImportShopInventoryResult>(getBulkImportShopInventoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkImportShopInventoryInput,)
+  }
+);}
+
+
+
+
+export const getBulkImportShopInventoryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkImportShopInventory>>, TError,{data: BodyType<BulkImportShopInventoryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkImportShopInventory>>, TError,{data: BodyType<BulkImportShopInventoryInput>}, TContext> => {
+
+const mutationKey = ['bulkImportShopInventory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkImportShopInventory>>, {data: BodyType<BulkImportShopInventoryInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkImportShopInventory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkImportShopInventoryMutationResult = NonNullable<Awaited<ReturnType<typeof bulkImportShopInventory>>>
+    export type BulkImportShopInventoryMutationBody = BodyType<BulkImportShopInventoryInput>
+    export type BulkImportShopInventoryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add every master product missing from this shop's catalog (defaults stock=0, source=factory)
+ */
+export const useBulkImportShopInventory = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkImportShopInventory>>, TError,{data: BodyType<BulkImportShopInventoryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkImportShopInventory>>,
+        TError,
+        {data: BodyType<BulkImportShopInventoryInput>},
+        TContext
+      > => {
+      return useMutation(getBulkImportShopInventoryMutationOptions(options));
     }
 
 export const getUpdateShopInventoryUrl = (id: number,) => {
