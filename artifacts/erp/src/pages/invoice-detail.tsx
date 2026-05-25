@@ -96,14 +96,22 @@ export default function InvoiceDetail() {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto print:p-0 print:max-w-none print:m-0">
-      {/* Print stylesheet — hides app chrome and tightens the invoice for A4 */}
+      {/* Print stylesheet — hide everything on the page except the invoice sheet */}
       <style>{`
         @media print {
           @page { size: A5 landscape; margin: 5mm; }
-          .invoice-sheet { font-size: 9.5px !important; }
-          body { background: white !important; }
-          .no-print, [data-no-print], .sidebar, nav, header.app-header { display: none !important; }
-          .invoice-sheet { box-shadow: none !important; border: 1px solid #000 !important; }
+          html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
+          body * { visibility: hidden !important; }
+          .invoice-sheet, .invoice-sheet * { visibility: visible !important; }
+          .invoice-sheet {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            font-size: 9.5px !important;
+            box-shadow: none !important;
+            border: 1px solid #000 !important;
+          }
         }
       `}</style>
 
