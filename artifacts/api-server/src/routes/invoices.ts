@@ -299,8 +299,13 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
   res.json(formatInvoice(inv, items));
 });
 
-// PATCH /invoices/:id
+// PATCH /invoices/:id  — admin only
 router.patch("/invoices/:id", async (req, res): Promise<void> => {
+  const session = (req as any).session;
+  if (session?.role !== "admin") {
+    res.status(403).json({ error: "Only admins can edit invoices" });
+    return;
+  }
   const params = UpdateInvoiceParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -313,9 +318,31 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  // Prevent cancellation via PATCH — it skips stock-reversal / audit side-effects.
+  // Cancellation must go through DELETE /invoices/:id, which runs the proper cancellation workflow.
+  if (parsed.data.status === "cancelled") {
+    res.status(400).json({ error: "Use DELETE /invoices/:id to cancel an invoice (runs stock reversal + audit)." });
+    return;
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+  if (parsed.data.dueDate !== undefined) {
+    if (parsed.data.dueDate === null || parsed.data.dueDate === "") {
+      updates.dueDate = null;
+    } else {
+      const d = new Date(parsed.data.dueDate);
+      if (Number.isNaN(d.getTime())) {
+        res.status(400).json({ error: "Invalid dueDate" });
+        return;
+      }
+      updates.dueDate = d;
+    }
+  }
+
   const [inv] = await db
     .update(invoicesTable)
-    .set(parsed.data)
+    .set(updates)
     .where(eq(invoicesTable.id, params.data.id))
     .returning();
 
@@ -328,15 +355,18 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
   res.json(formatInvoice(inv, items));
 });
 
-// DELETE /invoices/:id
+// DELETE /invoices/:id  — admin only
 router.delete("/invoices/:id", async (req, res): Promise<void> => {
+  const session = (req as any).session;
+  if (session?.role !== "admin") {
+    res.status(403).json({ error: "Only admins can cancel invoices" });
+    return;
+  }
   const params = DeleteInvoiceParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-
-  const session = (req as any).session;
   const client = await pool.connect();
 
   try {
@@ -346,6 +376,13 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
     if (!inv) {
       await client.query("ROLLBACK");
       res.status(404).json({ error: "Invoice not found" });
+      return;
+    }
+
+    // Idempotency guard — never reverse stock twice for an already-cancelled GST invoice
+    if (inv.status === "cancelled") {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "Invoice is already cancelled" });
       return;
     }
 
