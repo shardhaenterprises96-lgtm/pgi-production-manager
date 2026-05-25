@@ -6,6 +6,7 @@ import {
   useUpdateBom,
   useAssembleItem,
   useListProducts,
+  useGetLowStockAlerts,
   getListBomsQueryKey,
   getListWorkloadCardsQueryKey,
   getListProductsQueryKey,
@@ -27,9 +28,20 @@ import {
 } from "@/components/ui/dialog";
 import {
   Factory, Plus, Trash2, Loader2, PackageCheck, AlertCircle, CheckCircle2, Pencil, Package, Search, X,
+  ListChecks, ArrowRight, AlertTriangle,
 } from "lucide-react";
 
 export default function Manufacturing() {
+  // Lifted state so the Workload tab can deep-link into Assemble Item with a
+  // specific BOM pre-selected.
+  const [tab, setTab] = useState("bom");
+  const [pendingAssembleBomId, setPendingAssembleBomId] = useState<string>("");
+
+  const startAssemble = (bomId: number) => {
+    setPendingAssembleBomId(String(bomId));
+    setTab("assemble");
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -39,9 +51,10 @@ export default function Manufacturing() {
         </p>
       </div>
 
-      <Tabs defaultValue="bom" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="grid w-full max-w-xl grid-cols-3">
           <TabsTrigger value="bom" data-testid="tab-bom">Bill of Material</TabsTrigger>
+          <TabsTrigger value="workload" data-testid="tab-workload">Workload</TabsTrigger>
           <TabsTrigger value="assemble" data-testid="tab-assemble">Assemble Item</TabsTrigger>
         </TabsList>
 
@@ -49,8 +62,15 @@ export default function Manufacturing() {
           <BomTab />
         </TabsContent>
 
+        <TabsContent value="workload" className="mt-6">
+          <WorkloadTab onStartAssemble={startAssemble} />
+        </TabsContent>
+
         <TabsContent value="assemble" className="mt-6">
-          <AssembleTab />
+          <AssembleTab
+            initialBomId={pendingAssembleBomId}
+            onConsumeInitialBomId={() => setPendingAssembleBomId("")}
+          />
         </TabsContent>
       </Tabs>
     </div>
@@ -161,9 +181,140 @@ function BomTab() {
   );
 }
 
+// --------------------------- WORKLOAD TAB ---------------------------
+// Shows products that are below their minimum stock threshold. If a BOM exists
+// for the product, the user can jump straight into Assemble Item with that
+// recipe pre-selected. Otherwise we hint that they need to either reorder or
+// create a BOM.
+
+function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => void }) {
+  const { data: alerts, isLoading } = useGetLowStockAlerts();
+  const { data: boms } = useListBoms();
+
+  const bomByFinishedProduct = useMemo(() => {
+    const m = new Map<number, any>();
+    (boms ?? []).forEach((b: any) => m.set(b.finishedProductId, b));
+    return m;
+  }, [boms]);
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+      </div>
+    );
+  }
+
+  if (!alerts || alerts.length === 0) {
+    return (
+      <div className="text-center py-12 border border-dashed rounded-lg">
+        <CheckCircle2 className="mx-auto h-12 w-12 text-green-600 opacity-40 mb-4" />
+        <h3 className="text-lg font-medium">All stocks healthy</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+          No products are below their minimum stock threshold right now. Items will appear here
+          automatically when stock dips below the threshold set in Inventory.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ListChecks className="w-5 h-5 text-primary" />
+            Production Workload
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Products that have fallen below their minimum stock threshold — top of the queue first.
+          </p>
+        </div>
+        <Badge variant="destructive" data-testid="badge-workload-count">
+          {alerts.length} item{alerts.length === 1 ? "" : "s"}
+        </Badge>
+      </div>
+
+      <div className="rounded-lg border overflow-hidden">
+        <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs uppercase text-muted-foreground font-medium bg-muted/50">
+          <div className="col-span-4">Product</div>
+          <div className="col-span-2 text-right">In Stock</div>
+          <div className="col-span-2 text-right">Min Threshold</div>
+          <div className="col-span-2 text-right">Shortage</div>
+          <div className="col-span-2 text-right">Action</div>
+        </div>
+        <div className="divide-y">
+          {alerts.map((a: any) => {
+            const bom = bomByFinishedProduct.get(a.id);
+            const shortage = Math.max(0, Number(a.minStockThreshold) - Number(a.currentStock));
+            const critical = Number(a.currentStock) <= 0;
+            return (
+              <div
+                key={a.id}
+                className="grid grid-cols-12 gap-2 px-4 py-3 items-center"
+                data-testid={`workload-row-${a.id}`}
+              >
+                <div className="col-span-4 min-w-0">
+                  <div className="font-medium line-clamp-1 flex items-center gap-2">
+                    {critical && <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />}
+                    {a.name}
+                  </div>
+                  {bom ? (
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Recipe ready · {bom.outputQuantity} per batch · {bom.items.length} materials
+                    </div>
+                  ) : (
+                    <div className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                      No BOM defined — reorder from vendor or set up a recipe
+                    </div>
+                  )}
+                </div>
+                <div className={`col-span-2 text-right tabular-nums font-medium ${critical ? "text-destructive" : ""}`}>
+                  {Number(a.currentStock).toLocaleString()} {a.unit ?? ""}
+                </div>
+                <div className="col-span-2 text-right tabular-nums text-muted-foreground">
+                  {Number(a.minStockThreshold).toLocaleString()} {a.unit ?? ""}
+                </div>
+                <div className="col-span-2 text-right tabular-nums">
+                  <Badge variant={critical ? "destructive" : "secondary"}>
+                    {shortage.toLocaleString()} {a.unit ?? ""}
+                  </Badge>
+                </div>
+                <div className="col-span-2 flex justify-end">
+                  {bom ? (
+                    <Button
+                      size="sm"
+                      onClick={() => onStartAssemble(bom.id)}
+                      data-testid={`button-assemble-from-workload-${a.id}`}
+                    >
+                      <PackageCheck className="w-3.5 h-3.5 mr-1" />
+                      Assemble
+                      <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" disabled>
+                      No Recipe
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --------------------------- ASSEMBLE TAB ---------------------------
 
-function AssembleTab() {
+function AssembleTab({
+  initialBomId,
+  onConsumeInitialBomId,
+}: {
+  initialBomId?: string;
+  onConsumeInitialBomId?: () => void;
+}) {
   const { data: boms, isLoading: bomsLoading } = useListBoms();
   const { data: products } = useListProducts({});
   const { data: workloads } = useListWorkloadCards();
@@ -175,6 +326,18 @@ function AssembleTab() {
   const [batches, setBatches] = useState<string>("1");
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
+
+  // When the Workload tab requests an assembly, accept the pre-selection
+  // exactly once and immediately clear it so subsequent navigation back to
+  // this tab doesn't snap the selection again.
+  React.useEffect(() => {
+    if (initialBomId) {
+      setBomId(initialBomId);
+      setSearch("");
+      onConsumeInitialBomId?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialBomId]);
 
   const selectedBom = useMemo(
     () => boms?.find((b: any) => String(b.id) === bomId),
