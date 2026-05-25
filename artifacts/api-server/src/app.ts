@@ -29,8 +29,9 @@ app.use(
   }),
 );
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 10mb limit to allow base64-encoded product images (~2MB raw → ~2.7MB encoded)
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser(SESSION_SECRET));
 
 // Simple signed-cookie session middleware
