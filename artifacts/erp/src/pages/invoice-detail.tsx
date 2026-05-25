@@ -106,6 +106,10 @@ export default function InvoiceDetail() {
     (s: number, i: any) => s + lineLiters(i, lpbByProduct.get(Number(i.productId))),
     0,
   );
+  const totalBox = items.reduce((s: number, i: any) => {
+    const upb = upbByProduct.get(Number(i.productId)) || 0;
+    return s + (upb > 0 ? (Number(i.qty) || 0) / upb : 0);
+  }, 0);
   const hasAnyDisc = items.some((i: any) => (Number(i.discountPct) || 0) > 0 || (Number(i.discountAmt) || 0) > 0);
 
   // Round-off display: only show if non-zero
@@ -305,7 +309,7 @@ export default function InvoiceDetail() {
               <td className="border-r border-black px-2 py-1 text-right" data-testid="text-total-qty">{num(totalQty, 0)}</td>
               <td className="border-r border-black px-2 py-1"></td>
               <td className="border-r border-black px-2 py-1 text-right" data-testid="text-total-ltr">{totalLtr > 0 ? num(totalLtr, 3) : ""}</td>
-              <td className="border-r border-black px-2 py-1"></td>
+              <td className="border-r border-black px-2 py-1 text-right" data-testid="text-total-box">{totalBox > 0 ? num(totalBox, 2) : ""}</td>
               <td className="border-r border-black px-2 py-1"></td>
               {hasAnyDisc && <td className="border-r border-black px-2 py-1"></td>}
               {isGst && <td className="border-r border-black px-2 py-1"></td>}
