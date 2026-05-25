@@ -14,6 +14,8 @@ export interface UserAccount {
   role: UserAccountRole;
   /** @nullable */
   entityId?: number | null;
+  /** @nullable */
+  locationId?: number | null;
   isActive: boolean;
   createdAt: string;
 }

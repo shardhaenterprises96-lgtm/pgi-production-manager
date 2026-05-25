@@ -9,6 +9,7 @@ export const usersTable = pgTable("users", {
   role: text("role").notNull().default("salesman"),
   name: text("name").notNull(),
   entityId: integer("entity_id"),
+  locationId: integer("location_id"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

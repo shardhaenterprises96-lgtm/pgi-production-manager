@@ -37,13 +37,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  // Store session — entityId is critical for salesman attribution & ledger scoping
+  // Store session — entityId is critical for salesman attribution & ledger scoping;
+  // locationId scopes shop-role users to their assigned outlet.
   (req as any).session = {
     userId: user.id,
     username: user.username,
     role: user.role,
     name: user.name,
     entityId: user.entityId ?? null,
+    locationId: user.locationId ?? null,
   };
 
   res.json({
@@ -52,6 +54,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     role: user.role,
     name: user.name,
     customerId: user.entityId ?? null,
+    locationId: user.locationId ?? null,
   });
 });
 
@@ -86,6 +89,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     role: user.role,
     name: user.name,
     customerId: user.entityId ?? null,
+    locationId: user.locationId ?? null,
   });
 });
 

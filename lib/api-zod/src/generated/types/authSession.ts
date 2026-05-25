@@ -14,4 +14,6 @@ export interface AuthSession {
   name: string;
   /** @nullable */
   customerId?: number | null;
+  /** @nullable */
+  locationId?: number | null;
 }

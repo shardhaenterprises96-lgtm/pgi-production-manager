@@ -74,4 +74,31 @@ app.use((_req, res, next) => {
 
 app.use("/api", router);
 
+// Idempotent seed for multi-location/shop foundation
+(async () => {
+  try {
+    const { pool } = await import("@workspace/db");
+    const client = await pool.connect();
+    try {
+      await client.query(`
+        INSERT INTO locations (id, code, name, type)
+        VALUES (1, 'FACTORY', 'Factory / Main Warehouse', 'factory'),
+               (2, 'SHOP1', 'Shop 1 — Main Outlet', 'shop')
+        ON CONFLICT (code) DO NOTHING;
+      `);
+      await client.query(`SELECT setval(pg_get_serial_sequence('locations','id'), GREATEST((SELECT MAX(id) FROM locations), 1));`);
+      await client.query(`
+        INSERT INTO users (username, password_hash, role, name, location_id)
+        VALUES ('shop1', 'pass123', 'shop', 'Shop 1 Counter', 2)
+        ON CONFLICT (username) DO NOTHING;
+      `);
+      logger.info("Seed: locations + shop1 user ensured");
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.warn({ err }, "Seed skipped (tables may not exist yet)");
+  }
+})();
+
 export default app;

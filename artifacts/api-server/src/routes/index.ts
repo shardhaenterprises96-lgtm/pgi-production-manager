@@ -11,6 +11,7 @@ import rewardsRouter from "./rewards";
 import manufacturingRouter from "./manufacturing";
 import dashboardRouter from "./dashboard";
 import accountsRouter from "./accounts";
+import shopRouter from "./shop";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(rewardsRouter);
 router.use(manufacturingRouter);
 router.use(dashboardRouter);
 router.use(accountsRouter);
+router.use(shopRouter);
 
 export default router;
