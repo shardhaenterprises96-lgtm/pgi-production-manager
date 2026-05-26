@@ -250,6 +250,11 @@ router.get("/dashboard/sales-trend", async (_req, res): Promise<void> => {
 
 // GET /reports/ledger
 router.get("/reports/ledger", async (req, res): Promise<void> => {
+  const role = (req as any).session?.role;
+  if (role !== "admin" && role !== "accountant") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
   const { entityId, from, to } = req.query as any;
 
   let text = `SELECT * FROM ledger_entries WHERE 1=1`;
@@ -264,11 +269,12 @@ router.get("/reports/ledger", async (req, res): Promise<void> => {
     text += ` AND date >= $${params.length}`;
   }
   if (to) {
-    params.push(new Date(to));
+    const d = new Date(to); d.setHours(23, 59, 59, 999);
+    params.push(d);
     text += ` AND date <= $${params.length}`;
   }
 
-  text += ` ORDER BY date DESC LIMIT 100`;
+  text += ` ORDER BY date DESC LIMIT 1000`;
 
   const rows = await queryMany(text, params);
 
@@ -286,9 +292,14 @@ router.get("/reports/ledger", async (req, res): Promise<void> => {
 });
 
 // GET /reports/audit-log
-router.get("/reports/audit-log", async (_req, res): Promise<void> => {
+router.get("/reports/audit-log", async (req, res): Promise<void> => {
+  const role = (req as any).session?.role;
+  if (role !== "admin" && role !== "accountant") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
   const rows = await queryMany(
-    `SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 100`
+    `SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 1000`
   );
 
   res.json(rows.map((e) => ({

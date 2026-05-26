@@ -14,6 +14,7 @@ import accountsRouter from "./accounts";
 import workersRouter from "./workers";
 import expensesRouter from "./expenses";
 import customerOrdersRouter from "./customer-orders";
+import reportsRouter from "./reports";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(accountsRouter);
 router.use(workersRouter);
 router.use(expensesRouter);
 router.use(customerOrdersRouter);
+router.use(reportsRouter);
 
 export default router;

@@ -1616,6 +1616,218 @@ export const GetAuditLogResponse = zod.array(GetAuditLogResponseItem)
 
 
 /**
+ * @summary Sales report (invoices with totals)
+ */
+export const GetSalesReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "type": zod.enum(['all', 'gst', 'non_gst']).optional(),
+  "customerId": zod.coerce.number().optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const GetSalesReportResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "invoiceNo": zod.string(),
+  "invoiceDate": zod.string(),
+  "invoiceType": zod.string(),
+  "customerId": zod.number().nullish(),
+  "customerName": zod.string().nullish(),
+  "customerGstin": zod.string().nullish(),
+  "placeOfSupply": zod.string().optional(),
+  "subtotal": zod.number(),
+  "totalDiscount": zod.number().optional(),
+  "totalTax": zod.number(),
+  "cgst": zod.number().optional(),
+  "sgst": zod.number().optional(),
+  "igst": zod.number().optional(),
+  "freight": zod.number().optional(),
+  "roundOff": zod.number().optional(),
+  "grandTotal": zod.number(),
+  "amountPaid": zod.number().optional(),
+  "balanceDue": zod.number().optional(),
+  "status": zod.string()
+})),
+  "totals": zod.object({
+  "subtotal": zod.number(),
+  "totalTax": zod.number(),
+  "cgst": zod.number(),
+  "sgst": zod.number(),
+  "igst": zod.number(),
+  "grandTotal": zod.number(),
+  "amountPaid": zod.number(),
+  "balanceDue": zod.number(),
+  "count": zod.number()
+})
+})
+
+
+/**
+ * @summary Item-wise sales report
+ */
+export const GetItemWiseSalesReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "type": zod.enum(['all', 'gst', 'non_gst']).optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const GetItemWiseSalesReportResponse = zod.object({
+  "items": zod.array(zod.object({
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "hsnCode": zod.string().nullish(),
+  "unit": zod.string(),
+  "invoices": zod.number(),
+  "qty": zod.number(),
+  "amount": zod.number(),
+  "tax": zod.number(),
+  "total": zod.number()
+})),
+  "totals": zod.object({
+  "qty": zod.number(),
+  "amount": zod.number(),
+  "tax": zod.number(),
+  "total": zod.number(),
+  "count": zod.number()
+})
+})
+
+
+/**
+ * @summary Customer-wise sales report
+ */
+export const GetCustomerWiseSalesReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "type": zod.enum(['all', 'gst', 'non_gst']).optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const GetCustomerWiseSalesReportResponse = zod.object({
+  "items": zod.array(zod.object({
+  "customerId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "invoices": zod.number(),
+  "subtotal": zod.number(),
+  "tax": zod.number(),
+  "total": zod.number(),
+  "paid": zod.number(),
+  "balance": zod.number()
+})),
+  "totals": zod.object({
+  "subtotal": zod.number(),
+  "tax": zod.number(),
+  "total": zod.number(),
+  "paid": zod.number(),
+  "balance": zod.number(),
+  "count": zod.number()
+})
+})
+
+
+/**
+ * @summary Production / manufacturing completion report
+ */
+export const GetProductionReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const GetProductionReportResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "qty": zod.number(),
+  "workerName": zod.string().nullish(),
+  "orderType": zod.string(),
+  "completedAt": zod.string().nullish(),
+  "cost": zod.number()
+})),
+  "summary": zod.array(zod.object({
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "batches": zod.number(),
+  "qty": zod.number(),
+  "cost": zod.number()
+})),
+  "totals": zod.object({
+  "qty": zod.number(),
+  "cost": zod.number(),
+  "count": zod.number()
+})
+})
+
+
+/**
+ * @summary Input vs output GST tax report
+ */
+export const GetTaxReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetTaxReportResponse = zod.object({
+  "output": zod.object({
+  "taxable": zod.number(),
+  "cgst": zod.number(),
+  "sgst": zod.number(),
+  "igst": zod.number(),
+  "total": zod.number()
+}),
+  "input": zod.object({
+  "taxable": zod.number(),
+  "cgst": zod.number(),
+  "sgst": zod.number(),
+  "igst": zod.number(),
+  "total": zod.number()
+}),
+  "netPayable": zod.number(),
+  "outputByRate": zod.array(zod.object({
+  "rate": zod.number(),
+  "taxable": zod.number(),
+  "tax": zod.number()
+})),
+  "inputByRate": zod.array(zod.object({
+  "rate": zod.number(),
+  "taxable": zod.number(),
+  "tax": zod.number()
+}))
+})
+
+
+/**
+ * @summary Profit & Loss report
+ */
+export const GetProfitLossReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetProfitLossReportResponse = zod.object({
+  "revenue": zod.number(),
+  "cogs": zod.number(),
+  "grossProfit": zod.number(),
+  "grossMargin": zod.number(),
+  "expenses": zod.number(),
+  "netProfit": zod.number(),
+  "netMargin": zod.number(),
+  "salesTax": zod.number(),
+  "salesTotal": zod.number(),
+  "purchases": zod.number(),
+  "expensesByCategory": zod.array(zod.object({
+  "categoryName": zod.string(),
+  "total": zod.number()
+}))
+})
+
+
+/**
  * @summary Global search across entities, invoices, products
  */
 export const GlobalSearchQueryParams = zod.object({

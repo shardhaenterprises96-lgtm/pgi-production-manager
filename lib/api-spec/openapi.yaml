@@ -1361,6 +1361,110 @@ paths:
                 items:
                   $ref: "#/components/schemas/AuditEntry"
 
+  /reports/sales:
+    get:
+      operationId: getSalesReport
+      tags: [reports]
+      summary: Sales report (invoices with totals)
+      parameters:
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string, enum: [all, gst, non_gst] } }
+        - { name: customerId, in: query, schema: { type: integer } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Sales report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesReport"
+
+  /reports/sales/item-wise:
+    get:
+      operationId: getItemWiseSalesReport
+      tags: [reports]
+      summary: Item-wise sales report
+      parameters:
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string, enum: [all, gst, non_gst] } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Item-wise sales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemWiseSalesReport"
+
+  /reports/sales/customer-wise:
+    get:
+      operationId: getCustomerWiseSalesReport
+      tags: [reports]
+      summary: Customer-wise sales report
+      parameters:
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string, enum: [all, gst, non_gst] } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Customer-wise sales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerWiseSalesReport"
+
+  /reports/production:
+    get:
+      operationId: getProductionReport
+      tags: [reports]
+      summary: Production / manufacturing completion report
+      parameters:
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Production report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionReport"
+
+  /reports/tax:
+    get:
+      operationId: getTaxReport
+      tags: [reports]
+      summary: Input vs output GST tax report
+      parameters:
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Tax report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxReport"
+
+  /reports/profit-loss:
+    get:
+      operationId: getProfitLossReport
+      tags: [reports]
+      summary: Profit & Loss report
+      parameters:
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Profit & Loss
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfitLossReport"
+
   /search:
     get:
       operationId: globalSearch
@@ -3420,3 +3524,211 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ExpenseSummaryRow"
+
+    SalesReportItem:
+      type: object
+      required: [id, invoiceNo, invoiceDate, invoiceType, subtotal, totalTax, grandTotal, status]
+      properties:
+        id: { type: integer }
+        invoiceNo: { type: string }
+        invoiceDate: { type: string }
+        invoiceType: { type: string }
+        customerId: { type: ["integer", "null"] }
+        customerName: { type: ["string", "null"] }
+        customerGstin: { type: ["string", "null"] }
+        placeOfSupply: { type: string }
+        subtotal: { type: number }
+        totalDiscount: { type: number }
+        totalTax: { type: number }
+        cgst: { type: number }
+        sgst: { type: number }
+        igst: { type: number }
+        freight: { type: number }
+        roundOff: { type: number }
+        grandTotal: { type: number }
+        amountPaid: { type: number }
+        balanceDue: { type: number }
+        status: { type: string }
+
+    SalesReportTotals:
+      type: object
+      required: [subtotal, totalTax, cgst, sgst, igst, grandTotal, amountPaid, balanceDue, count]
+      properties:
+        subtotal: { type: number }
+        totalTax: { type: number }
+        cgst: { type: number }
+        sgst: { type: number }
+        igst: { type: number }
+        grandTotal: { type: number }
+        amountPaid: { type: number }
+        balanceDue: { type: number }
+        count: { type: integer }
+
+    SalesReport:
+      type: object
+      required: [items, totals]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SalesReportItem" }
+        totals: { $ref: "#/components/schemas/SalesReportTotals" }
+
+    ItemWiseSalesRow:
+      type: object
+      required: [productId, productName, unit, invoices, qty, amount, tax, total]
+      properties:
+        productId: { type: integer }
+        productName: { type: string }
+        hsnCode: { type: ["string", "null"] }
+        unit: { type: string }
+        invoices: { type: integer }
+        qty: { type: number }
+        amount: { type: number }
+        tax: { type: number }
+        total: { type: number }
+
+    ItemWiseSalesReport:
+      type: object
+      required: [items, totals]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ItemWiseSalesRow" }
+        totals:
+          type: object
+          required: [qty, amount, tax, total, count]
+          properties:
+            qty: { type: number }
+            amount: { type: number }
+            tax: { type: number }
+            total: { type: number }
+            count: { type: integer }
+
+    CustomerWiseSalesRow:
+      type: object
+      required: [customerName, invoices, subtotal, tax, total, paid, balance]
+      properties:
+        customerId: { type: ["integer", "null"] }
+        customerName: { type: string }
+        invoices: { type: integer }
+        subtotal: { type: number }
+        tax: { type: number }
+        total: { type: number }
+        paid: { type: number }
+        balance: { type: number }
+
+    CustomerWiseSalesReport:
+      type: object
+      required: [items, totals]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CustomerWiseSalesRow" }
+        totals:
+          type: object
+          required: [subtotal, tax, total, paid, balance, count]
+          properties:
+            subtotal: { type: number }
+            tax: { type: number }
+            total: { type: number }
+            paid: { type: number }
+            balance: { type: number }
+            count: { type: integer }
+
+    ProductionReportItem:
+      type: object
+      required: [id, productId, productName, unit, qty, orderType, cost]
+      properties:
+        id: { type: integer }
+        productId: { type: integer }
+        productName: { type: string }
+        unit: { type: string }
+        qty: { type: number }
+        workerName: { type: ["string", "null"] }
+        orderType: { type: string }
+        completedAt: { type: ["string", "null"] }
+        cost: { type: number }
+
+    ProductionSummaryRow:
+      type: object
+      required: [productId, productName, unit, batches, qty, cost]
+      properties:
+        productId: { type: integer }
+        productName: { type: string }
+        unit: { type: string }
+        batches: { type: integer }
+        qty: { type: number }
+        cost: { type: number }
+
+    ProductionReport:
+      type: object
+      required: [items, summary, totals]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ProductionReportItem" }
+        summary:
+          type: array
+          items: { $ref: "#/components/schemas/ProductionSummaryRow" }
+        totals:
+          type: object
+          required: [qty, cost, count]
+          properties:
+            qty: { type: number }
+            cost: { type: number }
+            count: { type: integer }
+
+    TaxBucket:
+      type: object
+      required: [taxable, cgst, sgst, igst, total]
+      properties:
+        taxable: { type: number }
+        cgst: { type: number }
+        sgst: { type: number }
+        igst: { type: number }
+        total: { type: number }
+
+    TaxRateRow:
+      type: object
+      required: [rate, taxable, tax]
+      properties:
+        rate: { type: number }
+        taxable: { type: number }
+        tax: { type: number }
+
+    TaxReport:
+      type: object
+      required: [output, input, netPayable, outputByRate, inputByRate]
+      properties:
+        output: { $ref: "#/components/schemas/TaxBucket" }
+        input: { $ref: "#/components/schemas/TaxBucket" }
+        netPayable: { type: number }
+        outputByRate:
+          type: array
+          items: { $ref: "#/components/schemas/TaxRateRow" }
+        inputByRate:
+          type: array
+          items: { $ref: "#/components/schemas/TaxRateRow" }
+
+    ProfitLossReport:
+      type: object
+      required: [revenue, cogs, grossProfit, grossMargin, expenses, netProfit, netMargin, salesTax, salesTotal, purchases, expensesByCategory]
+      properties:
+        revenue: { type: number }
+        cogs: { type: number }
+        grossProfit: { type: number }
+        grossMargin: { type: number }
+        expenses: { type: number }
+        netProfit: { type: number }
+        netMargin: { type: number }
+        salesTax: { type: number }
+        salesTotal: { type: number }
+        purchases: { type: number }
+        expensesByCategory:
+          type: array
+          items:
+            type: object
+            required: [categoryName, total]
+            properties:
+              categoryName: { type: string }
+              total: { type: number }

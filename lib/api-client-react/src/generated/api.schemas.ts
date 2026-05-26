@@ -1464,6 +1464,177 @@ export interface ExpenseList {
   byCategory: ExpenseSummaryRow[];
 }
 
+export interface SalesReportItem {
+  id: number;
+  invoiceNo: string;
+  invoiceDate: string;
+  invoiceType: string;
+  /** @nullable */
+  customerId?: number | null;
+  /** @nullable */
+  customerName?: string | null;
+  /** @nullable */
+  customerGstin?: string | null;
+  placeOfSupply?: string;
+  subtotal: number;
+  totalDiscount?: number;
+  totalTax: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
+  freight?: number;
+  roundOff?: number;
+  grandTotal: number;
+  amountPaid?: number;
+  balanceDue?: number;
+  status: string;
+}
+
+export interface SalesReportTotals {
+  subtotal: number;
+  totalTax: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  grandTotal: number;
+  amountPaid: number;
+  balanceDue: number;
+  count: number;
+}
+
+export interface SalesReport {
+  items: SalesReportItem[];
+  totals: SalesReportTotals;
+}
+
+export interface ItemWiseSalesRow {
+  productId: number;
+  productName: string;
+  /** @nullable */
+  hsnCode?: string | null;
+  unit: string;
+  invoices: number;
+  qty: number;
+  amount: number;
+  tax: number;
+  total: number;
+}
+
+export type ItemWiseSalesReportTotals = {
+  qty: number;
+  amount: number;
+  tax: number;
+  total: number;
+  count: number;
+};
+
+export interface ItemWiseSalesReport {
+  items: ItemWiseSalesRow[];
+  totals: ItemWiseSalesReportTotals;
+}
+
+export interface CustomerWiseSalesRow {
+  /** @nullable */
+  customerId?: number | null;
+  customerName: string;
+  invoices: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  paid: number;
+  balance: number;
+}
+
+export type CustomerWiseSalesReportTotals = {
+  subtotal: number;
+  tax: number;
+  total: number;
+  paid: number;
+  balance: number;
+  count: number;
+};
+
+export interface CustomerWiseSalesReport {
+  items: CustomerWiseSalesRow[];
+  totals: CustomerWiseSalesReportTotals;
+}
+
+export interface ProductionReportItem {
+  id: number;
+  productId: number;
+  productName: string;
+  unit: string;
+  qty: number;
+  /** @nullable */
+  workerName?: string | null;
+  orderType: string;
+  /** @nullable */
+  completedAt?: string | null;
+  cost: number;
+}
+
+export interface ProductionSummaryRow {
+  productId: number;
+  productName: string;
+  unit: string;
+  batches: number;
+  qty: number;
+  cost: number;
+}
+
+export type ProductionReportTotals = {
+  qty: number;
+  cost: number;
+  count: number;
+};
+
+export interface ProductionReport {
+  items: ProductionReportItem[];
+  summary: ProductionSummaryRow[];
+  totals: ProductionReportTotals;
+}
+
+export interface TaxBucket {
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+}
+
+export interface TaxRateRow {
+  rate: number;
+  taxable: number;
+  tax: number;
+}
+
+export interface TaxReport {
+  output: TaxBucket;
+  input: TaxBucket;
+  netPayable: number;
+  outputByRate: TaxRateRow[];
+  inputByRate: TaxRateRow[];
+}
+
+export type ProfitLossReportExpensesByCategoryItem = {
+  categoryName: string;
+  total: number;
+};
+
+export interface ProfitLossReport {
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+  grossMargin: number;
+  expenses: number;
+  netProfit: number;
+  netMargin: number;
+  salesTax: number;
+  salesTotal: number;
+  purchases: number;
+  expensesByCategory: ProfitLossReportExpensesByCategoryItem[];
+}
+
 export type ListProductsParams = {
 search?: string;
 group?: string;
@@ -1601,6 +1772,71 @@ export type AssembleItem409 = {
 
 export type GetLedgerReportParams = {
 entityId?: number;
+from?: string;
+to?: string;
+};
+
+export type GetSalesReportParams = {
+from?: string;
+to?: string;
+type?: GetSalesReportType;
+customerId?: number;
+search?: string;
+};
+
+export type GetSalesReportType = typeof GetSalesReportType[keyof typeof GetSalesReportType];
+
+
+export const GetSalesReportType = {
+  all: 'all',
+  gst: 'gst',
+  non_gst: 'non_gst',
+} as const;
+
+export type GetItemWiseSalesReportParams = {
+from?: string;
+to?: string;
+type?: GetItemWiseSalesReportType;
+search?: string;
+};
+
+export type GetItemWiseSalesReportType = typeof GetItemWiseSalesReportType[keyof typeof GetItemWiseSalesReportType];
+
+
+export const GetItemWiseSalesReportType = {
+  all: 'all',
+  gst: 'gst',
+  non_gst: 'non_gst',
+} as const;
+
+export type GetCustomerWiseSalesReportParams = {
+from?: string;
+to?: string;
+type?: GetCustomerWiseSalesReportType;
+search?: string;
+};
+
+export type GetCustomerWiseSalesReportType = typeof GetCustomerWiseSalesReportType[keyof typeof GetCustomerWiseSalesReportType];
+
+
+export const GetCustomerWiseSalesReportType = {
+  all: 'all',
+  gst: 'gst',
+  non_gst: 'non_gst',
+} as const;
+
+export type GetProductionReportParams = {
+from?: string;
+to?: string;
+search?: string;
+};
+
+export type GetTaxReportParams = {
+from?: string;
+to?: string;
+};
+
+export type GetProfitLossReportParams = {
 from?: string;
 to?: string;
 };
