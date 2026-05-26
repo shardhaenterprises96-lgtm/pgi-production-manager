@@ -2907,7 +2907,7 @@ components:
 
     CapitalSnapshot:
       type: object
-      required: [inventoryValue, receivable, cashInAccounts, payable, capital, capitalK, snapshotDate]
+      required: [inventoryValue, receivable, cashInAccounts, payable, expenses, capital, capitalK, snapshotDate]
       properties:
         snapshotDate:
           type: string
@@ -2919,9 +2919,11 @@ components:
           type: number
         payable:
           type: number
+        expenses:
+          type: number
         capital:
           type: number
-          description: Raw capital value (inventory + receivable + cash - payable)
+          description: Raw capital value (inventory + receivable + cash - payable - expenses)
         capitalK:
           type: number
           description: Capital divided by 1000 (the value to display)

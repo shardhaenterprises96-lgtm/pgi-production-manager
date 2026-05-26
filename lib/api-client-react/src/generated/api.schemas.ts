@@ -1132,7 +1132,8 @@ export interface CapitalSnapshot {
   receivable: number;
   cashInAccounts: number;
   payable: number;
-  /** Raw capital value (inventory + receivable + cash - payable) */
+  expenses: number;
+  /** Raw capital value (inventory + receivable + cash - payable - expenses) */
   capital: number;
   /** Capital divided by 1000 (the value to display) */
   capitalK: number;

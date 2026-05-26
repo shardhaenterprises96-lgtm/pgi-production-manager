@@ -63,7 +63,7 @@ router.get("/dashboard/capital", async (req, res): Promise<void> => {
     return;
   }
 
-  const [invRow, recvRow, cashRow, payRow] = await Promise.all([
+  const [invRow, recvRow, cashRow, payRow, expRow] = await Promise.all([
     queryOne(
       `SELECT COALESCE(SUM(current_stock * purchase_price), 0) AS v
        FROM products
@@ -84,13 +84,17 @@ router.get("/dashboard/capital", async (req, res): Promise<void> => {
        FROM entities
        WHERE type = 'vendor' AND outstanding_balance > 0`
     ),
+    queryOne(
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses`
+    ),
   ]);
 
   const inventoryValue = Number(invRow.v ?? 0);
   const receivable = Number(recvRow.v ?? 0);
   const cashInAccounts = Number(cashRow.v ?? 0);
   const payable = Number(payRow.v ?? 0);
-  const capital = inventoryValue + receivable + cashInAccounts - payable;
+  const expenses = Number(expRow.v ?? 0);
+  const capital = inventoryValue + receivable + cashInAccounts - payable - expenses;
   const capitalK = capital / 1000;
 
   const today = new Date();
@@ -98,16 +102,17 @@ router.get("/dashboard/capital", async (req, res): Promise<void> => {
   // Upsert today's snapshot (so growth is computable tomorrow)
   await pool.query(
     `INSERT INTO capital_snapshots
-       (snapshot_date, inventory_value, receivable, cash_in_accounts, payable, capital, captured_at)
-     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       (snapshot_date, inventory_value, receivable, cash_in_accounts, payable, expenses, capital, captured_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
      ON CONFLICT (snapshot_date) DO UPDATE SET
        inventory_value = EXCLUDED.inventory_value,
        receivable = EXCLUDED.receivable,
        cash_in_accounts = EXCLUDED.cash_in_accounts,
        payable = EXCLUDED.payable,
+       expenses = EXCLUDED.expenses,
        capital = EXCLUDED.capital,
        captured_at = NOW()`,
-    [todayStr, inventoryValue, receivable, cashInAccounts, payable, capital]
+    [todayStr, inventoryValue, receivable, cashInAccounts, payable, expenses, capital]
   );
 
   // Look up most recent prior snapshot (yesterday preferred, else latest before today)
@@ -136,6 +141,7 @@ router.get("/dashboard/capital", async (req, res): Promise<void> => {
     receivable,
     cashInAccounts,
     payable,
+    expenses,
     capital,
     capitalK,
     previousCapital,

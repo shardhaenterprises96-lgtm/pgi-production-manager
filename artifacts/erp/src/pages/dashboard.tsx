@@ -64,6 +64,7 @@ export default function Dashboard() {
                     {" + "}Receivable ₹{capital.receivable.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     {" + "}Cash ₹{capital.cashInAccounts.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     {" - "}Payable ₹{capital.payable.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {" - "}Expenses ₹{capital.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
                 </>
               )}
