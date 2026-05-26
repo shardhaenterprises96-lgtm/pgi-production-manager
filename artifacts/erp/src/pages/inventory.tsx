@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { ImageAdjustDialog } from "@/components/image-adjust-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { getListProductsQueryKey } from "@workspace/api-client-react";
 import {
@@ -242,6 +243,8 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
   const [imagePreview, setImagePreview] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [adjustSrc, setAdjustSrc] = useState<string>("");
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const createProduct = useCreateProduct();
@@ -295,15 +298,15 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
       toast({ title: "Invalid file", description: "Please select an image file.", variant: "destructive" });
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Image must be under 2MB.", variant: "destructive" });
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Image must be under 8MB.", variant: "destructive" });
       return;
     }
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
-      setImagePreview(result);
-      set("imageUrl", result);
+      setAdjustSrc(result);
+      setAdjustOpen(true);
     };
     reader.readAsDataURL(file);
   };
@@ -621,6 +624,16 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
               </div>
             </div>
 
+            <ImageAdjustDialog
+              open={adjustOpen}
+              onOpenChange={setAdjustOpen}
+              src={adjustSrc}
+              onConfirm={(dataUrl) => {
+                setImagePreview(dataUrl);
+                set("imageUrl", dataUrl);
+              }}
+            />
+
             {/* ── Image Uploader ── */}
             <div className="space-y-2">
               <Label>Product Image</Label>
@@ -656,6 +669,16 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
                       >
                         <Upload className="w-3.5 h-3.5 mr-1.5" />
                         Replace
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setAdjustSrc(imagePreview); setAdjustOpen(true); }}
+                        data-testid="button-adjust-image"
+                      >
+                        <Upload className="w-3.5 h-3.5 mr-1.5 rotate-180" />
+                        Adjust
                       </Button>
                       <Button
                         type="button"
