@@ -244,8 +244,8 @@ export default function Catalog() {
 
         <div className="flex-1 overflow-y-auto pr-1 pb-4">
           {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => <Card key={i} className="animate-pulse h-[280px]" />)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => <Card key={i} className="animate-pulse h-[340px]" />)}
             </div>
           ) : products?.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
@@ -253,18 +253,18 @@ export default function Catalog() {
               <p>No products found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {products?.map((product) => (
                 <Card
                   key={product.id}
                   data-testid={`card-product-${product.id}`}
                   className="flex flex-col overflow-hidden transition-all hover:shadow-md border-border/50"
                 >
-                  <div className="aspect-square bg-muted flex items-center justify-center relative p-4">
+                  <div className="aspect-square bg-muted flex items-center justify-center relative p-1 sm:p-2">
                     {product.imageUrl ? (
                       <img src={product.imageUrl} alt={product.name} className="object-contain h-full w-full" />
                     ) : (
-                      <div className="w-16 h-16 opacity-10 text-foreground">
+                      <div className="w-24 h-24 opacity-10 text-foreground">
                         <ShoppingCart className="w-full h-full" />
                       </div>
                     )}
