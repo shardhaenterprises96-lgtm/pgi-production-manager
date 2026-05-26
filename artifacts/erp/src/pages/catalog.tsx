@@ -270,7 +270,7 @@ export default function Catalog() {
                     )}
                     <div className="absolute top-2 right-2">{getStockBadge(product.currentStock)}</div>
                   </div>
-                  <CardContent className="flex-1 p-3 flex flex-col gap-1">
+                  <CardContent className="flex-1 p-3 flex flex-col gap-2">
                     <div className="text-[10px] text-muted-foreground font-mono">{product.itemCode}</div>
                     <h3 className="font-semibold text-sm leading-tight line-clamp-2">{product.name}</h3>
                     {isB2B ? (
@@ -282,34 +282,30 @@ export default function Catalog() {
                         <span>R: <span className="text-foreground font-medium">₹{product.retailPrice}</span></span>
                       </div>
                     )}
-                    <div className="flex flex-wrap gap-1 mt-auto pt-1">
-                      <Badge variant="secondary" className="text-[10px] px-1">{product.brand}</Badge>
-                      <Badge variant="outline" className="text-[10px] px-1">{product.group}</Badge>
+                    <div className="mt-auto">
+                      {cart[product.id] ? (
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => removeFromCart(product.id)} data-testid={`button-remove-${product.id}`}>
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="font-bold text-sm w-6 text-center">{cart[product.id].qty}</span>
+                          <Button size="icon" className="h-8 w-8" onClick={() => addToCart(product.id)} disabled={cart[product.id].qty >= product.currentStock} data-testid={`button-add-${product.id}`}>
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          className="w-full h-8 text-xs"
+                          onClick={() => addToCart(product.id)}
+                          disabled={product.currentStock <= 0}
+                          data-testid={`button-addcart-${product.id}`}
+                        >
+                          <ShoppingCart className="w-3 h-3 mr-1" />
+                          Add to Cart
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
-                  <CardFooter className="p-3 pt-0">
-                    {cart[product.id] ? (
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => removeFromCart(product.id)} data-testid={`button-remove-${product.id}`}>
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="font-bold text-sm w-6 text-center">{cart[product.id].qty}</span>
-                        <Button size="icon" className="h-8 w-8" onClick={() => addToCart(product.id)} disabled={cart[product.id].qty >= product.currentStock} data-testid={`button-add-${product.id}`}>
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        className="w-full h-8 text-xs"
-                        onClick={() => addToCart(product.id)}
-                        disabled={product.currentStock <= 0}
-                        data-testid={`button-addcart-${product.id}`}
-                      >
-                        <ShoppingCart className="w-3 h-3 mr-1" />
-                        Add to Cart
-                      </Button>
-                    )}
-                  </CardFooter>
                 </Card>
               ))}
             </div>
