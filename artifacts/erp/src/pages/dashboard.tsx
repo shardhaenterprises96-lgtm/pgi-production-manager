@@ -1,8 +1,8 @@
 import React from "react";
 import { useAuth } from "@/contexts/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useGetDashboardSummary, useGetSalesTrend, useGetLowStockAlerts, useGetRecentInvoices } from "@workspace/api-client-react";
-import { IndianRupee, FileText, AlertTriangle, CreditCard, PackageOpen, Users, TrendingUp } from "lucide-react";
+import { useGetDashboardSummary, useGetSalesTrend, useGetLowStockAlerts, useGetRecentInvoices, useGetCapitalSnapshot, getGetCapitalSnapshotQueryKey } from "@workspace/api-client-react";
+import { IndianRupee, FileText, AlertTriangle, CreditCard, PackageOpen, Users, TrendingUp, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -11,6 +11,7 @@ export default function Dashboard() {
   const { user, hasRole } = useAuth();
 
   const isManagement = hasRole(["admin", "accountant"]);
+  const isAdmin = hasRole(["admin"]);
 
   if (!isManagement) {
     // If not management, they shouldn't really be here, they should be redirected to catalog
@@ -29,6 +30,9 @@ export default function Dashboard() {
   const { data: salesTrend } = useGetSalesTrend();
   const { data: lowStockAlerts } = useGetLowStockAlerts();
   const { data: recentInvoices } = useGetRecentInvoices();
+  const { data: capital, isLoading: isLoadingCapital } = useGetCapitalSnapshot({
+    query: { queryKey: getGetCapitalSnapshotQueryKey(), enabled: isAdmin },
+  });
 
   return (
     <div className="space-y-6">
@@ -38,6 +42,69 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-2">Overview of business performance and alerts.</p>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-transparent">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Capital</CardTitle>
+              <Wallet className="h-4 w-4 text-amber-600" />
+            </CardHeader>
+            <CardContent>
+              {isLoadingCapital || !capital ? (
+                <div className="h-8 w-32 bg-muted rounded animate-pulse" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">
+                    {capital.capitalK.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    <span className="text-base text-muted-foreground font-normal ml-1">(₹{capital.capital.toLocaleString(undefined, { maximumFractionDigits: 0 })} / 1000)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Inventory ₹{capital.inventoryValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {" + "}Receivable ₹{capital.receivable.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {" + "}Cash ₹{capital.cashInAccounts.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {" - "}Payable ₹{capital.payable.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Growth (vs previous day)</CardTitle>
+              {capital?.growthK == null ? (
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              ) : capital.growthK >= 0 ? (
+                <ArrowUpRight className="h-4 w-4 text-green-600" />
+              ) : (
+                <ArrowDownRight className="h-4 w-4 text-red-600" />
+              )}
+            </CardHeader>
+            <CardContent>
+              {isLoadingCapital || !capital ? (
+                <div className="h-8 w-32 bg-muted rounded animate-pulse" />
+              ) : capital.growthK == null ? (
+                <>
+                  <div className="text-2xl font-bold text-muted-foreground">—</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    First-day snapshot saved. Growth will appear from tomorrow.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className={`text-2xl font-bold ${capital.growthK >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {capital.growthK >= 0 ? "+" : ""}
+                    {capital.growthK.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Δ ₹{(capital.growth ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} since {capital.previousDate ?? "—"}
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {isLoadingSummary ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

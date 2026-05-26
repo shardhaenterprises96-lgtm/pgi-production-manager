@@ -28,6 +28,7 @@ export * from './bomInputItemsItem';
 export * from './bomItem';
 export * from './bomUpdate';
 export * from './bomUpdateItemsItem';
+export * from './capitalSnapshot';
 export * from './cashbookSummary';
 export * from './collectCashFromSalesman200';
 export * from './collectCashInput';

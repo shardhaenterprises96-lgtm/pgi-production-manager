@@ -1126,6 +1126,34 @@ export interface TopProduct {
   totalRevenue: number;
 }
 
+export interface CapitalSnapshot {
+  snapshotDate: string;
+  inventoryValue: number;
+  receivable: number;
+  cashInAccounts: number;
+  payable: number;
+  /** Raw capital value (inventory + receivable + cash - payable) */
+  capital: number;
+  /** Capital divided by 1000 (the value to display) */
+  capitalK: number;
+  /** @nullable */
+  previousCapital?: number | null;
+  /** @nullable */
+  previousCapitalK?: number | null;
+  /** @nullable */
+  previousDate?: string | null;
+  /**
+     * today capital - yesterday capital (raw rupees)
+     * @nullable
+     */
+  growth?: number | null;
+  /**
+     * today capitalK - yesterday capitalK (the value to display)
+     * @nullable
+     */
+  growthK?: number | null;
+}
+
 export interface SalesTrendPoint {
   month: number;
   year: number;

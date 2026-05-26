@@ -1287,6 +1287,21 @@ paths:
                 items:
                   $ref: "#/components/schemas/TopProduct"
 
+  /dashboard/capital:
+    get:
+      operationId: getCapitalSnapshot
+      tags: [dashboard]
+      summary: Admin-only capital + day-over-day growth
+      responses:
+        "200":
+          description: Capital snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapitalSnapshot"
+        "403":
+          description: Forbidden
+
   /dashboard/sales-trend:
     get:
       operationId: getSalesTrend
@@ -2889,6 +2904,39 @@ components:
           type: number
         totalRevenue:
           type: number
+
+    CapitalSnapshot:
+      type: object
+      required: [inventoryValue, receivable, cashInAccounts, payable, capital, capitalK, snapshotDate]
+      properties:
+        snapshotDate:
+          type: string
+        inventoryValue:
+          type: number
+        receivable:
+          type: number
+        cashInAccounts:
+          type: number
+        payable:
+          type: number
+        capital:
+          type: number
+          description: Raw capital value (inventory + receivable + cash - payable)
+        capitalK:
+          type: number
+          description: Capital divided by 1000 (the value to display)
+        previousCapital:
+          type: ["number", "null"]
+        previousCapitalK:
+          type: ["number", "null"]
+        previousDate:
+          type: ["string", "null"]
+        growth:
+          type: ["number", "null"]
+          description: today capital - yesterday capital (raw rupees)
+        growthK:
+          type: ["number", "null"]
+          description: today capitalK - yesterday capitalK (the value to display)
 
     SalesTrendPoint:
       type: object

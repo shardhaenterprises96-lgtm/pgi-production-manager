@@ -11,3 +11,4 @@ export * from "./accounts";
 export * from "./workers";
 export * from "./expenses";
 export * from "./account-transactions";
+export * from "./capital-snapshots";

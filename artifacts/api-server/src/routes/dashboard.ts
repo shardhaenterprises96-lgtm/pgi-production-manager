@@ -55,6 +55,97 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
   });
 });
 
+// GET /dashboard/capital (admin only)
+router.get("/dashboard/capital", async (req, res): Promise<void> => {
+  const role = (req as any).session?.role;
+  if (role !== "admin") {
+    res.status(403).json({ error: "Admin only" });
+    return;
+  }
+
+  const [invRow, recvRow, cashRow, payRow] = await Promise.all([
+    queryOne(
+      `SELECT COALESCE(SUM(current_stock * purchase_price), 0) AS v
+       FROM products
+       WHERE deleted_at IS NULL`
+    ),
+    queryOne(
+      `SELECT COALESCE(SUM(outstanding_balance), 0) AS v
+       FROM entities
+       WHERE type = 'customer' AND outstanding_balance > 0`
+    ),
+    queryOne(
+      `SELECT COALESCE(SUM(current_balance), 0) AS v
+       FROM accounts
+       WHERE COALESCE(is_active, true) = true`
+    ),
+    queryOne(
+      `SELECT COALESCE(SUM(outstanding_balance), 0) AS v
+       FROM entities
+       WHERE type = 'vendor' AND outstanding_balance > 0`
+    ),
+  ]);
+
+  const inventoryValue = Number(invRow.v ?? 0);
+  const receivable = Number(recvRow.v ?? 0);
+  const cashInAccounts = Number(cashRow.v ?? 0);
+  const payable = Number(payRow.v ?? 0);
+  const capital = inventoryValue + receivable + cashInAccounts - payable;
+  const capitalK = capital / 1000;
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  // Upsert today's snapshot (so growth is computable tomorrow)
+  await pool.query(
+    `INSERT INTO capital_snapshots
+       (snapshot_date, inventory_value, receivable, cash_in_accounts, payable, capital, captured_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+     ON CONFLICT (snapshot_date) DO UPDATE SET
+       inventory_value = EXCLUDED.inventory_value,
+       receivable = EXCLUDED.receivable,
+       cash_in_accounts = EXCLUDED.cash_in_accounts,
+       payable = EXCLUDED.payable,
+       capital = EXCLUDED.capital,
+       captured_at = NOW()`,
+    [todayStr, inventoryValue, receivable, cashInAccounts, payable, capital]
+  );
+
+  // Look up most recent prior snapshot (yesterday preferred, else latest before today)
+  const prevRow = await queryOne(
+    `SELECT snapshot_date, capital
+     FROM capital_snapshots
+     WHERE snapshot_date < $1
+     ORDER BY snapshot_date DESC
+     LIMIT 1`,
+    [todayStr]
+  );
+
+  const previousCapital = prevRow?.capital != null ? Number(prevRow.capital) : null;
+  const previousCapitalK = previousCapital != null ? previousCapital / 1000 : null;
+  const previousDate = prevRow?.snapshot_date
+    ? (prevRow.snapshot_date instanceof Date
+        ? prevRow.snapshot_date.toISOString().slice(0, 10)
+        : String(prevRow.snapshot_date))
+    : null;
+  const growth = previousCapital != null ? capital - previousCapital : null;
+  const growthK = previousCapitalK != null ? capitalK - previousCapitalK : null;
+
+  res.json({
+    snapshotDate: todayStr,
+    inventoryValue,
+    receivable,
+    cashInAccounts,
+    payable,
+    capital,
+    capitalK,
+    previousCapital,
+    previousCapitalK,
+    previousDate,
+    growth,
+    growthK,
+  });
+});
+
 // GET /dashboard/recent-invoices
 router.get("/dashboard/recent-invoices", async (_req, res): Promise<void> => {
   const rows = await queryMany(

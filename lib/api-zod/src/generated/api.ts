@@ -1544,6 +1544,25 @@ export const GetTopProductsResponse = zod.array(GetTopProductsResponseItem)
 
 
 /**
+ * @summary Admin-only capital + day-over-day growth
+ */
+export const GetCapitalSnapshotResponse = zod.object({
+  "snapshotDate": zod.string(),
+  "inventoryValue": zod.number(),
+  "receivable": zod.number(),
+  "cashInAccounts": zod.number(),
+  "payable": zod.number(),
+  "capital": zod.number().describe('Raw capital value (inventory + receivable + cash - payable)'),
+  "capitalK": zod.number().describe('Capital divided by 1000 (the value to display)'),
+  "previousCapital": zod.number().nullish(),
+  "previousCapitalK": zod.number().nullish(),
+  "previousDate": zod.string().nullish(),
+  "growth": zod.number().nullish().describe('today capital - yesterday capital (raw rupees)'),
+  "growthK": zod.number().nullish().describe('today capitalK - yesterday capitalK (the value to display)')
+})
+
+
+/**
  * @summary Monthly sales trend data
  */
 export const GetSalesTrendResponseItem = zod.object({

@@ -31,6 +31,7 @@ import type {
   Bom,
   BomInput,
   BomUpdate,
+  CapitalSnapshot,
   CashbookSummary,
   CollectCashFromSalesman200,
   CollectCashInput,
@@ -4748,6 +4749,83 @@ export function useGetTopProducts<TData = Awaited<ReturnType<typeof getTopProduc
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTopProductsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCapitalSnapshotUrl = () => {
+
+
+
+
+  return `/api/dashboard/capital`
+}
+
+/**
+ * @summary Admin-only capital + day-over-day growth
+ */
+export const getCapitalSnapshot = async ( options?: RequestInit): Promise<CapitalSnapshot> => {
+
+  return customFetch<CapitalSnapshot>(getGetCapitalSnapshotUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCapitalSnapshotQueryKey = () => {
+    return [
+    `/api/dashboard/capital`
+    ] as const;
+    }
+
+
+export const getGetCapitalSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getCapitalSnapshot>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCapitalSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCapitalSnapshotQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCapitalSnapshot>>> = ({ signal }) => getCapitalSnapshot({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCapitalSnapshot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCapitalSnapshotQueryResult = NonNullable<Awaited<ReturnType<typeof getCapitalSnapshot>>>
+export type GetCapitalSnapshotQueryError = ErrorType<void>
+
+
+/**
+ * @summary Admin-only capital + day-over-day growth
+ */
+
+export function useGetCapitalSnapshot<TData = Awaited<ReturnType<typeof getCapitalSnapshot>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCapitalSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCapitalSnapshotQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
