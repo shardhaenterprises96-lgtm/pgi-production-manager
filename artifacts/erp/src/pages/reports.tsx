@@ -27,26 +27,76 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
-import { Download, Search } from "lucide-react";
+import { Download, Search, FileSpreadsheet, FileText } from "lucide-react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const fmt = (n: number | null | undefined) =>
   `₹${(Number(n ?? 0)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtQty = (n: number | null | undefined) =>
   Number(n ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 3 });
 
-function exportCSV(filename: string, rows: (string | number | null | undefined)[][]) {
-  const csv = rows.map(r => r.map(c => {
-    let s = String(c ?? "");
-    // Neutralize CSV-injection (formula prefixes)
-    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  }).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+type ExportRow = (string | number | null | undefined)[];
+
+function sanitizeCell(c: string | number | null | undefined): string {
+  let s = String(c ?? "");
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return s;
+}
+
+function exportExcel(baseName: string, sheetName: string, rows: ExportRow[]) {
+  const data = rows.map(r => r.map(sanitizeCell));
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31) || "Report");
+  XLSX.writeFile(wb, `${baseName}.xlsx`);
+}
+
+function exportPDF(baseName: string, title: string, rows: ExportRow[]) {
+  if (rows.length === 0) return;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const head = [rows[0].map(c => String(c ?? ""))];
+  const body = rows.slice(1).map(r => r.map(c => String(c ?? "")));
+  doc.setFontSize(14);
+  doc.text(title, 40, 30);
+  doc.setFontSize(9);
+  doc.text(`Generated: ${format(new Date(), "dd-MM-yyyy HH:mm")}`, 40, 46);
+  autoTable(doc, {
+    head, body,
+    startY: 60,
+    styles: { fontSize: 8, cellPadding: 3 },
+    headStyles: { fillColor: [120, 53, 15], textColor: 255 },
+    alternateRowStyles: { fillColor: [250, 245, 235] },
+    margin: { left: 30, right: 30 },
+  });
+  doc.save(`${baseName}.pdf`);
+}
+
+function ExportMenu({
+  disabled, baseName, sheetName, title, rows,
+}: { disabled?: boolean; baseName: string; sheetName: string; title: string; rows: ExportRow[] }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" disabled={disabled}>
+          <Download className="w-4 h-4 mr-1.5" /> Export
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => exportExcel(baseName, sheetName, rows)}>
+          <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel (.xlsx)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exportPDF(baseName, title, rows)}>
+          <FileText className="w-4 h-4 mr-2" /> PDF (.pdf)
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function DateRange({ from, to, onFrom, onTo }: { from: string; to: string; onFrom: (v: string) => void; onTo: (v: string) => void; }) {
@@ -127,17 +177,14 @@ function SalesTab() {
   const items = data?.items ?? [];
   const t = data?.totals;
 
-  const handleExport = () => {
-    const rows: (string | number | null | undefined)[][] = [
-      ["Invoice No", "Date", "Type", "Customer", "GSTIN", "Subtotal", "CGST", "SGST", "IGST", "Tax", "Grand Total", "Paid", "Balance", "Status"],
-      ...items.map(i => [
-        i.invoiceNo, format(new Date(i.invoiceDate), "dd-MM-yyyy"), i.invoiceType,
-        i.customerName ?? "—", i.customerGstin ?? "",
-        i.subtotal, i.cgst, i.sgst, i.igst, i.totalTax, i.grandTotal, i.amountPaid, i.balanceDue, i.status,
-      ]),
-    ];
-    exportCSV(`sales-report-${Date.now()}.csv`, rows);
-  };
+  const exportRows: ExportRow[] = [
+    ["Invoice No", "Date", "Type", "Customer", "GSTIN", "Subtotal", "CGST", "SGST", "IGST", "Tax", "Grand Total", "Paid", "Balance", "Status"],
+    ...items.map(i => [
+      i.invoiceNo, format(new Date(i.invoiceDate), "dd-MM-yyyy"), i.invoiceType,
+      i.customerName ?? "—", i.customerGstin ?? "",
+      i.subtotal, i.cgst, i.sgst, i.igst, i.totalTax, i.grandTotal, i.amountPaid, i.balanceDue, i.status,
+    ] as ExportRow),
+  ];
 
   return (
     <Card>
@@ -161,9 +208,7 @@ function SalesTab() {
           </div>
           <SearchBox value={search} onChange={setSearch} placeholder="Invoice / customer…" />
           <div className="ml-auto">
-            <Button variant="outline" onClick={handleExport} disabled={!items.length}>
-              <Download className="w-4 h-4 mr-1.5" /> Export CSV
-            </Button>
+            <ExportMenu disabled={!items.length} baseName={`sales-report-${Date.now()}`} sheetName="Sales" title="Sales Report" rows={exportRows} />
           </div>
         </div>
 
@@ -242,13 +287,10 @@ function ItemWiseTab() {
   const items = data?.items ?? [];
   const t = data?.totals;
 
-  const handleExport = () => {
-    const rows: (string | number | null | undefined)[][] = [
-      ["Product", "HSN", "Unit", "Invoices", "Qty", "Amount", "Tax", "Total"],
-      ...items.map(i => [i.productName, i.hsnCode ?? "", i.unit, i.invoices, i.qty, i.amount, i.tax, i.total]),
-    ];
-    exportCSV(`item-wise-sales-${Date.now()}.csv`, rows);
-  };
+  const exportRows: ExportRow[] = [
+    ["Product", "HSN", "Unit", "Invoices", "Qty", "Amount", "Tax", "Total"],
+    ...items.map(i => [i.productName, i.hsnCode ?? "", i.unit, i.invoices, i.qty, i.amount, i.tax, i.total] as ExportRow),
+  ];
 
   return (
     <Card>
@@ -272,9 +314,7 @@ function ItemWiseTab() {
           </div>
           <SearchBox value={search} onChange={setSearch} placeholder="Product / HSN…" />
           <div className="ml-auto">
-            <Button variant="outline" onClick={handleExport} disabled={!items.length}>
-              <Download className="w-4 h-4 mr-1.5" /> Export CSV
-            </Button>
+            <ExportMenu disabled={!items.length} baseName={`item-wise-sales-${Date.now()}`} sheetName="Item-wise" title="Item-wise Sales" rows={exportRows} />
           </div>
         </div>
 
@@ -340,13 +380,10 @@ function CustomerWiseTab() {
   const items = data?.items ?? [];
   const t = data?.totals;
 
-  const handleExport = () => {
-    const rows: (string | number | null | undefined)[][] = [
-      ["Customer", "Invoices", "Qty", "Subtotal", "Tax", "Total", "Paid", "Balance"],
-      ...items.map(i => [i.customerName, i.invoices, i.qty, i.subtotal, i.tax, i.total, i.paid, i.balance]),
-    ];
-    exportCSV(`customer-wise-sales-${Date.now()}.csv`, rows);
-  };
+  const exportRows: ExportRow[] = [
+    ["Customer", "Invoices", "Qty", "Subtotal", "Tax", "Total", "Paid", "Balance"],
+    ...items.map(i => [i.customerName, i.invoices, i.qty, i.subtotal, i.tax, i.total, i.paid, i.balance] as ExportRow),
+  ];
 
   return (
     <Card>
@@ -370,9 +407,7 @@ function CustomerWiseTab() {
           </div>
           <SearchBox value={search} onChange={setSearch} placeholder="Customer name…" />
           <div className="ml-auto">
-            <Button variant="outline" onClick={handleExport} disabled={!items.length}>
-              <Download className="w-4 h-4 mr-1.5" /> Export CSV
-            </Button>
+            <ExportMenu disabled={!items.length} baseName={`customer-wise-sales-${Date.now()}`} sheetName="Customer-wise" title="Customer-wise Sales" rows={exportRows} />
           </div>
         </div>
 
@@ -441,16 +476,13 @@ function ProductionTab() {
   const summary = data?.summary ?? [];
   const t = data?.totals;
 
-  const handleExport = () => {
-    const rows: (string | number | null | undefined)[][] = [
-      ["Date", "Product", "Qty", "Unit", "Worker", "Order Type", "Cost"],
-      ...items.map(i => [
-        i.completedAt ? format(new Date(i.completedAt), "dd-MM-yyyy HH:mm") : "",
-        i.productName, i.qty, i.unit, i.workerName ?? "", i.orderType, i.cost,
-      ]),
-    ];
-    exportCSV(`production-${Date.now()}.csv`, rows);
-  };
+  const exportRows: ExportRow[] = [
+    ["Date", "Product", "Qty", "Unit", "Worker", "Order Type", "Cost"],
+    ...items.map(i => [
+      i.completedAt ? format(new Date(i.completedAt), "dd-MM-yyyy HH:mm") : "",
+      i.productName, i.qty, i.unit, i.workerName ?? "", i.orderType, i.cost,
+    ] as ExportRow),
+  ];
 
   return (
     <div className="space-y-4">
@@ -464,9 +496,7 @@ function ProductionTab() {
             <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
             <SearchBox value={search} onChange={setSearch} placeholder="Product / worker…" />
             <div className="ml-auto">
-              <Button variant="outline" onClick={handleExport} disabled={!items.length}>
-                <Download className="w-4 h-4 mr-1.5" /> Export CSV
-              </Button>
+              <ExportMenu disabled={!items.length} baseName={`production-${Date.now()}`} sheetName="Production" title="Production Report" rows={exportRows} />
             </div>
           </div>
 
@@ -789,16 +819,13 @@ function LedgerTab() {
     );
   }, [ledger, search]);
 
-  const handleExport = () => {
-    const rows: (string | number | null | undefined)[][] = [
-      ["Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"],
-      ...filtered.map(e => [
-        format(new Date(e.date), "dd-MM-yyyy"),
-        e.type, e.referenceNo ?? "", e.description, e.debit, e.credit, e.balance,
-      ]),
-    ];
-    exportCSV(`ledger-${Date.now()}.csv`, rows);
-  };
+  const exportRows: ExportRow[] = [
+    ["Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"],
+    ...filtered.map(e => [
+      format(new Date(e.date), "dd-MM-yyyy"),
+      e.type, e.referenceNo ?? "", e.description, e.debit, e.credit, e.balance,
+    ] as ExportRow),
+  ];
 
   return (
     <Card>
@@ -823,9 +850,7 @@ function LedgerTab() {
           <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
           <SearchBox value={search} onChange={setSearch} placeholder="Description / ref no…" />
           <div className="ml-auto">
-            <Button variant="outline" onClick={handleExport} disabled={!filtered.length}>
-              <Download className="w-4 h-4 mr-1.5" /> Export CSV
-            </Button>
+            <ExportMenu disabled={!filtered.length} baseName={`ledger-${Date.now()}`} sheetName="Ledger" title="Ledger Report" rows={exportRows} />
           </div>
         </div>
 
