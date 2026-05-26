@@ -2942,8 +2942,13 @@ components:
 
     SalesTrendPoint:
       type: object
-      required: [month, year, totalSales, invoiceCount]
+      required: [date, totalSales, invoiceCount]
       properties:
+        date:
+          type: string
+          description: ISO date (YYYY-MM-DD) for this trend point
+        day:
+          type: integer
         month:
           type: integer
         year:

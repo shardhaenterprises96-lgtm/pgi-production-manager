@@ -1156,8 +1156,11 @@ export interface CapitalSnapshot {
 }
 
 export interface SalesTrendPoint {
-  month: number;
-  year: number;
+  /** ISO date (YYYY-MM-DD) for this trend point */
+  date: string;
+  day?: number;
+  month?: number;
+  year?: number;
   totalSales: number;
   invoiceCount: number;
 }

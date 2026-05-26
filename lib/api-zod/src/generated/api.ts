@@ -1567,8 +1567,10 @@ export const GetCapitalSnapshotResponse = zod.object({
  * @summary Monthly sales trend data
  */
 export const GetSalesTrendResponseItem = zod.object({
-  "month": zod.number(),
-  "year": zod.number(),
+  "date": zod.string().describe('ISO date (YYYY-MM-DD) for this trend point'),
+  "day": zod.number().optional(),
+  "month": zod.number().optional(),
+  "year": zod.number().optional(),
   "totalSales": zod.number(),
   "invoiceCount": zod.number()
 })

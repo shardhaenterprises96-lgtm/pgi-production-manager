@@ -179,35 +179,40 @@ export default function Dashboard() {
         <Card className="col-span-4">
           <CardHeader>
             <CardTitle>Sales Trend</CardTitle>
-            <CardDescription>Monthly revenue overview for the current year.</CardDescription>
+            <CardDescription>Total sales per day for the last 10 days.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {salesTrend && salesTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={salesTrend}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="month" 
+                  <XAxis
+                    dataKey="date"
                     tickFormatter={(value) => {
-                      const date = new Date();
-                      date.setMonth(value - 1);
-                      return format(date, "MMM");
+                      try { return format(new Date(value), "dd MMM"); } catch { return value; }
                     }}
                     stroke="hsl(var(--muted-foreground))"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                   />
-                  <YAxis 
+                  <YAxis
                     stroke="hsl(var(--muted-foreground))"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(value) => `₹${value / 1000}k`}
                   />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{fill: 'hsl(var(--muted)/0.5)'}}
                     contentStyle={{backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px'}}
+                    labelFormatter={(value) => {
+                      try { return format(new Date(value as string), "EEE, dd MMM yyyy"); } catch { return String(value); }
+                    }}
+                    formatter={(value: any, name) => [
+                      name === "totalSales" ? `₹${Number(value).toLocaleString()}` : value,
+                      name === "totalSales" ? "Sales" : name,
+                    ]}
                   />
                   <Bar dataKey="totalSales" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>

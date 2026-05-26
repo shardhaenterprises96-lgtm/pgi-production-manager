@@ -217,22 +217,30 @@ router.get("/dashboard/top-products", async (_req, res): Promise<void> => {
   })));
 });
 
-// GET /dashboard/sales-trend
+// GET /dashboard/sales-trend — last 10 days, daily totals
 router.get("/dashboard/sales-trend", async (_req, res): Promise<void> => {
   const rows = await queryMany(
-    `SELECT
-       EXTRACT(MONTH FROM invoice_date)::int as month,
-       EXTRACT(YEAR FROM invoice_date)::int as year,
-       COALESCE(SUM(grand_total), 0) as "totalSales",
-       COUNT(*) as "invoiceCount"
-     FROM invoices
-     WHERE status = 'saved'
-       AND invoice_date >= NOW() - INTERVAL '12 months'
-     GROUP BY EXTRACT(MONTH FROM invoice_date), EXTRACT(YEAR FROM invoice_date)
-     ORDER BY year, month`
+    `WITH days AS (
+       SELECT (CURRENT_DATE - (n || ' days')::interval)::date AS d
+       FROM generate_series(0, 9) AS n
+     )
+     SELECT
+       to_char(days.d, 'YYYY-MM-DD') AS "date",
+       EXTRACT(DAY FROM days.d)::int AS day,
+       EXTRACT(MONTH FROM days.d)::int AS month,
+       EXTRACT(YEAR FROM days.d)::int AS year,
+       COALESCE(SUM(i.grand_total), 0) AS "totalSales",
+       COALESCE(COUNT(i.id), 0) AS "invoiceCount"
+     FROM days
+     LEFT JOIN invoices i
+       ON i.invoice_date::date = days.d AND i.status = 'saved'
+     GROUP BY days.d
+     ORDER BY days.d ASC`
   );
 
   res.json(rows.map((r) => ({
+    date: r.date,
+    day: Number(r.day),
     month: Number(r.month),
     year: Number(r.year),
     totalSales: Number(r.totalSales),
