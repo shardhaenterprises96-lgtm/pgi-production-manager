@@ -727,6 +727,85 @@ export interface CollectCashInput {
   notes?: string;
 }
 
+export type AccountTransactionDirection = typeof AccountTransactionDirection[keyof typeof AccountTransactionDirection];
+
+
+export const AccountTransactionDirection = {
+  in: 'in',
+  out: 'out',
+} as const;
+
+export type AccountTransactionMode = typeof AccountTransactionMode[keyof typeof AccountTransactionMode];
+
+
+export const AccountTransactionMode = {
+  cash: 'cash',
+  upi: 'upi',
+  bank_transfer: 'bank_transfer',
+  cheque: 'cheque',
+  other: 'other',
+} as const;
+
+export interface AccountTransaction {
+  id: number;
+  /** @nullable */
+  receiptNo?: string | null;
+  accountId: number;
+  /** @nullable */
+  accountName?: string | null;
+  direction: AccountTransactionDirection;
+  amount: number;
+  mode: AccountTransactionMode;
+  /** @nullable */
+  partyName?: string | null;
+  /** @nullable */
+  partyMobile?: string | null;
+  /** @nullable */
+  partyEntityId?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  createdById?: number | null;
+  /** @nullable */
+  createdByName?: string | null;
+  /** @nullable */
+  createdByRole?: string | null;
+  /** @nullable */
+  balanceAfter?: number | null;
+  createdAt: string;
+}
+
+export type AccountTransactionInputDirection = typeof AccountTransactionInputDirection[keyof typeof AccountTransactionInputDirection];
+
+
+export const AccountTransactionInputDirection = {
+  in: 'in',
+  out: 'out',
+} as const;
+
+export type AccountTransactionInputMode = typeof AccountTransactionInputMode[keyof typeof AccountTransactionInputMode];
+
+
+export const AccountTransactionInputMode = {
+  cash: 'cash',
+  upi: 'upi',
+  bank_transfer: 'bank_transfer',
+  cheque: 'cheque',
+  other: 'other',
+} as const;
+
+export interface AccountTransactionInput {
+  accountId: number;
+  direction: AccountTransactionInputDirection;
+  /** @minimum 0.01 */
+  amount: number;
+  mode: AccountTransactionInputMode;
+  partyName?: string;
+  partyMobile?: string;
+  partyEntityId?: number;
+  notes?: string;
+}
+
 export type RewardSchemeRewardType = typeof RewardSchemeRewardType[keyof typeof RewardSchemeRewardType];
 
 
@@ -1349,6 +1428,21 @@ export const ListPaymentsStatus = {
   pending: 'pending',
   approved: 'approved',
   rejected: 'rejected',
+} as const;
+
+export type ListAccountTransactionsParams = {
+accountId?: number;
+direction?: ListAccountTransactionsDirection;
+from?: string;
+to?: string;
+};
+
+export type ListAccountTransactionsDirection = typeof ListAccountTransactionsDirection[keyof typeof ListAccountTransactionsDirection];
+
+
+export const ListAccountTransactionsDirection = {
+  in: 'in',
+  out: 'out',
 } as const;
 
 export type CollectCashFromSalesman200 = {

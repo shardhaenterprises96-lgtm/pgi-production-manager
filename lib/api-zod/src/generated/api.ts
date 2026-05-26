@@ -989,6 +989,56 @@ export const GetCashbookResponse = zod.object({
 
 
 /**
+ * @summary List account transactions (cash in/out)
+ */
+export const ListAccountTransactionsQueryParams = zod.object({
+  "accountId": zod.coerce.number().optional(),
+  "direction": zod.enum(['in', 'out']).optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const ListAccountTransactionsResponseItem = zod.object({
+  "id": zod.number(),
+  "receiptNo": zod.string().nullish(),
+  "accountId": zod.number(),
+  "accountName": zod.string().nullish(),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "mode": zod.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other']),
+  "partyName": zod.string().nullish(),
+  "partyMobile": zod.string().nullish(),
+  "partyEntityId": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "createdById": zod.number().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdByRole": zod.string().nullish(),
+  "balanceAfter": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+export const ListAccountTransactionsResponse = zod.array(ListAccountTransactionsResponseItem)
+
+
+/**
+ * @summary Record a Payment In or Payment Out against an account
+ */
+export const createAccountTransactionBodyAmountMin = 0.01;
+
+
+
+export const CreateAccountTransactionBody = zod.object({
+  "accountId": zod.number(),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number().min(createAccountTransactionBodyAmountMin),
+  "mode": zod.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other']),
+  "partyName": zod.string().optional(),
+  "partyMobile": zod.string().optional(),
+  "partyEntityId": zod.number().optional(),
+  "notes": zod.string().optional()
+})
+
+
+/**
  * @summary Record cash collected from a salesman and deposit into an account
  */
 export const CollectCashFromSalesmanBody = zod.object({

@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import {
   useGetCashbook,
   useCollectCashFromSalesman,
+  useListAccountTransactions,
   getGetCashbookQueryKey,
   getListPaymentsQueryKey,
   getListAccountsQueryKey,
   type SalesmanCashSummary,
   type Account,
+  type AccountTransaction,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +29,10 @@ import {
 } from "@/components/ui/table";
 import {
   Wallet, Smartphone, Landmark, HandCoins, Loader2, ArrowRight, Users,
+  ArrowDownCircle, ArrowUpCircle, Printer, BookOpen,
 } from "lucide-react";
+import { CashEntryDialog } from "@/components/cash-entry-dialog";
+import { CashReceiptDialog } from "@/components/cash-receipt-dialog";
 
 const formatRs = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
@@ -39,19 +44,42 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 export default function CashBookPage() {
   const { data, isLoading } = useGetCashbook();
   const [collectFrom, setCollectFrom] = useState<SalesmanCashSummary | null>(null);
+  const [entryDirection, setEntryDirection] = useState<"in" | "out" | null>(null);
+  const [receiptTxn, setReceiptTxn] = useState<AccountTransaction | null>(null);
 
   const salesmen = data?.salesmen ?? [];
   const accounts = data?.accounts ?? [];
+  const activeAccounts = accounts.filter((a) => a.isActive);
   const totalPending = data?.totalPendingCash ?? 0;
   const totalInAccounts = accounts.reduce((s, a) => s + (a.isActive ? Number(a.currentBalance ?? 0) : 0), 0);
 
+  const { data: txns = [], isLoading: txnsLoading } = useListAccountTransactions();
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Cash Book</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Track cash collected by salesmen and deposit it into your accounts.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Cash Book</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Record Payment In / Out, collect cash from salesmen, and reconcile your accounts.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setEntryDirection("in")}
+            className="bg-green-600 hover:bg-green-700"
+            data-testid="button-payment-in"
+          >
+            <ArrowDownCircle className="w-4 h-4 mr-1" /> Payment In
+          </Button>
+          <Button
+            onClick={() => setEntryDirection("out")}
+            className="bg-rose-600 hover:bg-rose-700"
+            data-testid="button-payment-out"
+          >
+            <ArrowUpCircle className="w-4 h-4 mr-1" /> Payment Out
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -179,10 +207,100 @@ export default function CashBookPage() {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BookOpen className="w-4 h-4" /> Recent Cash Book Entries
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {txnsLoading ? (
+            <div className="p-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
+          ) : txns.length === 0 ? (
+            <div className="p-12 text-center text-muted-foreground text-sm">
+              <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              No Payment In / Out entries recorded yet.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Receipt No.</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Mode</TableHead>
+                  <TableHead>Party</TableHead>
+                  <TableHead>Recorded By</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="w-24"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {txns.map((t) => (
+                  <TableRow key={t.id} data-testid={`row-txn-${t.id}`}>
+                    <TableCell className="font-mono text-xs">{t.receiptNo ?? `#${t.id}`}</TableCell>
+                    <TableCell className="text-xs">{new Date(t.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</TableCell>
+                    <TableCell>
+                      {t.direction === "in" ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 gap-1"><ArrowDownCircle className="w-3 h-3" /> IN</Badge>
+                      ) : (
+                        <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-100 gap-1"><ArrowUpCircle className="w-3 h-3" /> OUT</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">{t.accountName ?? `#${t.accountId}`}</TableCell>
+                    <TableCell className="text-xs capitalize">{t.mode.replace("_", " ")}</TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-1">
+                        {t.partyName ?? "—"}
+                        {t.partyEntityId && (
+                          <span title="Linked to customer master" className="text-[10px] uppercase px-1 rounded bg-green-100 text-green-800">linked</span>
+                        )}
+                      </div>
+                      {t.partyMobile && <div className="text-xs text-muted-foreground font-mono">{t.partyMobile}</div>}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div>{t.createdByName ?? "—"}</div>
+                      {t.createdById && <div className="text-muted-foreground">ID: {t.createdById}</div>}
+                    </TableCell>
+                    <TableCell className={`text-right font-semibold tabular-nums ${t.direction === "in" ? "text-green-700" : "text-rose-700"}`}>
+                      {t.direction === "in" ? "+" : "−"} {formatRs(Number(t.amount))}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setReceiptTxn(t)}
+                        data-testid={`button-print-${t.id}`}
+                      >
+                        <Printer className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       <CollectDialog
         salesman={collectFrom}
-        accounts={accounts.filter(a => a.isActive)}
+        accounts={activeAccounts}
         onClose={() => setCollectFrom(null)}
+      />
+
+      <CashEntryDialog
+        open={entryDirection !== null}
+        direction={entryDirection ?? "in"}
+        accounts={activeAccounts}
+        onClose={() => setEntryDirection(null)}
+        onCreated={(txn) => setReceiptTxn(txn)}
+      />
+
+      <CashReceiptDialog
+        txn={receiptTxn}
+        onClose={() => setReceiptTxn(null)}
       />
     </div>
   );

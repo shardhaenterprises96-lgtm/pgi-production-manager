@@ -8,6 +8,8 @@ import {
   UpdateAccountParams,
   DeleteAccountParams,
   CollectCashFromSalesmanBody,
+  CreateAccountTransactionBody,
+  ListAccountTransactionsQueryParams,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 
@@ -256,6 +258,153 @@ router.post("/cashbook/collect", async (req, res): Promise<void> => {
     await client.query("ROLLBACK");
     logger.error({ err }, "Failed to collect cash");
     res.status(500).json({ error: "Failed to collect cash" });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /account-transactions — list cash in/out entries
+router.get("/account-transactions", async (req, res): Promise<void> => {
+  if (!requireFinancialRead(req, res)) return;
+  const parsed = ListAccountTransactionsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { accountId, direction, from, to } = parsed.data;
+
+  const where: any[] = [];
+  if (accountId) where.push(sql`t.account_id = ${accountId}`);
+  if (direction) where.push(sql`t.direction = ${direction}`);
+  if (from) where.push(sql`t.created_at >= ${from}::timestamptz`);
+  if (to) where.push(sql`t.created_at <= ${to}::timestamptz`);
+  const whereSql = where.length
+    ? sql.join([sql`WHERE`, sql.join(where, sql` AND `)], sql` `)
+    : sql``;
+
+  const rows = await db.execute(sql`
+    SELECT t.id, t.receipt_no, t.account_id, t.direction, t.amount, t.mode,
+           t.party_name, t.party_mobile, t.party_entity_id, t.notes,
+           t.created_by_id, t.created_by_name, t.created_by_role,
+           t.created_at, a.name as account_name
+    FROM account_transactions t
+    LEFT JOIN accounts a ON a.id = t.account_id
+    ${whereSql}
+    ORDER BY t.created_at DESC
+    LIMIT 500
+  `);
+  const data = (rows as any).rows ?? rows;
+  res.json(
+    data.map((r: any) => ({
+      id: r.id,
+      receiptNo: r.receipt_no ?? null,
+      accountId: r.account_id,
+      accountName: r.account_name ?? null,
+      direction: r.direction,
+      amount: Number(r.amount),
+      mode: r.mode,
+      partyName: r.party_name ?? null,
+      partyMobile: r.party_mobile ?? null,
+      partyEntityId: r.party_entity_id ?? null,
+      notes: r.notes ?? null,
+      createdById: r.created_by_id ?? null,
+      createdByName: r.created_by_name ?? null,
+      createdByRole: r.created_by_role ?? null,
+      balanceAfter: null,
+      createdAt: r.created_at?.toISOString ? r.created_at.toISOString() : r.created_at,
+    })),
+  );
+});
+
+// POST /account-transactions — record Payment In / Out
+router.post("/account-transactions", async (req, res): Promise<void> => {
+  if (!requireFinancialWrite(req, res)) return;
+  const parsed = CreateAccountTransactionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const session = (req as any).session;
+  const { accountId, direction, amount, mode, partyName, partyMobile, partyEntityId, notes } = parsed.data;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    const acctRes = await client.query(
+      `SELECT id, name, current_balance FROM accounts WHERE id = $1 AND is_active = true FOR UPDATE`,
+      [accountId],
+    );
+    if (acctRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Account not found or inactive" });
+      return;
+    }
+    const acct = acctRes.rows[0];
+    const current = Number(acct.current_balance);
+    if (direction === "out" && current < amount - 0.001) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: `Insufficient balance in ${acct.name} (₹${current.toFixed(2)})` });
+      return;
+    }
+
+    const ins = await client.query(
+      `INSERT INTO account_transactions
+        (account_id, direction, amount, mode, party_name, party_mobile, party_entity_id, notes, created_by_id, created_by_name, created_by_role)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING *`,
+      [
+        accountId,
+        direction,
+        amount,
+        mode,
+        partyName ?? null,
+        partyMobile ?? null,
+        partyEntityId ?? null,
+        notes ?? null,
+        session?.userId ?? null,
+        session?.name ?? session?.username ?? null,
+        session?.role ?? null,
+      ],
+    );
+    const txn = ins.rows[0];
+
+    // Build receipt number: RCP-YYYYMM-<id padded>
+    const d = new Date(txn.created_at);
+    const yyyymm = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const receiptNo = `RCP-${yyyymm}-${String(txn.id).padStart(5, "0")}`;
+    await client.query(`UPDATE account_transactions SET receipt_no = $1 WHERE id = $2`, [receiptNo, txn.id]);
+
+    const delta = direction === "in" ? amount : -amount;
+    const updAcct = await client.query(
+      `UPDATE accounts SET current_balance = current_balance + $1 WHERE id = $2 RETURNING current_balance`,
+      [delta, accountId],
+    );
+
+    await client.query("COMMIT");
+
+    res.status(201).json({
+      id: txn.id,
+      receiptNo,
+      accountId: txn.account_id,
+      accountName: acct.name,
+      direction: txn.direction,
+      amount: Number(txn.amount),
+      mode: txn.mode,
+      partyName: txn.party_name ?? null,
+      partyMobile: txn.party_mobile ?? null,
+      partyEntityId: txn.party_entity_id ?? null,
+      notes: txn.notes ?? null,
+      createdById: txn.created_by_id ?? null,
+      createdByName: txn.created_by_name ?? null,
+      createdByRole: txn.created_by_role ?? null,
+      balanceAfter: Number(updAcct.rows[0].current_balance),
+      createdAt: txn.created_at?.toISOString ? txn.created_at.toISOString() : txn.created_at,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logger.error({ err }, "Failed to record account transaction");
+    res.status(500).json({ error: "Failed to record transaction" });
   } finally {
     client.release();
   }

@@ -794,6 +794,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/CashbookSummary"
 
+  /account-transactions:
+    get:
+      operationId: listAccountTransactions
+      tags: [accounts]
+      summary: List account transactions (cash in/out)
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [in, out]
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccountTransaction"
+    post:
+      operationId: createAccountTransaction
+      tags: [accounts]
+      summary: Record a Payment In or Payment Out against an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountTransactionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountTransaction"
+
   /cashbook/collect:
     post:
       operationId: collectCashFromSalesman
@@ -2400,6 +2450,69 @@ components:
           type: integer
         amount:
           type: number
+        notes:
+          type: string
+
+    AccountTransaction:
+      type: object
+      required: [id, accountId, direction, amount, mode, createdAt]
+      properties:
+        id:
+          type: integer
+        receiptNo:
+          type: ["string", "null"]
+        accountId:
+          type: integer
+        accountName:
+          type: ["string", "null"]
+        direction:
+          type: string
+          enum: [in, out]
+        amount:
+          type: number
+        mode:
+          type: string
+          enum: [cash, upi, bank_transfer, cheque, other]
+        partyName:
+          type: ["string", "null"]
+        partyMobile:
+          type: ["string", "null"]
+        partyEntityId:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+        createdById:
+          type: ["integer", "null"]
+        createdByName:
+          type: ["string", "null"]
+        createdByRole:
+          type: ["string", "null"]
+        balanceAfter:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+
+    AccountTransactionInput:
+      type: object
+      required: [accountId, direction, amount, mode]
+      properties:
+        accountId:
+          type: integer
+        direction:
+          type: string
+          enum: [in, out]
+        amount:
+          type: number
+          minimum: 0.01
+        mode:
+          type: string
+          enum: [cash, upi, bank_transfer, cheque, other]
+        partyName:
+          type: string
+        partyMobile:
+          type: string
+        partyEntityId:
+          type: integer
         notes:
           type: string
 

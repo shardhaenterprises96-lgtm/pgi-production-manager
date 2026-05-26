@@ -22,6 +22,8 @@ import type {
 import type {
   Account,
   AccountInput,
+  AccountTransaction,
+  AccountTransactionInput,
   AssembleItem409,
   AssembleItemInput,
   AuditEntry,
@@ -53,6 +55,7 @@ import type {
   InvoiceSummary,
   InvoiceUpdate,
   LedgerEntry,
+  ListAccountTransactionsParams,
   ListEntitiesParams,
   ListExpensesParams,
   ListInvoicesParams,
@@ -2949,6 +2952,161 @@ export function useGetCashbook<TData = Awaited<ReturnType<typeof getCashbook>>, 
 
 
 
+
+export const getListAccountTransactionsUrl = (params?: ListAccountTransactionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/account-transactions?${stringifiedParams}` : `/api/account-transactions`
+}
+
+/**
+ * @summary List account transactions (cash in/out)
+ */
+export const listAccountTransactions = async (params?: ListAccountTransactionsParams, options?: RequestInit): Promise<AccountTransaction[]> => {
+
+  return customFetch<AccountTransaction[]>(getListAccountTransactionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAccountTransactionsQueryKey = (params?: ListAccountTransactionsParams,) => {
+    return [
+    `/api/account-transactions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAccountTransactionsQueryOptions = <TData = Awaited<ReturnType<typeof listAccountTransactions>>, TError = ErrorType<unknown>>(params?: ListAccountTransactionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAccountTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAccountTransactionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccountTransactions>>> = ({ signal }) => listAccountTransactions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAccountTransactions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAccountTransactionsQueryResult = NonNullable<Awaited<ReturnType<typeof listAccountTransactions>>>
+export type ListAccountTransactionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List account transactions (cash in/out)
+ */
+
+export function useListAccountTransactions<TData = Awaited<ReturnType<typeof listAccountTransactions>>, TError = ErrorType<unknown>>(
+ params?: ListAccountTransactionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAccountTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAccountTransactionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateAccountTransactionUrl = () => {
+
+
+
+
+  return `/api/account-transactions`
+}
+
+/**
+ * @summary Record a Payment In or Payment Out against an account
+ */
+export const createAccountTransaction = async (accountTransactionInput: AccountTransactionInput, options?: RequestInit): Promise<AccountTransaction> => {
+
+  return customFetch<AccountTransaction>(getCreateAccountTransactionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      accountTransactionInput,)
+  }
+);}
+
+
+
+
+export const getCreateAccountTransactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountTransaction>>, TError,{data: BodyType<AccountTransactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAccountTransaction>>, TError,{data: BodyType<AccountTransactionInput>}, TContext> => {
+
+const mutationKey = ['createAccountTransaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAccountTransaction>>, {data: BodyType<AccountTransactionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAccountTransaction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAccountTransactionMutationResult = NonNullable<Awaited<ReturnType<typeof createAccountTransaction>>>
+    export type CreateAccountTransactionMutationBody = BodyType<AccountTransactionInput>
+    export type CreateAccountTransactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record a Payment In or Payment Out against an account
+ */
+export const useCreateAccountTransaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountTransaction>>, TError,{data: BodyType<AccountTransactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAccountTransaction>>,
+        TError,
+        {data: BodyType<AccountTransactionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAccountTransactionMutationOptions(options));
+    }
 
 export const getCollectCashFromSalesmanUrl = () => {
 
