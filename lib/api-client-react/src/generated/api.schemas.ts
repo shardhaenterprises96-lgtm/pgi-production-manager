@@ -1538,6 +1538,7 @@ export interface CustomerWiseSalesRow {
   customerId?: number | null;
   customerName: string;
   invoices: number;
+  qty: number;
   subtotal: number;
   tax: number;
   total: number;
@@ -1546,6 +1547,7 @@ export interface CustomerWiseSalesRow {
 }
 
 export type CustomerWiseSalesReportTotals = {
+  qty: number;
   subtotal: number;
   tax: number;
   total: number;

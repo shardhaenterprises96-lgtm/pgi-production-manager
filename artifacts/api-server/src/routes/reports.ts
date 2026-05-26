@@ -157,17 +157,27 @@ router.get("/reports/sales/customer-wise", async (req, res): Promise<void> => {
   if (search) { params.push(`%${search}%`); where.push(`COALESCE(customer_name,'') ILIKE $${params.length}`); }
 
   const rows = await queryMany(
-    `SELECT customer_id, COALESCE(customer_name, '— Walk-in —') AS customer_name,
+    `SELECT i.customer_id,
+            COALESCE(i.customer_name, '— Walk-in —') AS customer_name,
             COUNT(*) AS invoices,
-            SUM(subtotal) AS subtotal,
-            SUM(total_tax) AS tax,
-            SUM(grand_total) AS total,
-            SUM(amount_paid) AS paid,
-            SUM(balance_due) AS balance
-     FROM invoices
+            SUM(i.subtotal) AS subtotal,
+            SUM(i.total_tax) AS tax,
+            SUM(i.grand_total) AS total,
+            SUM(i.amount_paid) AS paid,
+            SUM(i.balance_due) AS balance,
+            COALESCE((
+              SELECT SUM(ii.qty)
+              FROM invoice_items ii
+              WHERE ii.invoice_id IN (
+                SELECT id FROM invoices i2
+                WHERE ${where.join(" AND ").replace(/\bi\./g, "i2.")}
+                  AND (i2.customer_id IS NOT DISTINCT FROM i.customer_id)
+              )
+            ), 0) AS qty
+     FROM invoices i
      WHERE ${where.join(" AND ")}
-     GROUP BY customer_id, customer_name
-     ORDER BY SUM(grand_total) DESC
+     GROUP BY i.customer_id, i.customer_name
+     ORDER BY SUM(i.grand_total) DESC
      LIMIT 1000`, params
   );
 
@@ -175,6 +185,7 @@ router.get("/reports/sales/customer-wise", async (req, res): Promise<void> => {
     customerId: r.customer_id,
     customerName: r.customer_name,
     invoices: Number(r.invoices),
+    qty: Number(r.qty ?? 0),
     subtotal: Number(r.subtotal),
     tax: Number(r.tax),
     total: Number(r.total),
@@ -183,8 +194,8 @@ router.get("/reports/sales/customer-wise", async (req, res): Promise<void> => {
   }));
 
   const totals = items.reduce((a, it) => {
-    a.subtotal += it.subtotal; a.tax += it.tax; a.total += it.total; a.paid += it.paid; a.balance += it.balance; return a;
-  }, { subtotal: 0, tax: 0, total: 0, paid: 0, balance: 0, count: items.length });
+    a.qty += it.qty; a.subtotal += it.subtotal; a.tax += it.tax; a.total += it.total; a.paid += it.paid; a.balance += it.balance; return a;
+  }, { qty: 0, subtotal: 0, tax: 0, total: 0, paid: 0, balance: 0, count: items.length });
 
   res.json({ items, totals });
 });

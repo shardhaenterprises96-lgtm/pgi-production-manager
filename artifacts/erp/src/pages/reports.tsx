@@ -342,8 +342,8 @@ function CustomerWiseTab() {
 
   const handleExport = () => {
     const rows: (string | number | null | undefined)[][] = [
-      ["Customer", "Invoices", "Subtotal", "Tax", "Total", "Paid", "Balance"],
-      ...items.map(i => [i.customerName, i.invoices, i.subtotal, i.tax, i.total, i.paid, i.balance]),
+      ["Customer", "Invoices", "Qty", "Subtotal", "Tax", "Total", "Paid", "Balance"],
+      ...items.map(i => [i.customerName, i.invoices, i.qty, i.subtotal, i.tax, i.total, i.paid, i.balance]),
     ];
     exportCSV(`customer-wise-sales-${Date.now()}.csv`, rows);
   };
@@ -382,6 +382,7 @@ function CustomerWiseTab() {
               <TableRow>
                 <TableHead>Customer</TableHead>
                 <TableHead className="text-right">Invoices</TableHead>
+                <TableHead className="text-right">Qty (Ltr)</TableHead>
                 <TableHead className="text-right">Subtotal</TableHead>
                 <TableHead className="text-right">Tax</TableHead>
                 <TableHead className="text-right">Total</TableHead>
@@ -391,13 +392,14 @@ function CustomerWiseTab() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8">Loading…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8">Loading…</TableCell></TableRow>
               ) : items.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No data.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No data.</TableCell></TableRow>
               ) : items.map((i, idx) => (
                 <TableRow key={`${i.customerId ?? "x"}-${idx}`}>
                   <TableCell className="font-medium">{i.customerName}</TableCell>
                   <TableCell className="text-right tabular-nums">{i.invoices}</TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtQty(i.qty)}</TableCell>
                   <TableCell className="text-right tabular-nums">{fmt(i.subtotal)}</TableCell>
                   <TableCell className="text-right tabular-nums">{fmt(i.tax)}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">{fmt(i.total)}</TableCell>
@@ -411,6 +413,7 @@ function CustomerWiseTab() {
                 <TableRow>
                   <TableCell className="font-semibold">Total ({t.count})</TableCell>
                   <TableCell />
+                  <TableCell className="text-right tabular-nums font-semibold">{fmtQty(t.qty)}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">{fmt(t.subtotal)}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">{fmt(t.tax)}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">{fmt(t.total)}</TableCell>

@@ -3606,11 +3606,12 @@ components:
 
     CustomerWiseSalesRow:
       type: object
-      required: [customerName, invoices, subtotal, tax, total, paid, balance]
+      required: [customerName, invoices, qty, subtotal, tax, total, paid, balance]
       properties:
         customerId: { type: ["integer", "null"] }
         customerName: { type: string }
         invoices: { type: integer }
+        qty: { type: number }
         subtotal: { type: number }
         tax: { type: number }
         total: { type: number }
@@ -3626,8 +3627,9 @@ components:
           items: { $ref: "#/components/schemas/CustomerWiseSalesRow" }
         totals:
           type: object
-          required: [subtotal, tax, total, paid, balance, count]
+          required: [qty, subtotal, tax, total, paid, balance, count]
           properties:
+            qty: { type: number }
             subtotal: { type: number }
             tax: { type: number }
             total: { type: number }

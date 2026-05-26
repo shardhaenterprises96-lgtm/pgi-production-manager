@@ -1710,6 +1710,7 @@ export const GetCustomerWiseSalesReportResponse = zod.object({
   "customerId": zod.number().nullish(),
   "customerName": zod.string(),
   "invoices": zod.number(),
+  "qty": zod.number(),
   "subtotal": zod.number(),
   "tax": zod.number(),
   "total": zod.number(),
@@ -1717,6 +1718,7 @@ export const GetCustomerWiseSalesReportResponse = zod.object({
   "balance": zod.number()
 })),
   "totals": zod.object({
+  "qty": zod.number(),
   "subtotal": zod.number(),
   "tax": zod.number(),
   "total": zod.number(),

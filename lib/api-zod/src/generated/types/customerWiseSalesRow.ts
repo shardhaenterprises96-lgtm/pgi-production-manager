@@ -11,6 +11,7 @@ export interface CustomerWiseSalesRow {
   customerId?: number | null;
   customerName: string;
   invoices: number;
+  qty: number;
   subtotal: number;
   tax: number;
   total: number;

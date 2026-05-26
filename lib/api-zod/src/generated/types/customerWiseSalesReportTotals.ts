@@ -7,6 +7,7 @@
  */
 
 export type CustomerWiseSalesReportTotals = {
+  qty: number;
   subtotal: number;
   tax: number;
   total: number;
