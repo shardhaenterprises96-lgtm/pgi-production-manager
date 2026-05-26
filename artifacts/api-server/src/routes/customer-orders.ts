@@ -117,12 +117,15 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // Customer-placed orders go directly to "processing" so the manufacturing
+    // team sees them on the workload board immediately.
+    const initialStatus = session.role === "customer" ? "processing" : "pending";
     const ins = await client.query(
       `INSERT INTO customer_orders
          (user_id, entity_id, customer_name, customer_mobile, status, total_items, total_amount, notes)
-       VALUES ($1,$2,$3,$4,'pending',$5,$6,$7)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        RETURNING *`,
-      [session.userId, entityId, customerName, customerMobile, totalItems, totalAmount, body.notes ?? null]
+      [session.userId, entityId, customerName, customerMobile, initialStatus, totalItems, totalAmount, body.notes ?? null]
     );
     const order = ins.rows[0];
 
@@ -133,12 +136,27 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     order.order_no = orderNo;
 
     for (const it of resolvedItems) {
-      await client.query(
+      const itemIns = await client.query(
         `INSERT INTO customer_order_items
            (order_id, product_id, product_name, unit, qty, unit_price, line_total)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING id`,
         [order.id, it.productId, it.productName, it.unit, it.qty, it.unitPrice, it.lineTotal]
       );
+      // Auto-create workload card for customer orders so manufacturing
+      // sees the demand right away.
+      if (initialStatus === "processing") {
+        const wlIns = await client.query(
+          `INSERT INTO workload_cards (product_id, target_qty, status, order_type, reference_order_id)
+           VALUES ($1, $2, 'pending', 'customer_backorder', $3)
+           RETURNING id`,
+          [it.productId, it.qty, order.id]
+        );
+        await client.query(
+          `UPDATE customer_order_items SET workload_card_id = $1 WHERE id = $2`,
+          [wlIns.rows[0].id, itemIns.rows[0].id]
+        );
+      }
     }
     await client.query("COMMIT");
     res.status(201).json(formatOrder(order));
