@@ -47,3 +47,5 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+DATABASE_URL
+.env
