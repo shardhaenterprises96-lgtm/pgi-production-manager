@@ -1910,3 +1910,113 @@ export const DeleteExpenseParams = zod.object({
 })
 
 
+/**
+ * @summary List customer orders (admin sees all, customer sees own)
+ */
+export const ListCustomerOrdersQueryParams = zod.object({
+  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']).optional()
+})
+
+export const ListCustomerOrdersResponseItem = zod.object({
+  "id": zod.number(),
+  "orderNo": zod.string().nullish(),
+  "userId": zod.number().nullish(),
+  "entityId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerMobile": zod.string().nullish(),
+  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']),
+  "totalItems": zod.number(),
+  "totalAmount": zod.number(),
+  "notes": zod.string().nullish(),
+  "adminRemarks": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().nullish()
+})
+export const ListCustomerOrdersResponse = zod.array(ListCustomerOrdersResponseItem)
+
+
+/**
+ * @summary Place a new order (customer)
+ */
+export const createCustomerOrderBodyItemsItemQtyMin = 0.01;
+
+
+
+
+export const CreateCustomerOrderBody = zod.object({
+  "customerName": zod.string().optional(),
+  "customerMobile": zod.string().optional(),
+  "entityId": zod.number().optional(),
+  "notes": zod.string().optional(),
+  "items": zod.array(zod.object({
+  "productId": zod.number(),
+  "qty": zod.number().min(createCustomerOrderBodyItemsItemQtyMin)
+})).min(1)
+})
+
+
+/**
+ * @summary Get a single customer order with line items
+ */
+export const GetCustomerOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetCustomerOrderResponse = zod.object({
+  "id": zod.number(),
+  "orderNo": zod.string().nullish(),
+  "userId": zod.number().nullish(),
+  "entityId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerMobile": zod.string().nullish(),
+  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']),
+  "totalItems": zod.number(),
+  "totalAmount": zod.number(),
+  "notes": zod.string().nullish(),
+  "adminRemarks": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().nullish()
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "orderId": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "unit": zod.string().nullish(),
+  "qty": zod.number(),
+  "unitPrice": zod.number(),
+  "lineTotal": zod.number(),
+  "workloadCardId": zod.number().nullish()
+}))
+}))
+
+
+/**
+ * @summary Admin updates the order status (processing auto-creates workload cards)
+ */
+export const UpdateCustomerOrderStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateCustomerOrderStatusBody = zod.object({
+  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']),
+  "adminRemarks": zod.string().optional()
+})
+
+export const UpdateCustomerOrderStatusResponse = zod.object({
+  "id": zod.number(),
+  "orderNo": zod.string().nullish(),
+  "userId": zod.number().nullish(),
+  "entityId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerMobile": zod.string().nullish(),
+  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']),
+  "totalItems": zod.number(),
+  "totalAmount": zod.number(),
+  "notes": zod.string().nullish(),
+  "adminRemarks": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().nullish()
+})
+
+

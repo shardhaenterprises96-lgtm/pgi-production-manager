@@ -21,6 +21,8 @@ import {
   Truck,
   HardHat,
   Receipt,
+  ClipboardList,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +46,8 @@ export function Sidebar() {
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "accountant"] },
     { name: "Catalog", href: "/catalog", icon: ShoppingCart, roles: ["admin", "salesman", "store", "manufacturing", "customer"] },
+    { name: "My Orders", href: "/my-orders", icon: ClipboardList, roles: ["customer"] },
+    { name: "Customer Orders", href: "/customer-orders", icon: Inbox, roles: ["admin"] },
     { name: "Billing", href: "/billing", icon: FileText, roles: ["admin", "salesman"] },
     { name: "Invoices", href: "/invoices", icon: FileText, roles: ["admin", "salesman", "accountant"] },
     { name: "Inventory", href: "/inventory", icon: Package, roles: ["admin", "store"] },

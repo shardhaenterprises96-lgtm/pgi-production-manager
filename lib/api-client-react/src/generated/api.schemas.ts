@@ -1126,6 +1126,87 @@ export interface TopProduct {
   totalRevenue: number;
 }
 
+export type CustomerOrderStatus = typeof CustomerOrderStatus[keyof typeof CustomerOrderStatus];
+
+
+export const CustomerOrderStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  done: 'done',
+  cancelled: 'cancelled',
+} as const;
+
+export interface CustomerOrder {
+  id: number;
+  /** @nullable */
+  orderNo?: string | null;
+  /** @nullable */
+  userId?: number | null;
+  /** @nullable */
+  entityId?: number | null;
+  customerName: string;
+  /** @nullable */
+  customerMobile?: string | null;
+  status: CustomerOrderStatus;
+  totalItems: number;
+  totalAmount: number;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  adminRemarks?: string | null;
+  createdAt: string;
+  /** @nullable */
+  updatedAt?: string | null;
+}
+
+export interface CustomerOrderItem {
+  id: number;
+  orderId: number;
+  productId: number;
+  productName: string;
+  /** @nullable */
+  unit?: string | null;
+  qty: number;
+  unitPrice: number;
+  lineTotal: number;
+  /** @nullable */
+  workloadCardId?: number | null;
+}
+
+export type CustomerOrderDetail = CustomerOrder & {
+  items: CustomerOrderItem[];
+};
+
+export type CustomerOrderInputItemsItem = {
+  productId: number;
+  /** @minimum 0.01 */
+  qty: number;
+};
+
+export interface CustomerOrderInput {
+  customerName?: string;
+  customerMobile?: string;
+  entityId?: number;
+  notes?: string;
+  /** @minItems 1 */
+  items: CustomerOrderInputItemsItem[];
+}
+
+export type CustomerOrderStatusUpdateStatus = typeof CustomerOrderStatusUpdateStatus[keyof typeof CustomerOrderStatusUpdateStatus];
+
+
+export const CustomerOrderStatusUpdateStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  done: 'done',
+  cancelled: 'cancelled',
+} as const;
+
+export interface CustomerOrderStatusUpdate {
+  status: CustomerOrderStatusUpdateStatus;
+  adminRemarks?: string;
+}
+
 export interface CapitalSnapshot {
   snapshotDate: string;
   inventoryValue: number;
@@ -1541,4 +1622,18 @@ from?: string;
 to?: string;
 categoryId?: number;
 };
+
+export type ListCustomerOrdersParams = {
+status?: ListCustomerOrdersStatus;
+};
+
+export type ListCustomerOrdersStatus = typeof ListCustomerOrdersStatus[keyof typeof ListCustomerOrdersStatus];
+
+
+export const ListCustomerOrdersStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  done: 'done',
+  cancelled: 'cancelled',
+} as const;
 

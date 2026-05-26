@@ -7,7 +7,10 @@ import {
   useListBrands,
   useLookupEntityByMobile,
   useCreateEntity,
+  useCreateCustomerOrder,
+  getListCustomerOrdersQueryKey,
 } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -59,6 +62,36 @@ export default function Catalog() {
   const { data: brands } = useListBrands();
 
   const isB2B = user?.role === "customer";
+  const { toast } = useToast();
+  const placeOrder = useCreateCustomerOrder();
+
+  const handlePlaceOrder = () => {
+    const items = Object.entries(cart)
+      .map(([id, { qty }]) => ({ productId: Number(id), qty }))
+      .filter((i) => i.qty > 0);
+    if (items.length === 0) return;
+    placeOrder.mutate(
+      { data: { items } },
+      {
+        onSuccess: (order: any) => {
+          toast({
+            title: "Order placed",
+            description: `Your order ${order.orderNo ?? ""} has been submitted.`,
+          });
+          setCart({});
+          queryClient.invalidateQueries({ queryKey: getListCustomerOrdersQueryKey() });
+          setLocation("/my-orders");
+        },
+        onError: (err: any) => {
+          toast({
+            title: "Failed to place order",
+            description: err?.message ?? "Please try again",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
   const isStaff = hasRole(["admin", "salesman", "store", "manufacturing", "accountant"]);
 
   const totalItems = Object.values(cart).reduce((a, b) => a + b.qty, 0);
@@ -328,7 +361,17 @@ export default function Catalog() {
               Proceed to Billing
             </Button>
           ) : (
-            <Button className="w-full" disabled={totalItems === 0} data-testid="button-place-order">
+            <Button
+              className="w-full"
+              disabled={totalItems === 0 || placeOrder.isPending}
+              onClick={handlePlaceOrder}
+              data-testid="button-place-order"
+            >
+              {placeOrder.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ShoppingCart className="w-4 h-4 mr-2" />
+              )}
               Place Order
             </Button>
           )}

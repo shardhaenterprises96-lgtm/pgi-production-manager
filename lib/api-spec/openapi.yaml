@@ -1638,6 +1638,88 @@ paths:
         "204":
           description: Deleted
 
+  /customer-orders:
+    get:
+      operationId: listCustomerOrders
+      tags: [customer-orders]
+      summary: List customer orders (admin sees all, customer sees own)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, done, cancelled]
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerOrder"
+    post:
+      operationId: createCustomerOrder
+      tags: [customer-orders]
+      summary: Place a new order (customer)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerOrderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerOrder"
+
+  /customer-orders/{id}:
+    get:
+      operationId: getCustomerOrder
+      tags: [customer-orders]
+      summary: Get a single customer order with line items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerOrderDetail"
+
+  /customer-orders/{id}/status:
+    patch:
+      operationId: updateCustomerOrderStatus
+      tags: [customer-orders]
+      summary: Admin updates the order status (processing auto-creates workload cards)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerOrderStatusUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerOrder"
+
 components:
   schemas:
     HealthStatus:
@@ -2904,6 +2986,107 @@ components:
           type: number
         totalRevenue:
           type: number
+
+    CustomerOrder:
+      type: object
+      required: [id, customerName, status, totalItems, totalAmount, createdAt]
+      properties:
+        id:
+          type: integer
+        orderNo:
+          type: ["string", "null"]
+        userId:
+          type: ["integer", "null"]
+        entityId:
+          type: ["integer", "null"]
+        customerName:
+          type: string
+        customerMobile:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, processing, done, cancelled]
+        totalItems:
+          type: integer
+        totalAmount:
+          type: number
+        notes:
+          type: ["string", "null"]
+        adminRemarks:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+
+    CustomerOrderItem:
+      type: object
+      required: [id, orderId, productId, productName, qty, unitPrice, lineTotal]
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+        unit:
+          type: ["string", "null"]
+        qty:
+          type: number
+        unitPrice:
+          type: number
+        lineTotal:
+          type: number
+        workloadCardId:
+          type: ["integer", "null"]
+
+    CustomerOrderDetail:
+      allOf:
+        - $ref: "#/components/schemas/CustomerOrder"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/CustomerOrderItem"
+
+    CustomerOrderInput:
+      type: object
+      required: [items]
+      properties:
+        customerName:
+          type: string
+        customerMobile:
+          type: string
+        entityId:
+          type: integer
+        notes:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [productId, qty]
+            properties:
+              productId:
+                type: integer
+              qty:
+                type: number
+                minimum: 0.01
+
+    CustomerOrderStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [pending, processing, done, cancelled]
+        adminRemarks:
+          type: string
 
     CapitalSnapshot:
       type: object

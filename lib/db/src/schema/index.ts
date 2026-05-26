@@ -12,3 +12,4 @@ export * from "./workers";
 export * from "./expenses";
 export * from "./account-transactions";
 export * from "./capital-snapshots";
+export * from "./customer-orders";
