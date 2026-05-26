@@ -270,22 +270,22 @@ export default function Catalog() {
                     )}
                     <div className="absolute top-2 right-2">{getStockBadge(product.currentStock)}</div>
                   </div>
-                  <CardContent className="flex-1 p-3 flex flex-col">
-                    <div className="text-[10px] text-muted-foreground font-mono mb-0.5">{product.itemCode}</div>
-                    <h3 className="font-semibold text-sm leading-tight mb-1 line-clamp-2">{product.name}</h3>
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      <Badge variant="secondary" className="text-[10px] px-1">{product.brand}</Badge>
-                      <Badge variant="outline" className="text-[10px] px-1">{product.group}</Badge>
-                    </div>
+                  <CardContent className="flex-1 p-3 flex flex-col gap-1">
+                    <div className="text-[10px] text-muted-foreground font-mono">{product.itemCode}</div>
+                    <h3 className="font-semibold text-sm leading-tight line-clamp-2">{product.name}</h3>
                     {isB2B ? (
-                      <div className="text-primary font-bold mt-auto">₹{product.retailPrice}</div>
+                      <div className="text-primary font-bold">₹{product.retailPrice}</div>
                     ) : (
-                      <div className="mt-auto flex items-center gap-2 text-[11px] text-muted-foreground whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground whitespace-nowrap">
                         <span>W: <span className="text-foreground font-medium">₹{product.wholesalePrice}</span></span>
                         <span className="text-border">|</span>
                         <span>R: <span className="text-foreground font-medium">₹{product.retailPrice}</span></span>
                       </div>
                     )}
+                    <div className="flex flex-wrap gap-1 mt-auto pt-1">
+                      <Badge variant="secondary" className="text-[10px] px-1">{product.brand}</Badge>
+                      <Badge variant="outline" className="text-[10px] px-1">{product.group}</Badge>
+                    </div>
                   </CardContent>
                   <CardFooter className="p-3 pt-0">
                     {cart[product.id] ? (
