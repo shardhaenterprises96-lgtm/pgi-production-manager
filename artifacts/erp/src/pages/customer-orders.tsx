@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   useListCustomerOrders,
   useGetCustomerOrder,
   useUpdateCustomerOrderStatus,
+  useGetEntity,
   getListCustomerOrdersQueryKey,
   getGetCustomerOrderQueryKey,
+  getGetEntityQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Inbox, Eye, Loader2 } from "lucide-react";
+import { Inbox, Eye, Loader2, FileText } from "lucide-react";
 
 const STATUSES = ["pending", "processing", "done", "cancelled"] as const;
 type Status = typeof STATUSES[number];
@@ -57,9 +60,41 @@ export default function CustomerOrdersAdmin() {
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const updateStatus = useUpdateCustomerOrderStatus();
   const [newStatus, setNewStatus] = useState<Status>("processing");
   const [remarks, setRemarks] = useState("");
+
+  const entityId = detail?.entityId ?? 0;
+  const { data: entity } = useGetEntity(entityId, {
+    query: { enabled: !!detail?.entityId, queryKey: getGetEntityQueryKey(entityId) },
+  });
+
+  const goToBilling = () => {
+    if (!detail) return;
+    const cart = (detail.items ?? []).map((it: any) => ({ productId: it.productId, qty: Number(it.qty) }));
+    const customer = entity
+      ? {
+          id: entity.id,
+          name: entity.name,
+          gstin: (entity as any).gstin ?? null,
+          address: (entity as any).address ?? null,
+          state: (entity as any).state ?? "Maharashtra",
+          mobile: (entity as any).mobile ?? detail.customerMobile,
+          pricingTier: (entity as any).pricingTier ?? "retail",
+          outstandingBalance: (entity as any).outstandingBalance ?? 0,
+        }
+      : {
+          id: null,
+          name: detail.customerName,
+          mobile: detail.customerMobile,
+          state: "Maharashtra",
+          pricingTier: "retail",
+          outstandingBalance: 0,
+        };
+    const qs = `?cart=${encodeURIComponent(JSON.stringify(cart))}&customer=${encodeURIComponent(JSON.stringify(customer))}&order=${detail.id}`;
+    setLocation(`/billing${qs}`);
+  };
 
   const submitStatus = () => {
     if (openId == null) return;
@@ -263,8 +298,19 @@ export default function CustomerOrdersAdmin() {
                     Moving to Processing will create workload cards in Manufacturing for each item.
                   </p>
                 )}
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  {(detail.status === "done" || detail.status === "processing") && (
+                    <Button
+                      variant="default"
+                      onClick={goToBilling}
+                      data-testid="button-create-invoice"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Create Invoice
+                    </Button>
+                  )}
                   <Button
+                    variant="outline"
                     onClick={submitStatus}
                     disabled={updateStatus.isPending || newStatus === detail.status}
                     data-testid="button-update-status"
