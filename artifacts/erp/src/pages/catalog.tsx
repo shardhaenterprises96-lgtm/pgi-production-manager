@@ -280,9 +280,10 @@ export default function Catalog() {
                     {isB2B ? (
                       <div className="text-primary font-bold mt-auto">₹{product.retailPrice}</div>
                     ) : (
-                      <div className="mt-auto space-y-0.5">
-                        <div className="text-[11px] text-muted-foreground">W: <span className="text-foreground font-medium">₹{product.wholesalePrice}</span></div>
-                        <div className="text-[11px] text-muted-foreground">R: <span className="text-foreground font-medium">₹{product.retailPrice}</span></div>
+                      <div className="mt-auto flex items-center gap-2 text-[11px] text-muted-foreground whitespace-nowrap">
+                        <span>W: <span className="text-foreground font-medium">₹{product.wholesalePrice}</span></span>
+                        <span className="text-border">|</span>
+                        <span>R: <span className="text-foreground font-medium">₹{product.retailPrice}</span></span>
                       </div>
                     )}
                   </CardContent>
