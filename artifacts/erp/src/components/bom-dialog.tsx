@@ -81,6 +81,7 @@ export function BomDialog({
   const validItems = items.filter(
     (i) => i.materialProductId && Number(i.quantity) > 0,
   );
+
   const dupSet = new Set<string>();
   const hasDuplicate = validItems.some((i) => {
     if (dupSet.has(i.materialProductId)) return true;
@@ -88,6 +89,19 @@ export function BomDialog({
     return false;
   });
   const outputQtyNum = Number(outputQty);
+
+  const productById = new Map<number, any>(allProducts.map((p: any) => [p.id, p]));
+  const rowCost = (row: BomDraftItem) => {
+    const p = productById.get(Number(row.materialProductId));
+    const qty = Number(row.quantity);
+    const price = Number(p?.purchasePrice ?? 0);
+    if (!p || !qty || !price) return 0;
+    return qty * price;
+  };
+  const totalBatchCost = items.reduce((s, r) => s + rowCost(r), 0);
+  const perUnitCost = outputQtyNum > 0 ? totalBatchCost / outputQtyNum : 0;
+  const fmt = (n: number) =>
+    `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const canSave =
     !submitting &&
     outputQtyNum > 0 &&
@@ -158,15 +172,16 @@ export function BomDialog({
           </div>
 
           <div className="border rounded-md">
-            <div className="grid grid-cols-[1fr_120px_100px_40px] gap-2 px-3 py-2 text-xs uppercase text-muted-foreground font-medium border-b bg-muted/50">
+            <div className="grid grid-cols-[1fr_110px_80px_110px_40px] gap-2 px-3 py-2 text-xs uppercase text-muted-foreground font-medium border-b bg-muted/50">
               <div>Material</div>
               <div className="text-right">Qty / batch</div>
               <div>Unit</div>
+              <div className="text-right">Line Cost</div>
               <div></div>
             </div>
             <div className="divide-y">
               {items.map((row, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_120px_100px_40px] gap-2 px-3 py-2 items-center">
+                <div key={idx} className="grid grid-cols-[1fr_110px_80px_110px_40px] gap-2 px-3 py-2 items-center">
                   <div className="flex gap-1">
                     <Select
                       value={row.materialProductId}
@@ -215,6 +230,9 @@ export function BomDialog({
                     onChange={(e) => updateRow(idx, { unit: e.target.value })}
                     placeholder="QTY"
                   />
+                  <div className="text-right text-sm font-medium tabular-nums" data-testid={`text-line-cost-${idx}`}>
+                    {rowCost(row) > 0 ? fmt(rowCost(row)) : <span className="text-muted-foreground">—</span>}
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -228,10 +246,24 @@ export function BomDialog({
                 </div>
               ))}
             </div>
-            <div className="p-2 border-t">
+            <div className="flex items-center justify-between gap-3 p-2 border-t bg-muted/30">
               <Button variant="outline" size="sm" onClick={addRow} data-testid="button-add-material">
                 <Plus className="h-3.5 w-3.5 mr-1" />Add material
               </Button>
+              <div className="text-right text-sm">
+                <div>
+                  <span className="text-muted-foreground">Batch Cost: </span>
+                  <span className="font-semibold tabular-nums" data-testid="text-total-batch-cost">
+                    {fmt(totalBatchCost)}
+                  </span>
+                </div>
+                {outputQtyNum > 0 && totalBatchCost > 0 && (
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Per Unit: <span className="font-medium text-foreground tabular-nums" data-testid="text-per-unit-cost">{fmt(perUnitCost)}</span>
+                    {" "}/ {outputQtyNum} unit{outputQtyNum > 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
