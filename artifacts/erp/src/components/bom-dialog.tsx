@@ -3,6 +3,8 @@ import {
   useCreateBom,
   useUpdateBom,
   getListBomsQueryKey,
+  useCreateProduct,
+  getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, PackagePlus } from "lucide-react";
 
 export interface BomDraftItem {
   materialProductId: string;
@@ -47,6 +49,7 @@ export function BomDialog({
   const [items, setItems] = useState<BomDraftItem[]>([
     { materialProductId: "", quantity: "", unit: "QTY" },
   ]);
+  const [quickAddIdx, setQuickAddIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (!state) return;
@@ -164,27 +167,40 @@ export function BomDialog({
             <div className="divide-y">
               {items.map((row, idx) => (
                 <div key={idx} className="grid grid-cols-[1fr_120px_100px_40px] gap-2 px-3 py-2 items-center">
-                  <Select
-                    value={row.materialProductId}
-                    onValueChange={(v) => {
-                      const prod = candidates.find((p: any) => String(p.id) === v);
-                      updateRow(idx, {
-                        materialProductId: v,
-                        unit: row.unit || prod?.unit || "QTY",
-                      });
-                    }}
-                  >
-                    <SelectTrigger data-testid={`select-material-${idx}`}>
-                      <SelectValue placeholder="Select material…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {candidates.map((p: any) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          {p.name}{p.itemCode ? ` · ${p.itemCode}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-1">
+                    <Select
+                      value={row.materialProductId}
+                      onValueChange={(v) => {
+                        const prod = candidates.find((p: any) => String(p.id) === v);
+                        updateRow(idx, {
+                          materialProductId: v,
+                          unit: row.unit || prod?.unit || "QTY",
+                        });
+                      }}
+                    >
+                      <SelectTrigger data-testid={`select-material-${idx}`}>
+                        <SelectValue placeholder="Select material…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {candidates.map((p: any) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.name}{p.itemCode ? ` · ${p.itemCode}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 shrink-0"
+                      onClick={() => setQuickAddIdx(idx)}
+                      title="Add new raw material"
+                      data-testid={`button-quick-add-material-${idx}`}
+                    >
+                      <PackagePlus className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <Input
                     type="number"
                     min="0"
@@ -229,6 +245,181 @@ export function BomDialog({
           <Button onClick={handleSave} disabled={!canSave} data-testid="button-save-bom">
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {state.existingBom ? "Update BOM" : "Create BOM"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+
+      <QuickAddMaterialDialog
+        open={quickAddIdx !== null}
+        onOpenChange={(o) => { if (!o) setQuickAddIdx(null); }}
+        onCreated={(p) => {
+          if (quickAddIdx !== null) {
+            updateRow(quickAddIdx, {
+              materialProductId: String(p.id),
+              unit: items[quickAddIdx]?.unit || p.unit || "QTY",
+            });
+          }
+          setQuickAddIdx(null);
+        }}
+      />
+    </Dialog>
+  );
+}
+
+function QuickAddMaterialDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: (p: any) => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const createProduct = useCreateProduct();
+  const [name, setName] = useState("");
+  const [itemCode, setItemCode] = useState("");
+  const [unit, setUnit] = useState("QTY");
+  const [brand, setBrand] = useState("Raw Material");
+  const [group, setGroup] = useState("Raw Materials");
+  const [openingStock, setOpeningStock] = useState("0");
+  const [purchasePrice, setPurchasePrice] = useState("0");
+
+  useEffect(() => {
+    if (open) {
+      setName(""); setItemCode(""); setUnit("QTY");
+      setBrand("Raw Material"); setGroup("Raw Materials");
+      setOpeningStock("0"); setPurchasePrice("0");
+    }
+  }, [open]);
+
+  const submitting = createProduct.isPending;
+  const canSave = !submitting && name.trim().length > 0;
+
+  async function handleCreate() {
+    const code = itemCode.trim() || `RAW-${Date.now().toString(36).toUpperCase()}`;
+    try {
+      const created = await createProduct.mutateAsync({
+        data: {
+          name: name.trim(),
+          itemCode: code,
+          group: group.trim() || "Raw Materials",
+          brand: brand.trim() || "Raw Material",
+          unit: unit.trim() || "QTY",
+          purchasePrice: Number(purchasePrice) || 0,
+          mrp: 0,
+          wholesalePrice: 0,
+          retailPrice: 0,
+          notForSale: true,
+          addForManufacturing: true,
+          openingStock: Number(openingStock) || 0,
+        } as any,
+      });
+      await queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+      toast({ title: "Raw material added", description: `${created.name} saved to Inventory (Not for Sale).` });
+      onCreated(created);
+    } catch (err: any) {
+      toast({
+        title: "Could not add material",
+        description: err?.response?.data?.error ?? err?.message ?? "Unknown error",
+        variant: "destructive",
+      });
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add New Raw Material</DialogTitle>
+          <DialogDescription>
+            Saved to Inventory as <strong>Not for Sale</strong> &amp; available for Manufacturing.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Material Name <span className="text-destructive">*</span></Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Base Oil SN150"
+              className="mt-1.5"
+              autoFocus
+              data-testid="input-quick-material-name"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Item Code</Label>
+              <Input
+                value={itemCode}
+                onChange={(e) => setItemCode(e.target.value)}
+                placeholder="Auto"
+                className="mt-1.5"
+                data-testid="input-quick-material-code"
+              />
+            </div>
+            <div>
+              <Label>Unit</Label>
+              <Input
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="QTY / LTR / KG"
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Group</Label>
+              <Input
+                value={group}
+                onChange={(e) => setGroup(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label>Brand</Label>
+              <Input
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Opening Stock</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.001"
+                value={openingStock}
+                onChange={(e) => setOpeningStock(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label>Purchase Price</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleCreate} disabled={!canSave} data-testid="button-create-quick-material">
+            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Add Material
           </Button>
         </DialogFooter>
       </DialogContent>
