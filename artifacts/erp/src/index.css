@@ -208,8 +208,35 @@
     @apply border-border;
   }
 
+  html {
+    font-size: 16px;
+  }
+
+  /* Bump base font size on tablets / phones so every Tailwind rem-based
+     size (text-xs … text-4xl, spacing, etc.) scales up for better
+     readability on touch devices. */
+  @media (max-width: 1024px) {
+    html { font-size: 17.5px; }
+  }
+  @media (max-width: 640px) {
+    html { font-size: 18px; }
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  /* Larger tap targets and inputs on small screens */
+  @media (max-width: 640px) {
+    button, [role="button"], a.btn {
+      min-height: 40px;
+    }
+    input, select, textarea {
+      font-size: 16px; /* prevents iOS zoom on focus */
+    }
+    /* Tighten oversized page padding on phones */
+    .p-6 { padding: 1rem; }
+    .p-8 { padding: 1.25rem; }
   }
 }
 
