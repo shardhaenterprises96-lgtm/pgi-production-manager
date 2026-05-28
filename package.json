@@ -7,7 +7,7 @@
     "build": "pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "start": "pnpm --filter @workspace/erp run serve --host 0.0.0.0 --port 3000"
+    "start": "cd artifacts/erp && pnpm vite preview --host 0.0.0.0 --port 3000"
   },
   "private": true,
   "devDependencies": {
