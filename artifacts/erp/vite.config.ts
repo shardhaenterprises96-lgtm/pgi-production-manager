@@ -5,12 +5,16 @@ import path from "path";
 const port = Number(process.env.PORT || 3000);
 
 export default defineConfig({
+  base: "/",
+
   plugins: [react()],
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
+
   server: {
     host: "0.0.0.0",
     port,
