@@ -1,21 +1,27 @@
 FROM node:20-alpine
 WORKDIR /app
 
-# install pnpm globally
+# Step 1: pnpm ko globally install karein
 RUN npm install -g pnpm
 
-# Pehle saari main workspace and configuration files copy karein
+# Step 2: Fresh installation ke liye pehle sirf configurations copy karein
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
-# Saara source code copy karein (isme mockup-sandbox aur baki sab automatically aa jayega)
+# Step 3: Alpine ke liye roll-up native dependencies configure karein
+RUN pnpm config set supportedArchitectures.os ["linux"] && \
+    pnpm config set supportedArchitectures.cpu ["x64"] && \
+    pnpm config set supportedArchitectures.libc ["musl"]
+
+# Step 4: Pura source code copy karein
 COPY . .
 
-# Dependencies install karein
-RUN pnpm install
+# Step 5: Fresh bina purane cache ke install karein
+RUN pnpm install --frozen-lockfile
 
-# Sirf main ERP software ko build karein
+# Step 6: ERP app ko build karein
 RUN cd artifacts/erp && pnpm build
 
 EXPOSE 3000
 
+# Step 7: Sahi output directory ke saath preview run karein
 CMD ["sh", "-c", "cd artifacts/erp && pnpm vite preview --outDir dist --base ./ --host 0.0.0.0 --port 3000"]
