@@ -7,7 +7,7 @@
     "build": "pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "start": "node artifacts/api-server/dist/index.mjs"
+    "start": "vite preview --host 0.0.0.0 --port 3000"
   },
   "private": true,
   "devDependencies": {
