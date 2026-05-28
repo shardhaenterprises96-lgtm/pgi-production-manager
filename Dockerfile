@@ -1,16 +1,15 @@
-# 1. Pehle package files copy karein (jaise aap pehle kar rahe the)
-COPY package.json pnpm-lock.yaml ./
+FROM node:20-alpine
 
-# 2. YAHAN PAR BADLAAV KARNA HAI: Sahi syntax ke saath architecture set karein
-RUN pnpm config set supportedArchitectures.os linux && \
-    pnpm config set supportedArchitectures.cpu x64 && \
-    pnpm config set supportedArchitectures.libc musl
+WORKDIR /app
 
-# 3. Ab fresh dependencies install karein
-RUN pnpm install --frozen-lockfile
+RUN npm install -g pnpm
 
-# 4. Baaki ka project code copy karein
 COPY . .
 
-# 5. Apna project build karein
+RUN pnpm install --frozen-lockfile
+
 RUN cd artifacts/erp && pnpm build
+
+EXPOSE 3000
+
+CMD ["sh", "-c", "cd artifacts/erp && pnpm vite preview --host 0.0.0.0 --port 3000"]
