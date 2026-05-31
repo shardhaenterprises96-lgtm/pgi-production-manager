@@ -7,7 +7,7 @@
     "build": "pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "start": "cd artifacts/erp && vite preview --host 0.0.0.0 --port 3000"
+    "start": "pnpm --filter @workspace/erp run build && pnpm --filter @workspace/api-server run build && PORT=3000 NODE_ENV=production FRONTEND_DIST=\"$PWD/artifacts/erp/dist/public\" node --enable-source-maps artifacts/api-server/dist/index.mjs"
   },
   "private": true,
   "devDependencies": {

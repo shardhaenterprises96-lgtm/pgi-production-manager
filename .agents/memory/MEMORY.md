@@ -1,1 +1,2 @@
-- [Auth identity caching](auth-identity-caching.md) — /auth/me + any session-setting response must send Cache-Control: no-store or the browser serves a stale authenticated user after cookie clear.
+- [Auth identity caching](auth-identity-caching.md) — /auth responses must send no-store; proxies otherwise cache one user's identity for another.
+- [Production single-container routing](production-single-container-routing.md) — non-Replit deploys run only the API server; it must serve /api AND the SPA in strict middleware order.

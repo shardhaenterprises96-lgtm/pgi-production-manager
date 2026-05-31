@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import cookieParser from "cookie-parser";
+import path from "node:path";
+import fs from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -79,5 +81,45 @@ app.use((_req, res, next) => {
 });
 
 app.use("/api", router);
+
+// Unmatched /api/* routes return a JSON 404 (never the SPA / HTML). This keeps
+// the API surface JSON-only and makes a missing endpoint obvious to clients.
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// ---------------------------------------------------------------------------
+// Production single-container serving (Docker / Coolify / Hostinger VPS)
+// ---------------------------------------------------------------------------
+// In these deploys the API server is the only process, so it must also serve
+// the built frontend SPA. This is mounted AFTER the `/api` router so API routes
+// are never shadowed by the catch-all, and the catch-all explicitly excludes
+// `/api/*` so unknown API paths return JSON 404 (not index.html).
+//
+// On Replit the frontend is served by a separate static service, so the build
+// output is not present next to this server — the `existsSync` guard keeps this
+// inactive there (and in local dev, where Vite serves the frontend).
+const STATIC_DIR = process.env.FRONTEND_DIST
+  ? path.resolve(process.env.FRONTEND_DIST)
+  : path.resolve(__dirname, "../../erp/dist/public");
+const INDEX_HTML = path.join(STATIC_DIR, "index.html");
+
+if (fs.existsSync(INDEX_HTML)) {
+  logger.info({ staticDir: STATIC_DIR }, "Serving frontend SPA from API server");
+  app.use(express.static(STATIC_DIR));
+  // SPA history fallback — GET non-/api routes return index.html.
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api")) {
+      next();
+      return;
+    }
+    res.sendFile(INDEX_HTML);
+  });
+} else {
+  logger.info(
+    { staticDir: STATIC_DIR },
+    "Frontend build not found next to API server; serving API only",
+  );
+}
 
 export default app;

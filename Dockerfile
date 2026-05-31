@@ -8,10 +8,15 @@ COPY . .
 
 RUN pnpm install --frozen-lockfile
 
-RUN cd artifacts/erp && pnpm build
+# Build the frontend SPA (static assets) and the API server bundle.
+ENV NODE_ENV=production
+ENV BASE_PATH=/
+RUN pnpm --filter @workspace/erp build && pnpm --filter @workspace/api-server build
 
-WORKDIR /app/artifacts/erp
+# The API server serves both /api and the built frontend SPA in a single process.
+ENV PORT=3000
+ENV FRONTEND_DIST=/app/artifacts/erp/dist/public
 
 EXPOSE 3000
 
-CMD ["pnpm", "preview", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]

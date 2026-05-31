@@ -17,6 +17,14 @@ const previewAllowedHosts = previewAllowedHostsEnv
 export default defineConfig({
   base: "/",
 
+  // Build output must land in dist/public to match the artifact.toml `publicDir`
+  // (Replit static deploy) and the FRONTEND_DIST the API server serves in
+  // single-container Docker/Coolify deploys.
+  build: {
+    outDir: "dist/public",
+    emptyOutDir: true,
+  },
+
   plugins: [react(), tailwindcss()],
 
   resolve: {
