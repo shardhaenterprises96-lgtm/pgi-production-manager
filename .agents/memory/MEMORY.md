@@ -1,0 +1,1 @@
+- [Auth identity caching](auth-identity-caching.md) — /auth/me + any session-setting response must send Cache-Control: no-store or the browser serves a stale authenticated user after cookie clear.

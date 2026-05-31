@@ -13,6 +13,18 @@ import {
 
 const router: IRouter = Router();
 
+// Identity/session responses must NEVER be cached by the browser or proxies.
+// Without this, the browser caches the authenticated `/auth/me` 200 (Express
+// adds an ETag but no Cache-Control), so after a user clears their cookie the
+// stale user object is served from disk cache and the SPA wrongly believes it
+// is still authenticated. no-store forces a fresh request every time.
+router.use("/auth", (_req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
+
 // Simple password check (in prod use bcrypt - spec says admin123, pass123)
 function checkPassword(plain: string, hash: string): boolean {
   return plain === hash;

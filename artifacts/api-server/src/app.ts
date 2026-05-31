@@ -55,6 +55,12 @@ app.use((_req, res, next) => {
   (res as any).json = function (body: any) {
     const session = (_req as any).session;
     if (session !== undefined) {
+      // Any response that sets or clears the session cookie carries identity
+      // state and must never be cached, or a stale authenticated body can be
+      // replayed from the browser/proxy cache after the cookie is cleared.
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
       if (session === null) {
         res.clearCookie("session", { path: "/" });
       } else {
