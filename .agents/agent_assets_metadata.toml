@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "oX1C0pZP8vWL1wAbq1LDD"
+uri = "file://production-schema.sql.txt"
+type = "text"
+title = "production-schema.sql"
