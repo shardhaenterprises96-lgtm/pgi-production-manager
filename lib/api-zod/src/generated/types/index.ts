@@ -92,6 +92,8 @@ export * from './invoiceUpdateStatus';
 export * from './itemWiseSalesReport';
 export * from './itemWiseSalesReportTotals';
 export * from './itemWiseSalesRow';
+export * from './ledgerAdjustmentInput';
+export * from './ledgerAdjustmentInputDirection';
 export * from './ledgerEntry';
 export * from './ledgerEntryType';
 export * from './listAccountTransactionsDirection';

@@ -406,12 +406,33 @@ export interface LedgerEntry {
   referenceId?: number | null;
   /** @nullable */
   referenceNo?: string | null;
+  /** @nullable */
+  attachmentUrl?: string | null;
+  /** @nullable */
+  createdByName?: string | null;
 }
 
 export interface EntityLedger {
   entity: Entity;
   outstandingBalance: number;
   entries: LedgerEntry[];
+}
+
+export type LedgerAdjustmentInputDirection = typeof LedgerAdjustmentInputDirection[keyof typeof LedgerAdjustmentInputDirection];
+
+
+export const LedgerAdjustmentInputDirection = {
+  debit: 'debit',
+  credit: 'credit',
+} as const;
+
+export interface LedgerAdjustmentInput {
+  direction: LedgerAdjustmentInputDirection;
+  amount: number;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  attachmentUrl?: string | null;
 }
 
 export type InvoiceInvoiceType = typeof InvoiceInvoiceType[keyof typeof InvoiceInvoiceType];

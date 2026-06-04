@@ -1,3 +1,4 @@
 - [Auth identity caching](auth-identity-caching.md) — /auth responses must send no-store; proxies otherwise cache one user's identity for another.
 - [Production single-container routing](production-single-container-routing.md) — non-Replit deploys run only the API server; it must serve /api AND the SPA in strict middleware order.
+- [Base64 image storage](base64-image-storage.md) — uploaded images stored as base64 data URLs in text columns (no object storage/disk); validate mime+size server-side.
 - [DB bootstrap on startup](db-bootstrap-on-startup.md) — empty prod DBs auto-init from git-tracked production-schema.sql at boot; strip psql meta-commands, use a dedicated client.

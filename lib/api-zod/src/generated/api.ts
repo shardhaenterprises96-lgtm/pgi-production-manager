@@ -538,8 +538,25 @@ export const GetEntityLedgerResponse = zod.object({
   "balance": zod.number(),
   "type": zod.enum(['invoice', 'payment', 'adjustment']),
   "referenceId": zod.number().nullish(),
-  "referenceNo": zod.string().nullish()
+  "referenceNo": zod.string().nullish(),
+  "attachmentUrl": zod.string().nullish(),
+  "createdByName": zod.string().nullish()
 }))
+})
+
+
+/**
+ * @summary Add a manual credit/debit adjustment to a customer ledger
+ */
+export const CreateLedgerAdjustmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CreateLedgerAdjustmentBody = zod.object({
+  "direction": zod.enum(['debit', 'credit']),
+  "amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "attachmentUrl": zod.string().nullish()
 })
 
 
@@ -1595,7 +1612,9 @@ export const GetLedgerReportResponseItem = zod.object({
   "balance": zod.number(),
   "type": zod.enum(['invoice', 'payment', 'adjustment']),
   "referenceId": zod.number().nullish(),
-  "referenceNo": zod.string().nullish()
+  "referenceNo": zod.string().nullish(),
+  "attachmentUrl": zod.string().nullish(),
+  "createdByName": zod.string().nullish()
 })
 export const GetLedgerReportResponse = zod.array(GetLedgerReportResponseItem)
 

@@ -34,6 +34,9 @@ export const ledgerEntriesTable = pgTable("ledger_entries", {
   type: text("type").notNull(), // invoice, payment, adjustment
   referenceId: integer("reference_id"),
   referenceNo: text("reference_no"),
+  attachmentUrl: text("attachment_url"), // optional base64 data URL for a receipt/photo on manual adjustments
+  createdById: integer("created_by_id"),
+  createdByName: text("created_by_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("ledger_entity_idx").on(t.entityId),

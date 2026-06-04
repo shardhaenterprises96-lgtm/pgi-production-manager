@@ -67,6 +67,7 @@ import type {
   InvoiceSummary,
   InvoiceUpdate,
   ItemWiseSalesReport,
+  LedgerAdjustmentInput,
   LedgerEntry,
   ListAccountTransactionsParams,
   ListCustomerOrdersParams,
@@ -1934,6 +1935,78 @@ export function useGetEntityLedger<TData = Awaited<ReturnType<typeof getEntityLe
 
 
 
+
+export const getCreateLedgerAdjustmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/entities/${id}/ledger`
+}
+
+/**
+ * @summary Add a manual credit/debit adjustment to a customer ledger
+ */
+export const createLedgerAdjustment = async (id: number,
+    ledgerAdjustmentInput: LedgerAdjustmentInput, options?: RequestInit): Promise<LedgerEntry> => {
+
+  return customFetch<LedgerEntry>(getCreateLedgerAdjustmentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      ledgerAdjustmentInput,)
+  }
+);}
+
+
+
+
+export const getCreateLedgerAdjustmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLedgerAdjustment>>, TError,{id: number;data: BodyType<LedgerAdjustmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLedgerAdjustment>>, TError,{id: number;data: BodyType<LedgerAdjustmentInput>}, TContext> => {
+
+const mutationKey = ['createLedgerAdjustment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLedgerAdjustment>>, {id: number;data: BodyType<LedgerAdjustmentInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createLedgerAdjustment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLedgerAdjustmentMutationResult = NonNullable<Awaited<ReturnType<typeof createLedgerAdjustment>>>
+    export type CreateLedgerAdjustmentMutationBody = BodyType<LedgerAdjustmentInput>
+    export type CreateLedgerAdjustmentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a manual credit/debit adjustment to a customer ledger
+ */
+export const useCreateLedgerAdjustment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLedgerAdjustment>>, TError,{id: number;data: BodyType<LedgerAdjustmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLedgerAdjustment>>,
+        TError,
+        {id: number;data: BodyType<LedgerAdjustmentInput>},
+        TContext
+      > => {
+      return useMutation(getCreateLedgerAdjustmentMutationOptions(options));
+    }
 
 export const getListInvoicesUrl = (params?: ListInvoicesParams,) => {
   const normalizedParams = new URLSearchParams();

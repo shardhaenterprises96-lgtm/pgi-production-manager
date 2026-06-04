@@ -492,6 +492,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EntityLedger"
+    post:
+      operationId: createLedgerAdjustment
+      tags: [entities]
+      summary: Add a manual credit/debit adjustment to a customer ledger
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerAdjustmentInput"
+      responses:
+        "201":
+          description: Created ledger entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerEntry"
 
   # INVOICES
   /invoices:
@@ -2278,6 +2301,24 @@ components:
         referenceId:
           type: ["integer", "null"]
         referenceNo:
+          type: ["string", "null"]
+        attachmentUrl:
+          type: ["string", "null"]
+        createdByName:
+          type: ["string", "null"]
+
+    LedgerAdjustmentInput:
+      type: object
+      required: [direction, amount]
+      properties:
+        direction:
+          type: string
+          enum: [debit, credit]
+        amount:
+          type: number
+        notes:
+          type: ["string", "null"]
+        attachmentUrl:
           type: ["string", "null"]
 
     Invoice:

@@ -19,4 +19,8 @@ export interface LedgerEntry {
   referenceId?: number | null;
   /** @nullable */
   referenceNo?: string | null;
+  /** @nullable */
+  attachmentUrl?: string | null;
+  /** @nullable */
+  createdByName?: string | null;
 }

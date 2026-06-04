@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, ilike, and, sql, or } from "drizzle-orm";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { entitiesTable, ledgerEntriesTable } from "@workspace/db";
 import {
   ListEntitiesQueryParams,
@@ -10,7 +10,10 @@ import {
   UpdateEntityParams,
   UpdateEntityBody,
   GetEntityLedgerParams,
+  CreateLedgerAdjustmentParams,
+  CreateLedgerAdjustmentBody,
 } from "@workspace/api-zod";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -186,6 +189,127 @@ router.get("/entities/:id/ledger", async (req, res): Promise<void> => {
   });
 });
 
+// POST /entities/:id/ledger — manual credit/debit adjustment to a customer khata.
+// A "debit" increases what the customer owes (outstanding +); a "credit" reduces it (outstanding -).
+router.post("/entities/:id/ledger", async (req, res): Promise<void> => {
+  const params = CreateLedgerAdjustmentParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const parsed = CreateLedgerAdjustmentBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const session = (req as any).session;
+  const role = session?.role;
+  if (role !== "admin" && role !== "accountant") {
+    res.status(403).json({ error: "Only admin or accountant can adjust a ledger" });
+    return;
+  }
+
+  const { direction, amount, notes, attachmentUrl } = parsed.data;
+  if (amount <= 0) {
+    res.status(400).json({ error: "Amount must be greater than zero" });
+    return;
+  }
+
+  // Validate the attachment server-side — the client checks are bypassable via a
+  // direct API call, so re-enforce image mime type + decoded size to prevent DB bloat.
+  if (attachmentUrl) {
+    const match = /^data:image\/(png|jpe?g|webp|gif);base64,([A-Za-z0-9+/]+={0,2})$/.exec(
+      attachmentUrl,
+    );
+    if (!match) {
+      res.status(400).json({ error: "Attachment must be a base64 PNG, JPEG, WEBP or GIF image" });
+      return;
+    }
+    const decodedBytes = Math.floor((match[2].length * 3) / 4);
+    if (decodedBytes > 3 * 1024 * 1024) {
+      res.status(400).json({ error: "Attachment must be under 3MB" });
+      return;
+    }
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    const existing = await client.query(
+      `SELECT id, name FROM entities WHERE id = $1`,
+      [params.data.id],
+    );
+    if (existing.rowCount === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Entity not found" });
+      return;
+    }
+
+    const delta = direction === "debit" ? amount : -amount;
+    const balResult = await client.query(
+      `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE id = $2
+       RETURNING outstanding_balance`,
+      [delta, params.data.id],
+    );
+    const newBal = balResult.rows[0].outstanding_balance;
+
+    const description =
+      notes && notes.trim().length > 0
+        ? notes.trim()
+        : direction === "debit"
+          ? "Manual debit adjustment"
+          : "Manual credit adjustment";
+    const referenceNo = `ADJ-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+    const inserted = await client.query(
+      `INSERT INTO ledger_entries
+         (entity_id, date, description, debit, credit, balance, type, reference_no, attachment_url, created_by_id, created_by_name)
+       VALUES ($1, NOW(), $2, $3, $4, $5, 'adjustment', $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        params.data.id,
+        description,
+        direction === "debit" ? amount : 0,
+        direction === "credit" ? amount : 0,
+        newBal,
+        referenceNo,
+        attachmentUrl ?? null,
+        session?.userId ?? null,
+        session?.name ?? null,
+      ],
+    );
+
+    await client.query("COMMIT");
+    res.status(201).json(formatLedgerEntry(mapLedgerRow(inserted.rows[0])));
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logger.error({ err }, "Failed to create ledger adjustment");
+    res.status(500).json({ error: "Failed to create ledger adjustment" });
+  } finally {
+    client.release();
+  }
+});
+
+// The raw pg row uses snake_case; map it to the camelCase shape formatLedgerEntry expects.
+function mapLedgerRow(r: any) {
+  return {
+    id: r.id,
+    date: r.date,
+    description: r.description,
+    debit: r.debit,
+    credit: r.credit,
+    balance: r.balance,
+    type: r.type,
+    referenceId: r.reference_id,
+    referenceNo: r.reference_no,
+    attachmentUrl: r.attachment_url,
+    createdByName: r.created_by_name,
+  };
+}
+
 function formatEntity(e: any) {
   return {
     id: e.id,
@@ -215,6 +339,8 @@ function formatLedgerEntry(e: any) {
     type: e.type,
     referenceId: e.referenceId ?? null,
     referenceNo: e.referenceNo ?? null,
+    attachmentUrl: e.attachmentUrl ?? null,
+    createdByName: e.createdByName ?? null,
   };
 }
 
