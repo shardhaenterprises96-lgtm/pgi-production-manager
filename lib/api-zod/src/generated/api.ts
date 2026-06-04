@@ -2253,3 +2253,233 @@ export const UpdateCustomerOrderStatusResponse = zod.object({
 })
 
 
+/**
+ * @summary Subscription dashboard widgets (active, expired, expiring, MRR, ARR)
+ */
+export const GetSubscriptionDashboardResponse = zod.object({
+  "totalActive": zod.number(),
+  "totalExpired": zod.number(),
+  "totalSuspended": zod.number(),
+  "expiringIn7Days": zod.number(),
+  "expiringIn30Days": zod.number(),
+  "mrr": zod.number(),
+  "arr": zod.number(),
+  "totalCompanies": zod.number()
+})
+
+
+/**
+ * @summary Subscription chart series (monthly revenue, growth, expiry trend)
+ */
+export const GetSubscriptionChartsResponse = zod.object({
+  "monthlyRevenue": zod.array(zod.object({
+  "month": zod.string(),
+  "revenue": zod.number()
+})),
+  "subscriptionGrowth": zod.array(zod.object({
+  "month": zod.string(),
+  "total": zod.number()
+})),
+  "expiryTrend": zod.array(zod.object({
+  "month": zod.string(),
+  "expiring": zod.number()
+}))
+})
+
+
+/**
+ * @summary List automated subscription alerts
+ */
+export const GetSubscriptionAlertsResponseItem = zod.object({
+  "id": zod.number(),
+  "companyId": zod.number(),
+  "subscriptionId": zod.number(),
+  "companyName": zod.string(),
+  "alertType": zod.string(),
+  "message": zod.string(),
+  "daysRemaining": zod.number(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const GetSubscriptionAlertsResponse = zod.array(GetSubscriptionAlertsResponseItem)
+
+
+/**
+ * @summary List subscriptions expiring within a window
+ */
+export const GetExpiringSubscriptionsQueryParams = zod.object({
+  "days": zod.coerce.number().optional()
+})
+
+export const GetExpiringSubscriptionsResponseItem = zod.object({
+  "id": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.string(),
+  "subscriptionStartDate": zod.string(),
+  "subscriptionEndDate": zod.string(),
+  "subscriptionAmount": zod.number(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue']),
+  "subscriptionStatus": zod.enum(['active', 'expired', 'suspended']),
+  "lastPaymentDate": zod.string().nullish(),
+  "nextDueDate": zod.string().nullish(),
+  "daysRemaining": zod.number()
+})
+export const GetExpiringSubscriptionsResponse = zod.array(GetExpiringSubscriptionsResponseItem)
+
+
+/**
+ * @summary List all subscriptions with company details
+ */
+export const ListSubscriptionsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional()
+})
+
+export const ListSubscriptionsResponseItem = zod.object({
+  "id": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.string(),
+  "subscriptionStartDate": zod.string(),
+  "subscriptionEndDate": zod.string(),
+  "subscriptionAmount": zod.number(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue']),
+  "subscriptionStatus": zod.enum(['active', 'expired', 'suspended']),
+  "lastPaymentDate": zod.string().nullish(),
+  "nextDueDate": zod.string().nullish(),
+  "daysRemaining": zod.number()
+})
+export const ListSubscriptionsResponse = zod.array(ListSubscriptionsResponseItem)
+
+
+/**
+ * @summary Create a company and its subscription
+ */
+export const CreateSubscriptionBody = zod.object({
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.enum(['monthly', 'quarterly', 'half_yearly', 'yearly']),
+  "subscriptionAmount": zod.number(),
+  "subscriptionStartDate": zod.string(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue']).optional()
+})
+
+
+/**
+ * @summary Renew a subscription (extend by plan period, mark paid)
+ */
+export const RenewSubscriptionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RenewSubscriptionResponse = zod.object({
+  "id": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.string(),
+  "subscriptionStartDate": zod.string(),
+  "subscriptionEndDate": zod.string(),
+  "subscriptionAmount": zod.number(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue']),
+  "subscriptionStatus": zod.enum(['active', 'expired', 'suspended']),
+  "lastPaymentDate": zod.string().nullish(),
+  "nextDueDate": zod.string().nullish(),
+  "daysRemaining": zod.number()
+})
+
+
+/**
+ * @summary Upgrade or downgrade the subscription plan
+ */
+export const ChangeSubscriptionPlanParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ChangeSubscriptionPlanBody = zod.object({
+  "planName": zod.enum(['monthly', 'quarterly', 'half_yearly', 'yearly']),
+  "subscriptionAmount": zod.number()
+})
+
+export const ChangeSubscriptionPlanResponse = zod.object({
+  "id": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.string(),
+  "subscriptionStartDate": zod.string(),
+  "subscriptionEndDate": zod.string(),
+  "subscriptionAmount": zod.number(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue']),
+  "subscriptionStatus": zod.enum(['active', 'expired', 'suspended']),
+  "lastPaymentDate": zod.string().nullish(),
+  "nextDueDate": zod.string().nullish(),
+  "daysRemaining": zod.number()
+})
+
+
+/**
+ * @summary Suspend a subscription account
+ */
+export const SuspendSubscriptionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SuspendSubscriptionResponse = zod.object({
+  "id": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.string(),
+  "subscriptionStartDate": zod.string(),
+  "subscriptionEndDate": zod.string(),
+  "subscriptionAmount": zod.number(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue']),
+  "subscriptionStatus": zod.enum(['active', 'expired', 'suspended']),
+  "lastPaymentDate": zod.string().nullish(),
+  "nextDueDate": zod.string().nullish(),
+  "daysRemaining": zod.number()
+})
+
+
+/**
+ * @summary Re-activate a suspended subscription account
+ */
+export const ActivateSubscriptionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ActivateSubscriptionResponse = zod.object({
+  "id": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.string(),
+  "subscriptionStartDate": zod.string(),
+  "subscriptionEndDate": zod.string(),
+  "subscriptionAmount": zod.number(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue']),
+  "subscriptionStatus": zod.enum(['active', 'expired', 'suspended']),
+  "lastPaymentDate": zod.string().nullish(),
+  "nextDueDate": zod.string().nullish(),
+  "daysRemaining": zod.number()
+})
+
+

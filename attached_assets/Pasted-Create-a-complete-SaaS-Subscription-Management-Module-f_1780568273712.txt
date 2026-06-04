@@ -1,0 +1,133 @@
+Create a complete SaaS Subscription Management Module for my ERP system.
+
+Requirements:
+
+1. Multi-Tenant ERP System
+- Each company/client has its own account.
+- Every client must have a subscription plan.
+
+2. Subscription Plans
+- Monthly Plan
+- Quarterly Plan
+- Half-Yearly Plan
+- Yearly Plan
+
+3. Database Fields
+Create a subscription table with:
+
+id
+company_id
+plan_name
+subscription_start_date
+subscription_end_date
+subscription_amount
+payment_status (Paid, Pending, Overdue)
+subscription_status (Active, Expired, Suspended)
+last_payment_date
+next_due_date
+created_at
+updated_at
+
+4. Admin Dashboard Widgets
+
+Display:
+
+Total Active Subscribers
+Total Expired Subscribers
+Subscriptions Expiring in 7 Days
+Subscriptions Expiring in 30 Days
+Monthly Recurring Revenue (MRR)
+Annual Recurring Revenue (ARR)
+
+5. Subscription Expiry Table
+
+Show:
+
+Company Name
+Owner Name
+Mobile Number
+Email
+Current Plan
+Start Date
+Expiry Date
+Days Remaining
+Payment Status
+Subscription Status
+
+Color Coding:
+
+Green = More than 30 days remaining
+Orange = Less than 30 days remaining
+Red = Expired
+
+6. Automated Alerts
+
+Generate alerts when:
+
+Subscription expires in 30 days
+Subscription expires in 15 days
+Subscription expires in 7 days
+Subscription expires in 3 days
+Subscription expires today
+
+Show notifications on Admin Dashboard.
+
+7. Renewal Management
+
+Admin can:
+
+Renew Subscription
+Upgrade Plan
+Downgrade Plan
+Suspend Account
+Activate Account
+
+8. Auto Account Restriction
+
+If subscription expires:
+- Change status to Expired
+- Disable login for client users
+- Show message:
+  "Your subscription has expired. Please contact administrator."
+
+9. Reports
+
+Generate reports:
+
+Active Subscribers Report
+Expired Subscribers Report
+Revenue Report
+Renewal Due Report
+
+Export to:
+PDF
+Excel
+CSV
+
+10. Dashboard Page
+
+Create a professional Subscription Management Dashboard with:
+
+Charts for Monthly Revenue
+Subscription Growth
+Expiry Trend
+
+Modern responsive UI.
+
+11. API Endpoints
+
+GET /subscriptions
+GET /subscriptions/expiring
+POST /subscriptions/create
+PUT /subscriptions/renew
+PUT /subscriptions/suspend
+PUT /subscriptions/activate
+
+12. Background Scheduler
+
+Run daily at midnight:
+- Check expiring subscriptions
+- Update status automatically
+- Generate alerts automatically
+
+Use production-ready code, proper database schema, clean UI, role-based permissions, and scalable architecture.

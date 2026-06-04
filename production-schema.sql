@@ -992,6 +992,7 @@ CREATE TABLE public.users (
     role text DEFAULT 'salesman'::text NOT NULL,
     name text NOT NULL,
     entity_id integer,
+    company_id integer,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
@@ -2098,6 +2099,50 @@ ALTER TABLE ONLY public.workload_cards
 --
 
 \unrestrict 2P7W0ZsnQ0vcLzRhLbTMvcDGEkeDiz5ElEbeJwrLW1bMBxlLAylc2WaeMA9p2NX
+
+
+--
+-- SaaS Subscription Management module tables
+--
+
+CREATE TABLE IF NOT EXISTS public.companies (
+    id SERIAL PRIMARY KEY,
+    name text NOT NULL,
+    owner_name text,
+    mobile text,
+    email text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.subscriptions (
+    id SERIAL PRIMARY KEY,
+    company_id integer NOT NULL,
+    plan_name text NOT NULL,
+    subscription_start_date timestamp with time zone NOT NULL,
+    subscription_end_date timestamp with time zone NOT NULL,
+    subscription_amount numeric(12,2) DEFAULT '0'::numeric NOT NULL,
+    payment_status text DEFAULT 'pending'::text NOT NULL,
+    subscription_status text DEFAULT 'active'::text NOT NULL,
+    last_payment_date timestamp with time zone,
+    next_due_date timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_company_unique ON public.subscriptions (company_id);
+
+CREATE TABLE IF NOT EXISTS public.subscription_alerts (
+    id SERIAL PRIMARY KEY,
+    company_id integer NOT NULL,
+    subscription_id integer NOT NULL,
+    alert_type text NOT NULL,
+    message text NOT NULL,
+    days_remaining integer DEFAULT 0 NOT NULL,
+    is_read boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE INDEX IF NOT EXISTS subscription_alert_sub_idx ON public.subscription_alerts (subscription_id);
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_alert_type_unique ON public.subscription_alerts (subscription_id, alert_type);
 
 
 -- Default admin user (plaintext password by current app design: plain === hash)

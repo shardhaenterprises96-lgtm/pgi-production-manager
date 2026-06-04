@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import {
   usersTable,
   rolePermissionsTable,
@@ -47,6 +47,32 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   if (!user || !checkPassword(password, user.passwordHash)) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
+  }
+
+  // Subscription gating: if this user belongs to a tenant company, block login
+  // when that company's subscription is expired or suspended. Admins are exempt
+  // so the system owner can always manage the platform.
+  if (user.role !== "admin" && user.companyId != null) {
+    const subRes = await pool.query(
+      `SELECT subscription_status, subscription_end_date
+       FROM subscriptions
+       WHERE company_id = $1
+       ORDER BY subscription_end_date DESC
+       LIMIT 1`,
+      [user.companyId]
+    );
+    const sub = subRes.rows[0];
+    const expired =
+      !sub ||
+      sub.subscription_status === "suspended" ||
+      sub.subscription_status === "expired" ||
+      new Date(sub.subscription_end_date) < new Date();
+    if (expired) {
+      res.status(403).json({
+        error: "Your subscription has expired. Please contact administrator.",
+      });
+      return;
+    }
   }
 
   // Store session — entityId is critical for salesman attribution & ledger scoping.

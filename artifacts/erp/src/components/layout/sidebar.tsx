@@ -23,6 +23,7 @@ import {
   Receipt,
   ClipboardList,
   Inbox,
+  BadgeIndianRupee,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps = {}) {
     { name: "Workers", href: "/workers", icon: HardHat, roles: ["admin", "accountant"] },
     { name: "Expenses", href: "/expenses", icon: Receipt, roles: ["admin", "accountant"] },
     { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
+    { name: "Subscriptions", href: "/subscriptions", icon: BadgeIndianRupee, roles: ["admin"] },
     { name: "User Accounts", href: "/users", icon: KeyRound, roles: ["admin"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
   ];

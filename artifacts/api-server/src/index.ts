@@ -1,6 +1,7 @@
 import app from "./app";
 import { ensureDatabaseReady } from "./lib/bootstrap";
 import { logger } from "./lib/logger";
+import { startSubscriptionScheduler } from "./lib/subscription-scheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -18,6 +19,8 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function start(): Promise<void> {
   await ensureDatabaseReady();
+
+  startSubscriptionScheduler();
 
   app.listen(port, (err) => {
     if (err) {

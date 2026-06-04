@@ -29,6 +29,7 @@ import Expenses from "@/pages/expenses";
 import Bom from "@/pages/bom";
 import MyOrders from "@/pages/my-orders";
 import CustomerOrdersAdmin from "@/pages/customer-orders";
+import Subscriptions from "@/pages/subscriptions";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ function ProtectedRoutes() {
         <Route path="/users" component={Users} />
         <Route path="/my-orders" component={MyOrders} />
         <Route path="/customer-orders" component={CustomerOrdersAdmin} />
+        <Route path="/subscriptions" component={Subscriptions} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

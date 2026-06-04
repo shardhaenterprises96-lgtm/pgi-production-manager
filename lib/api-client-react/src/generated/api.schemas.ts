@@ -5,6 +5,139 @@
  * Shradha Oil Center ERP API
  * OpenAPI spec version: 0.1.0
  */
+export type SubscriptionListItemPaymentStatus = typeof SubscriptionListItemPaymentStatus[keyof typeof SubscriptionListItemPaymentStatus];
+
+
+export const SubscriptionListItemPaymentStatus = {
+  paid: 'paid',
+  pending: 'pending',
+  overdue: 'overdue',
+} as const;
+
+export type SubscriptionListItemSubscriptionStatus = typeof SubscriptionListItemSubscriptionStatus[keyof typeof SubscriptionListItemSubscriptionStatus];
+
+
+export const SubscriptionListItemSubscriptionStatus = {
+  active: 'active',
+  expired: 'expired',
+  suspended: 'suspended',
+} as const;
+
+export interface SubscriptionListItem {
+  id: number;
+  companyId: number;
+  companyName: string;
+  /** @nullable */
+  ownerName?: string | null;
+  /** @nullable */
+  mobile?: string | null;
+  /** @nullable */
+  email?: string | null;
+  planName: string;
+  subscriptionStartDate: string;
+  subscriptionEndDate: string;
+  subscriptionAmount: number;
+  paymentStatus: SubscriptionListItemPaymentStatus;
+  subscriptionStatus: SubscriptionListItemSubscriptionStatus;
+  /** @nullable */
+  lastPaymentDate?: string | null;
+  /** @nullable */
+  nextDueDate?: string | null;
+  daysRemaining: number;
+}
+
+export interface SubscriptionDashboard {
+  totalActive: number;
+  totalExpired: number;
+  totalSuspended: number;
+  expiringIn7Days: number;
+  expiringIn30Days: number;
+  mrr: number;
+  arr: number;
+  totalCompanies: number;
+}
+
+export type SubscriptionChartsMonthlyRevenueItem = {
+  month: string;
+  revenue: number;
+};
+
+export type SubscriptionChartsSubscriptionGrowthItem = {
+  month: string;
+  total: number;
+};
+
+export type SubscriptionChartsExpiryTrendItem = {
+  month: string;
+  expiring: number;
+};
+
+export interface SubscriptionCharts {
+  monthlyRevenue: SubscriptionChartsMonthlyRevenueItem[];
+  subscriptionGrowth: SubscriptionChartsSubscriptionGrowthItem[];
+  expiryTrend: SubscriptionChartsExpiryTrendItem[];
+}
+
+export interface SubscriptionAlert {
+  id: number;
+  companyId: number;
+  subscriptionId: number;
+  companyName: string;
+  alertType: string;
+  message: string;
+  daysRemaining: number;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export type CreateSubscriptionInputPlanName = typeof CreateSubscriptionInputPlanName[keyof typeof CreateSubscriptionInputPlanName];
+
+
+export const CreateSubscriptionInputPlanName = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  half_yearly: 'half_yearly',
+  yearly: 'yearly',
+} as const;
+
+export type CreateSubscriptionInputPaymentStatus = typeof CreateSubscriptionInputPaymentStatus[keyof typeof CreateSubscriptionInputPaymentStatus];
+
+
+export const CreateSubscriptionInputPaymentStatus = {
+  paid: 'paid',
+  pending: 'pending',
+  overdue: 'overdue',
+} as const;
+
+export interface CreateSubscriptionInput {
+  companyName: string;
+  /** @nullable */
+  ownerName?: string | null;
+  /** @nullable */
+  mobile?: string | null;
+  /** @nullable */
+  email?: string | null;
+  planName: CreateSubscriptionInputPlanName;
+  subscriptionAmount: number;
+  subscriptionStartDate: string;
+  paymentStatus?: CreateSubscriptionInputPaymentStatus;
+}
+
+export type ChangePlanInputPlanName = typeof ChangePlanInputPlanName[keyof typeof ChangePlanInputPlanName];
+
+
+export const ChangePlanInputPlanName = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  half_yearly: 'half_yearly',
+  yearly: 'yearly',
+} as const;
+
+export interface ChangePlanInput {
+  planName: ChangePlanInputPlanName;
+  subscriptionAmount: number;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -1895,4 +2028,13 @@ export const ListCustomerOrdersStatus = {
   done: 'done',
   cancelled: 'cancelled',
 } as const;
+
+export type GetExpiringSubscriptionsParams = {
+days?: number;
+};
+
+export type ListSubscriptionsParams = {
+search?: string;
+status?: string;
+};
 

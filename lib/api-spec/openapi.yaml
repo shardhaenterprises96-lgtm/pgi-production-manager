@@ -17,6 +17,7 @@ tags:
   - name: manufacturing
   - name: dashboard
   - name: reports
+  - name: subscriptions
 
 paths:
   /healthz:
@@ -1847,8 +1848,344 @@ paths:
               schema:
                 $ref: "#/components/schemas/CustomerOrder"
 
+  # SUBSCRIPTIONS (SaaS module)
+  /subscriptions/dashboard:
+    get:
+      operationId: getSubscriptionDashboard
+      tags: [subscriptions]
+      summary: Subscription dashboard widgets (active, expired, expiring, MRR, ARR)
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionDashboard"
+
+  /subscriptions/charts:
+    get:
+      operationId: getSubscriptionCharts
+      tags: [subscriptions]
+      summary: Subscription chart series (monthly revenue, growth, expiry trend)
+      responses:
+        "200":
+          description: Chart series
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionCharts"
+
+  /subscriptions/alerts:
+    get:
+      operationId: getSubscriptionAlerts
+      tags: [subscriptions]
+      summary: List automated subscription alerts
+      responses:
+        "200":
+          description: Alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubscriptionAlert"
+
+  /subscriptions/expiring:
+    get:
+      operationId: getExpiringSubscriptions
+      tags: [subscriptions]
+      summary: List subscriptions expiring within a window
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Expiring subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubscriptionListItem"
+
+  /subscriptions:
+    get:
+      operationId: listSubscriptions
+      tags: [subscriptions]
+      summary: List all subscriptions with company details
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubscriptionListItem"
+
+  /subscriptions/create:
+    post:
+      operationId: createSubscription
+      tags: [subscriptions]
+      summary: Create a company and its subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubscriptionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionListItem"
+
+  /subscriptions/{id}/renew:
+    put:
+      operationId: renewSubscription
+      tags: [subscriptions]
+      summary: Renew a subscription (extend by plan period, mark paid)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionListItem"
+
+  /subscriptions/{id}/plan:
+    put:
+      operationId: changeSubscriptionPlan
+      tags: [subscriptions]
+      summary: Upgrade or downgrade the subscription plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePlanInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionListItem"
+
+  /subscriptions/{id}/suspend:
+    put:
+      operationId: suspendSubscription
+      tags: [subscriptions]
+      summary: Suspend a subscription account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Suspended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionListItem"
+
+  /subscriptions/{id}/activate:
+    put:
+      operationId: activateSubscription
+      tags: [subscriptions]
+      summary: Re-activate a suspended subscription account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionListItem"
+
 components:
   schemas:
+    SubscriptionListItem:
+      type: object
+      required: [id, companyId, companyName, planName, subscriptionStartDate, subscriptionEndDate, subscriptionAmount, paymentStatus, subscriptionStatus, daysRemaining]
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        companyName:
+          type: string
+        ownerName:
+          type: ["string", "null"]
+        mobile:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        planName:
+          type: string
+        subscriptionStartDate:
+          type: string
+        subscriptionEndDate:
+          type: string
+        subscriptionAmount:
+          type: number
+        paymentStatus:
+          type: string
+          enum: [paid, pending, overdue]
+        subscriptionStatus:
+          type: string
+          enum: [active, expired, suspended]
+        lastPaymentDate:
+          type: ["string", "null"]
+        nextDueDate:
+          type: ["string", "null"]
+        daysRemaining:
+          type: integer
+
+    SubscriptionDashboard:
+      type: object
+      required: [totalActive, totalExpired, totalSuspended, expiringIn7Days, expiringIn30Days, mrr, arr, totalCompanies]
+      properties:
+        totalActive:
+          type: integer
+        totalExpired:
+          type: integer
+        totalSuspended:
+          type: integer
+        expiringIn7Days:
+          type: integer
+        expiringIn30Days:
+          type: integer
+        mrr:
+          type: number
+        arr:
+          type: number
+        totalCompanies:
+          type: integer
+
+    SubscriptionCharts:
+      type: object
+      required: [monthlyRevenue, subscriptionGrowth, expiryTrend]
+      properties:
+        monthlyRevenue:
+          type: array
+          items:
+            type: object
+            required: [month, revenue]
+            properties:
+              month:
+                type: string
+              revenue:
+                type: number
+        subscriptionGrowth:
+          type: array
+          items:
+            type: object
+            required: [month, total]
+            properties:
+              month:
+                type: string
+              total:
+                type: integer
+        expiryTrend:
+          type: array
+          items:
+            type: object
+            required: [month, expiring]
+            properties:
+              month:
+                type: string
+              expiring:
+                type: integer
+
+    SubscriptionAlert:
+      type: object
+      required: [id, companyId, subscriptionId, companyName, alertType, message, daysRemaining, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        subscriptionId:
+          type: integer
+        companyName:
+          type: string
+        alertType:
+          type: string
+        message:
+          type: string
+        daysRemaining:
+          type: integer
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+
+    CreateSubscriptionInput:
+      type: object
+      required: [companyName, planName, subscriptionAmount, subscriptionStartDate]
+      properties:
+        companyName:
+          type: string
+        ownerName:
+          type: ["string", "null"]
+        mobile:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        planName:
+          type: string
+          enum: [monthly, quarterly, half_yearly, yearly]
+        subscriptionAmount:
+          type: number
+        subscriptionStartDate:
+          type: string
+        paymentStatus:
+          type: string
+          enum: [paid, pending, overdue]
+
+    ChangePlanInput:
+      type: object
+      required: [planName, subscriptionAmount]
+      properties:
+        planName:
+          type: string
+          enum: [monthly, quarterly, half_yearly, yearly]
+        subscriptionAmount:
+          type: number
+
     HealthStatus:
       type: object
       required: [status]
