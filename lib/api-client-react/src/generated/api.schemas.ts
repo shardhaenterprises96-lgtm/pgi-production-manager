@@ -303,6 +303,8 @@ export interface Product {
   /** @nullable */
   taxRate?: number | null;
   /** @nullable */
+  commissionPerLiter?: number | null;
+  /** @nullable */
   litersPerBox?: number | null;
   /** @nullable */
   unitsPerBox?: number | null;
@@ -342,6 +344,7 @@ export interface ProductInput {
   retailMargin?: number;
   hsnCode?: string;
   taxRate?: number;
+  commissionPerLiter?: number;
   litersPerBox?: number;
   unitsPerBox?: number;
   notForSale?: boolean;
@@ -373,6 +376,7 @@ export interface ProductUpdate {
   addForManufacturing?: boolean;
   minStockThreshold?: number;
   imageUrl?: string;
+  commissionPerLiter?: number;
 }
 
 export type StockMovementType = typeof StockMovementType[keyof typeof StockMovementType];
@@ -456,6 +460,14 @@ export interface Entity {
   /** @nullable */
   state?: string | null;
   /** @nullable */
+  district?: string | null;
+  /** @nullable */
+  area?: string | null;
+  /** @nullable */
+  pinCode?: string | null;
+  /** @nullable */
+  gpsLocation?: string | null;
+  /** @nullable */
   pricingTier?: EntityPricingTier;
   outstandingBalance?: number;
   /** @nullable */
@@ -497,6 +509,10 @@ export interface EntityInput {
   address?: string;
   city?: string;
   state?: string;
+  district?: string;
+  area?: string;
+  pinCode?: string;
+  gpsLocation?: string;
   pricingTier?: EntityInputPricingTier;
   creditLimit?: number;
 }
@@ -509,6 +525,10 @@ export interface EntityUpdate {
   address?: string;
   city?: string;
   state?: string;
+  district?: string;
+  area?: string;
+  pinCode?: string;
+  gpsLocation?: string;
   pricingTier?: string;
   creditLimit?: number;
 }
@@ -971,6 +991,8 @@ export const RewardSchemeRewardType = {
 
 export interface RewardScheme {
   id: number;
+  /** @nullable */
+  schemeName?: string | null;
   productId: number;
   /** @nullable */
   productName?: string | null;
@@ -993,6 +1015,7 @@ export const RewardSchemeInputRewardType = {
 } as const;
 
 export interface RewardSchemeInput {
+  schemeName?: string;
   productId: number;
   targetLiters: number;
   rewardType: RewardSchemeInputRewardType;
@@ -1002,6 +1025,7 @@ export interface RewardSchemeInput {
 }
 
 export interface RewardSchemeUpdate {
+  schemeName?: string;
   targetLiters?: number;
   rewardType?: string;
   rewardValue?: string;
@@ -1286,6 +1310,10 @@ export type CustomerOrderStatus = typeof CustomerOrderStatus[keyof typeof Custom
 export const CustomerOrderStatus = {
   pending: 'pending',
   processing: 'processing',
+  production: 'production',
+  ready_for_dispatch: 'ready_for_dispatch',
+  dispatched: 'dispatched',
+  delivered: 'delivered',
   done: 'done',
   cancelled: 'cancelled',
 } as const;
@@ -1302,12 +1330,21 @@ export interface CustomerOrder {
   /** @nullable */
   customerMobile?: string | null;
   status: CustomerOrderStatus;
+  isDraft?: boolean;
   totalItems: number;
   totalAmount: number;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
   adminRemarks?: string | null;
+  /** @nullable */
+  vehicleNumber?: string | null;
+  /** @nullable */
+  driverName?: string | null;
+  /** @nullable */
+  dispatchDate?: string | null;
+  /** @nullable */
+  dispatchStatus?: string | null;
   createdAt: string;
   /** @nullable */
   updatedAt?: string | null;
@@ -1341,6 +1378,7 @@ export interface CustomerOrderInput {
   customerName?: string;
   customerMobile?: string;
   entityId?: number;
+  isDraft?: boolean;
   notes?: string;
   /** @minItems 1 */
   items: CustomerOrderInputItemsItem[];
@@ -1352,6 +1390,10 @@ export type CustomerOrderStatusUpdateStatus = typeof CustomerOrderStatusUpdateSt
 export const CustomerOrderStatusUpdateStatus = {
   pending: 'pending',
   processing: 'processing',
+  production: 'production',
+  ready_for_dispatch: 'ready_for_dispatch',
+  dispatched: 'dispatched',
+  delivered: 'delivered',
   done: 'done',
   cancelled: 'cancelled',
 } as const;
@@ -1359,6 +1401,32 @@ export const CustomerOrderStatusUpdateStatus = {
 export interface CustomerOrderStatusUpdate {
   status: CustomerOrderStatusUpdateStatus;
   adminRemarks?: string;
+  isDraft?: boolean;
+  vehicleNumber?: string;
+  driverName?: string;
+  dispatchDate?: string;
+}
+
+export type CommissionReportRowsItemProductBreakdownItem = {
+  productId: number;
+  productName: string;
+  liters: number;
+  commissionPerLiter?: number;
+  commission: number;
+};
+
+export type CommissionReportRowsItem = {
+  salesmanId: number;
+  salesmanName: string;
+  liters: number;
+  commission: number;
+  productBreakdown?: CommissionReportRowsItemProductBreakdownItem[];
+};
+
+export interface CommissionReport {
+  totalCommission: number;
+  totalLiters: number;
+  rows: CommissionReportRowsItem[];
 }
 
 export interface CapitalSnapshot {
@@ -1997,6 +2065,12 @@ from?: string;
 to?: string;
 };
 
+export type GetCommissionReportParams = {
+from?: string;
+to?: string;
+salesmanId?: number;
+};
+
 export type GlobalSearchParams = {
 q: string;
 };
@@ -2025,6 +2099,10 @@ export type ListCustomerOrdersStatus = typeof ListCustomerOrdersStatus[keyof typ
 export const ListCustomerOrdersStatus = {
   pending: 'pending',
   processing: 'processing',
+  production: 'production',
+  ready_for_dispatch: 'ready_for_dispatch',
+  dispatched: 'dispatched',
+  delivered: 'delivered',
   done: 'done',
   cancelled: 'cancelled',
 } as const;

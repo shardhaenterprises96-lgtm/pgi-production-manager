@@ -33,12 +33,25 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Inbox, Eye, Loader2, FileText } from "lucide-react";
 
-const STATUSES = ["pending", "processing", "done", "cancelled"] as const;
+const STATUSES = [
+  "pending",
+  "processing",
+  "production",
+  "ready_for_dispatch",
+  "dispatched",
+  "delivered",
+  "done",
+  "cancelled",
+] as const;
 type Status = typeof STATUSES[number];
 
 const STATUS_VARIANTS: Record<string, { label: string; className: string }> = {
   pending: { label: "Pending", className: "bg-amber-100 text-amber-800 hover:bg-amber-100" },
   processing: { label: "Processing", className: "bg-blue-100 text-blue-800 hover:bg-blue-100" },
+  production: { label: "In Production", className: "bg-indigo-100 text-indigo-800 hover:bg-indigo-100" },
+  ready_for_dispatch: { label: "Ready For Dispatch", className: "bg-purple-100 text-purple-800 hover:bg-purple-100" },
+  dispatched: { label: "Dispatched", className: "bg-cyan-100 text-cyan-800 hover:bg-cyan-100" },
+  delivered: { label: "Delivered", className: "bg-teal-100 text-teal-800 hover:bg-teal-100" },
   done: { label: "Completed", className: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" },
   cancelled: { label: "Cancelled", className: "bg-red-100 text-red-800 hover:bg-red-100" },
 };

@@ -168,6 +168,7 @@ router.post("/reward-progress/:id/disburse", async (req, res): Promise<void> => 
 function formatScheme(s: any, productName: string | null) {
   return {
     id: s.id,
+    schemeName: s.schemeName ?? null,
     productId: s.productId,
     productName: productName ?? null,
     targetLiters: Number(s.targetLiters),

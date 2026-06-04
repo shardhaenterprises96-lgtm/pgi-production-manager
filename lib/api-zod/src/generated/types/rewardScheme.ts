@@ -9,6 +9,8 @@ import type { RewardSchemeRewardType } from './rewardSchemeRewardType';
 
 export interface RewardScheme {
   id: number;
+  /** @nullable */
+  schemeName?: string | null;
   productId: number;
   /** @nullable */
   productName?: string | null;

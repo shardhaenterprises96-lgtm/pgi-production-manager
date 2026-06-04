@@ -10,4 +10,8 @@ import type { CustomerOrderStatusUpdateStatus } from './customerOrderStatusUpdat
 export interface CustomerOrderStatusUpdate {
   status: CustomerOrderStatusUpdateStatus;
   adminRemarks?: string;
+  isDraft?: boolean;
+  vehicleNumber?: string;
+  driverName?: string;
+  dispatchDate?: string;
 }

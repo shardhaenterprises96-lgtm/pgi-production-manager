@@ -173,6 +173,7 @@ export const ListProductsResponseItem = zod.object({
   "retailMargin": zod.number().nullish(),
   "hsnCode": zod.string().nullish(),
   "taxRate": zod.number().nullish(),
+  "commissionPerLiter": zod.number().nullish(),
   "litersPerBox": zod.number().nullish(),
   "unitsPerBox": zod.number().nullish(),
   "notForSale": zod.boolean(),
@@ -206,6 +207,7 @@ export const CreateProductBody = zod.object({
   "retailMargin": zod.number().optional(),
   "hsnCode": zod.string().optional(),
   "taxRate": zod.number().optional(),
+  "commissionPerLiter": zod.number().optional(),
   "litersPerBox": zod.number().optional(),
   "unitsPerBox": zod.number().optional(),
   "notForSale": zod.boolean().optional(),
@@ -243,6 +245,7 @@ export const GetProductResponse = zod.object({
   "retailMargin": zod.number().nullish(),
   "hsnCode": zod.string().nullish(),
   "taxRate": zod.number().nullish(),
+  "commissionPerLiter": zod.number().nullish(),
   "litersPerBox": zod.number().nullish(),
   "unitsPerBox": zod.number().nullish(),
   "notForSale": zod.boolean(),
@@ -282,7 +285,8 @@ export const UpdateProductBody = zod.object({
   "notForSale": zod.boolean().optional(),
   "addForManufacturing": zod.boolean().optional(),
   "minStockThreshold": zod.number().optional(),
-  "imageUrl": zod.string().optional()
+  "imageUrl": zod.string().optional(),
+  "commissionPerLiter": zod.number().optional()
 })
 
 export const UpdateProductResponse = zod.object({
@@ -306,6 +310,7 @@ export const UpdateProductResponse = zod.object({
   "retailMargin": zod.number().nullish(),
   "hsnCode": zod.string().nullish(),
   "taxRate": zod.number().nullish(),
+  "commissionPerLiter": zod.number().nullish(),
   "litersPerBox": zod.number().nullish(),
   "unitsPerBox": zod.number().nullish(),
   "notForSale": zod.boolean(),
@@ -393,6 +398,10 @@ export const ListEntitiesResponseItem = zod.object({
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
   "state": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "pinCode": zod.string().nullish(),
+  "gpsLocation": zod.string().nullish(),
   "pricingTier": zod.union([zod.literal('retail'),zod.literal('wholesale'),zod.literal(null)]).nullish(),
   "outstandingBalance": zod.number().optional(),
   "creditLimit": zod.number().nullish(),
@@ -413,6 +422,10 @@ export const CreateEntityBody = zod.object({
   "address": zod.string().optional(),
   "city": zod.string().optional(),
   "state": zod.string().optional(),
+  "district": zod.string().optional(),
+  "area": zod.string().optional(),
+  "pinCode": zod.string().optional(),
+  "gpsLocation": zod.string().optional(),
   "pricingTier": zod.enum(['retail', 'wholesale']).optional(),
   "creditLimit": zod.number().optional()
 }).describe('`name` is optional ONLY for retail customers (walk-ins) — if omitted, the server\ngenerates a label like \"Retail Customer (98765 43210)\". For wholesale customers,\nvendors, workers, and salesmen the name is required.\n')
@@ -436,6 +449,10 @@ export const LookupEntityByMobileResponse = zod.object({
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
   "state": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "pinCode": zod.string().nullish(),
+  "gpsLocation": zod.string().nullish(),
   "pricingTier": zod.union([zod.literal('retail'),zod.literal('wholesale'),zod.literal(null)]).nullish(),
   "outstandingBalance": zod.number().optional(),
   "creditLimit": zod.number().nullish(),
@@ -461,6 +478,10 @@ export const GetEntityResponse = zod.object({
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
   "state": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "pinCode": zod.string().nullish(),
+  "gpsLocation": zod.string().nullish(),
   "pricingTier": zod.union([zod.literal('retail'),zod.literal('wholesale'),zod.literal(null)]).nullish(),
   "outstandingBalance": zod.number().optional(),
   "creditLimit": zod.number().nullish(),
@@ -484,6 +505,10 @@ export const UpdateEntityBody = zod.object({
   "address": zod.string().optional(),
   "city": zod.string().optional(),
   "state": zod.string().optional(),
+  "district": zod.string().optional(),
+  "area": zod.string().optional(),
+  "pinCode": zod.string().optional(),
+  "gpsLocation": zod.string().optional(),
   "pricingTier": zod.string().optional(),
   "creditLimit": zod.number().optional()
 })
@@ -497,6 +522,10 @@ export const UpdateEntityResponse = zod.object({
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
   "state": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "pinCode": zod.string().nullish(),
+  "gpsLocation": zod.string().nullish(),
   "pricingTier": zod.union([zod.literal('retail'),zod.literal('wholesale'),zod.literal(null)]).nullish(),
   "outstandingBalance": zod.number().optional(),
   "creditLimit": zod.number().nullish(),
@@ -522,6 +551,10 @@ export const GetEntityLedgerResponse = zod.object({
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
   "state": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "pinCode": zod.string().nullish(),
+  "gpsLocation": zod.string().nullish(),
   "pricingTier": zod.union([zod.literal('retail'),zod.literal('wholesale'),zod.literal(null)]).nullish(),
   "outstandingBalance": zod.number().optional(),
   "creditLimit": zod.number().nullish(),
@@ -1087,6 +1120,7 @@ export const CollectCashFromSalesmanResponse = zod.object({
  */
 export const ListRewardSchemesResponseItem = zod.object({
   "id": zod.number(),
+  "schemeName": zod.string().nullish(),
   "productId": zod.number(),
   "productName": zod.string().nullish(),
   "targetLiters": zod.number(),
@@ -1104,6 +1138,7 @@ export const ListRewardSchemesResponse = zod.array(ListRewardSchemesResponseItem
  * @summary Create reward scheme
  */
 export const CreateRewardSchemeBody = zod.object({
+  "schemeName": zod.string().optional(),
   "productId": zod.number(),
   "targetLiters": zod.number(),
   "rewardType": zod.enum(['free_gift', 'cash_discount', 'percentage_cashback']),
@@ -1121,6 +1156,7 @@ export const UpdateRewardSchemeParams = zod.object({
 })
 
 export const UpdateRewardSchemeBody = zod.object({
+  "schemeName": zod.string().optional(),
   "targetLiters": zod.number().optional(),
   "rewardType": zod.string().optional(),
   "rewardValue": zod.string().optional(),
@@ -1131,6 +1167,7 @@ export const UpdateRewardSchemeBody = zod.object({
 
 export const UpdateRewardSchemeResponse = zod.object({
   "id": zod.number(),
+  "schemeName": zod.string().nullish(),
   "productId": zod.number(),
   "productName": zod.string().nullish(),
   "targetLiters": zod.number(),
@@ -1849,6 +1886,37 @@ export const GetProfitLossReportResponse = zod.object({
 
 
 /**
+ * Admin sees all salesmen; a salesman sees only their own commission.
+Commission accrues on delivered sales = invoice line liters * product commissionPerLiter.
+
+ * @summary Salesman commission report (liters sold x per-liter commission)
+ */
+export const GetCommissionReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "salesmanId": zod.coerce.number().optional()
+})
+
+export const GetCommissionReportResponse = zod.object({
+  "totalCommission": zod.number(),
+  "totalLiters": zod.number(),
+  "rows": zod.array(zod.object({
+  "salesmanId": zod.number(),
+  "salesmanName": zod.string(),
+  "liters": zod.number(),
+  "commission": zod.number(),
+  "productBreakdown": zod.array(zod.object({
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "liters": zod.number(),
+  "commissionPerLiter": zod.number().optional(),
+  "commission": zod.number()
+})).optional()
+}))
+})
+
+
+/**
  * @summary Global search across entities, invoices, products
  */
 export const GlobalSearchQueryParams = zod.object({
@@ -1877,6 +1945,7 @@ export const GlobalSearchResponse = zod.object({
   "retailMargin": zod.number().nullish(),
   "hsnCode": zod.string().nullish(),
   "taxRate": zod.number().nullish(),
+  "commissionPerLiter": zod.number().nullish(),
   "litersPerBox": zod.number().nullish(),
   "unitsPerBox": zod.number().nullish(),
   "notForSale": zod.boolean(),
@@ -1894,6 +1963,10 @@ export const GlobalSearchResponse = zod.object({
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
   "state": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "pinCode": zod.string().nullish(),
+  "gpsLocation": zod.string().nullish(),
   "pricingTier": zod.union([zod.literal('retail'),zod.literal('wholesale'),zod.literal(null)]).nullish(),
   "outstandingBalance": zod.number().optional(),
   "creditLimit": zod.number().nullish(),
@@ -2147,7 +2220,7 @@ export const DeleteExpenseParams = zod.object({
  * @summary List customer orders (admin sees all, customer sees own)
  */
 export const ListCustomerOrdersQueryParams = zod.object({
-  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']).optional()
+  "status": zod.enum(['pending', 'processing', 'production', 'ready_for_dispatch', 'dispatched', 'delivered', 'done', 'cancelled']).optional()
 })
 
 export const ListCustomerOrdersResponseItem = zod.object({
@@ -2157,11 +2230,16 @@ export const ListCustomerOrdersResponseItem = zod.object({
   "entityId": zod.number().nullish(),
   "customerName": zod.string(),
   "customerMobile": zod.string().nullish(),
-  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']),
+  "status": zod.enum(['pending', 'processing', 'production', 'ready_for_dispatch', 'dispatched', 'delivered', 'done', 'cancelled']),
+  "isDraft": zod.boolean().optional(),
   "totalItems": zod.number(),
   "totalAmount": zod.number(),
   "notes": zod.string().nullish(),
   "adminRemarks": zod.string().nullish(),
+  "vehicleNumber": zod.string().nullish(),
+  "driverName": zod.string().nullish(),
+  "dispatchDate": zod.string().nullish(),
+  "dispatchStatus": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })
@@ -2180,6 +2258,7 @@ export const CreateCustomerOrderBody = zod.object({
   "customerName": zod.string().optional(),
   "customerMobile": zod.string().optional(),
   "entityId": zod.number().optional(),
+  "isDraft": zod.boolean().optional(),
   "notes": zod.string().optional(),
   "items": zod.array(zod.object({
   "productId": zod.number(),
@@ -2202,11 +2281,16 @@ export const GetCustomerOrderResponse = zod.object({
   "entityId": zod.number().nullish(),
   "customerName": zod.string(),
   "customerMobile": zod.string().nullish(),
-  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']),
+  "status": zod.enum(['pending', 'processing', 'production', 'ready_for_dispatch', 'dispatched', 'delivered', 'done', 'cancelled']),
+  "isDraft": zod.boolean().optional(),
   "totalItems": zod.number(),
   "totalAmount": zod.number(),
   "notes": zod.string().nullish(),
   "adminRemarks": zod.string().nullish(),
+  "vehicleNumber": zod.string().nullish(),
+  "driverName": zod.string().nullish(),
+  "dispatchDate": zod.string().nullish(),
+  "dispatchStatus": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 }).and(zod.object({
@@ -2232,8 +2316,12 @@ export const UpdateCustomerOrderStatusParams = zod.object({
 })
 
 export const UpdateCustomerOrderStatusBody = zod.object({
-  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']),
-  "adminRemarks": zod.string().optional()
+  "status": zod.enum(['pending', 'processing', 'production', 'ready_for_dispatch', 'dispatched', 'delivered', 'done', 'cancelled']),
+  "adminRemarks": zod.string().optional(),
+  "isDraft": zod.boolean().optional(),
+  "vehicleNumber": zod.string().optional(),
+  "driverName": zod.string().optional(),
+  "dispatchDate": zod.string().optional()
 })
 
 export const UpdateCustomerOrderStatusResponse = zod.object({
@@ -2243,11 +2331,16 @@ export const UpdateCustomerOrderStatusResponse = zod.object({
   "entityId": zod.number().nullish(),
   "customerName": zod.string(),
   "customerMobile": zod.string().nullish(),
-  "status": zod.enum(['pending', 'processing', 'done', 'cancelled']),
+  "status": zod.enum(['pending', 'processing', 'production', 'ready_for_dispatch', 'dispatched', 'delivered', 'done', 'cancelled']),
+  "isDraft": zod.boolean().optional(),
   "totalItems": zod.number(),
   "totalAmount": zod.number(),
   "notes": zod.string().nullish(),
   "adminRemarks": zod.string().nullish(),
+  "vehicleNumber": zod.string().nullish(),
+  "driverName": zod.string().nullish(),
+  "dispatchDate": zod.string().nullish(),
+  "dispatchStatus": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().nullish()
 })

@@ -30,6 +30,9 @@ import Bom from "@/pages/bom";
 import MyOrders from "@/pages/my-orders";
 import CustomerOrdersAdmin from "@/pages/customer-orders";
 import Subscriptions from "@/pages/subscriptions";
+import Menu from "@/pages/menu";
+import SalesmanOrders from "@/pages/salesman-orders";
+import Commission from "@/pages/commission";
 
 const queryClient = new QueryClient();
 
@@ -38,7 +41,10 @@ function ProtectedRoutes() {
     <AppLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/menu" component={Menu} />
         <Route path="/catalog" component={Catalog} />
+        <Route path="/salesman-orders" component={SalesmanOrders} />
+        <Route path="/commission" component={Commission} />
         <Route path="/billing" component={Billing} />
         <Route path="/invoices" component={Invoices} />
         <Route path="/invoices/:id" component={InvoiceDetail} />

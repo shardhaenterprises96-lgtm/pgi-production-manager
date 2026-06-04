@@ -11,6 +11,7 @@ export interface CustomerOrderInput {
   customerName?: string;
   customerMobile?: string;
   entityId?: number;
+  isDraft?: boolean;
   notes?: string;
   /** @minItems 1 */
   items: CustomerOrderInputItemsItem[];

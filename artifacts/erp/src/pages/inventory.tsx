@@ -14,6 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ImageAdjustDialog } from "@/components/image-adjust-dialog";
 import { useQueryClient } from "@tanstack/react-query";
@@ -220,6 +221,7 @@ type ProductForm = {
   retailPrice: string;
   hsnCode: string;
   taxRate: string;
+  commissionPerLiter: string;
   litersPerBox: string;
   unitsPerBox: string;
   openingStock: string;
@@ -232,7 +234,7 @@ type ProductForm = {
 const emptyForm: ProductForm = {
   name: "", printName: "", group: "", brand: "", itemCode: "",
   unit: "", purchasePrice: "", mrp: "", wholesalePrice: "", retailPrice: "",
-  hsnCode: "", taxRate: "18", litersPerBox: "", unitsPerBox: "", openingStock: "0",
+  hsnCode: "", taxRate: "18", commissionPerLiter: "0", litersPerBox: "", unitsPerBox: "", openingStock: "0",
   minStockThreshold: "5", notForSale: false, addForManufacturing: false, imageUrl: "",
 };
 
@@ -240,6 +242,7 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
   const isEdit = !!product;
   const [tab, setTab] = useState("details");
   const [form, setForm] = useState<ProductForm>(emptyForm);
+  const [productType, setProductType] = useState<"Purchased" | "Manufactured">("Purchased");
   const [imagePreview, setImagePreview] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -266,6 +269,7 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
         retailPrice: product.retailPrice != null ? String(product.retailPrice) : "",
         hsnCode: product.hsnCode ?? "",
         taxRate: product.taxRate != null ? String(product.taxRate) : "18",
+        commissionPerLiter: product.commissionPerLiter != null ? String(product.commissionPerLiter) : "0",
         litersPerBox: product.litersPerBox != null ? String(product.litersPerBox) : "",
         unitsPerBox: product.unitsPerBox != null ? String(product.unitsPerBox) : "",
         openingStock: product.openingStock != null ? String(product.openingStock) : "0",
@@ -275,10 +279,12 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
         imageUrl: product.imageUrl ?? "",
       });
       setImagePreview(product.imageUrl ?? "");
+      setProductType(Number(product.purchasePrice) === 0 ? "Manufactured" : "Purchased");
       setTab("details");
     } else if (open && !product) {
       setForm(emptyForm);
       setImagePreview("");
+      setProductType("Purchased");
       setTab("details");
     }
   }, [open, product]);
@@ -324,8 +330,14 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
       setTab("details");
       return;
     }
-    if (!form.retailPrice || !form.wholesalePrice || !form.mrp || !form.purchasePrice) {
+    const isManufactured = productType === "Manufactured";
+    if (!form.retailPrice || !form.wholesalePrice || !form.mrp || (!isManufactured && !form.purchasePrice)) {
       toast({ title: "Pricing required", description: "Fill in all price fields.", variant: "destructive" });
+      setTab("pricing");
+      return;
+    }
+    if (!isManufactured && Number(form.purchasePrice) <= 0) {
+      toast({ title: "Purchase price required", description: "Purchase Price must be greater than 0 for purchased products.", variant: "destructive" });
       setTab("pricing");
       return;
     }
@@ -337,12 +349,13 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
       brand: form.brand.trim(),
       itemCode: form.itemCode.trim(),
       unit: form.unit.trim(),
-      purchasePrice: Number(form.purchasePrice),
+      purchasePrice: isManufactured ? 0 : Number(form.purchasePrice),
       mrp: Number(form.mrp),
       wholesalePrice: Number(form.wholesalePrice),
       retailPrice: Number(form.retailPrice),
       hsnCode: form.hsnCode.trim() || undefined,
       taxRate: form.taxRate ? Number(form.taxRate) : undefined,
+      commissionPerLiter: form.commissionPerLiter ? Number(form.commissionPerLiter) : 0,
       litersPerBox: form.litersPerBox ? Number(form.litersPerBox) : undefined,
       unitsPerBox: form.unitsPerBox ? Number(form.unitsPerBox) : undefined,
       minStockThreshold: form.minStockThreshold ? Number(form.minStockThreshold) : undefined,
@@ -497,15 +510,32 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
           <TabsContent value="pricing" className="space-y-4 pt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Purchase Price (₹) *</Label>
-                <Input
-                  type="number" min={0}
-                  value={form.purchasePrice}
-                  onChange={(e) => set("purchasePrice", e.target.value)}
-                  placeholder="0.00"
-                  data-testid="input-purchase-price"
-                />
+                <Label>Product Type</Label>
+                <Select
+                  value={productType}
+                  onValueChange={(v) => setProductType(v as "Purchased" | "Manufactured")}
+                >
+                  <SelectTrigger data-testid="select-product-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Purchased">Purchased</SelectItem>
+                    <SelectItem value="Manufactured">Manufactured</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              {productType === "Purchased" && (
+                <div className="space-y-1.5">
+                  <Label>Purchase Price (₹) *</Label>
+                  <Input
+                    type="number" min={0}
+                    value={form.purchasePrice}
+                    onChange={(e) => set("purchasePrice", e.target.value)}
+                    placeholder="0.00"
+                    data-testid="input-purchase-price"
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>MRP (₹) *</Label>
                 <Input
@@ -553,11 +583,28 @@ function ProductDialog({ open, onOpenChange, product }: { open: boolean; onOpenC
               </div>
               <div className="space-y-1.5">
                 <Label>GST Rate (%)</Label>
-                <Input
-                  type="number" min={0} max={28}
+                <Select
                   value={form.taxRate}
-                  onChange={(e) => set("taxRate", e.target.value)}
-                  placeholder="18"
+                  onValueChange={(v) => set("taxRate", v)}
+                >
+                  <SelectTrigger data-testid="select-tax-rate">
+                    <SelectValue placeholder="Select GST rate" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["0", "5", "12", "18", "28"].map((rate) => (
+                      <SelectItem key={rate} value={rate}>{rate}%</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Commission per Liter (₹)</Label>
+                <Input
+                  type="number" min={0} step="0.01"
+                  value={form.commissionPerLiter}
+                  onChange={(e) => set("commissionPerLiter", e.target.value)}
+                  placeholder="0.00"
+                  data-testid="input-commission-per-liter"
                 />
               </div>
             </div>

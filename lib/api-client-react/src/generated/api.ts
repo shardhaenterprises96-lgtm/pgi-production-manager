@@ -36,6 +36,7 @@ import type {
   ChangePlanInput,
   CollectCashFromSalesman200,
   CollectCashInput,
+  CommissionReport,
   CreatePurchaseInput,
   CreateSubscriptionInput,
   CreateUserInput,
@@ -55,6 +56,7 @@ import type {
   ExpenseCategoryInput,
   ExpenseInput,
   ExpenseList,
+  GetCommissionReportParams,
   GetCustomerWiseSalesReportParams,
   GetExpiringSubscriptionsParams,
   GetItemWiseSalesReportParams,
@@ -5666,6 +5668,93 @@ export function useGetProfitLossReport<TData = Awaited<ReturnType<typeof getProf
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetProfitLossReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCommissionReportUrl = (params?: GetCommissionReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/commission?${stringifiedParams}` : `/api/reports/commission`
+}
+
+/**
+ * Admin sees all salesmen; a salesman sees only their own commission.
+Commission accrues on delivered sales = invoice line liters * product commissionPerLiter.
+
+ * @summary Salesman commission report (liters sold x per-liter commission)
+ */
+export const getCommissionReport = async (params?: GetCommissionReportParams, options?: RequestInit): Promise<CommissionReport> => {
+
+  return customFetch<CommissionReport>(getGetCommissionReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommissionReportQueryKey = (params?: GetCommissionReportParams,) => {
+    return [
+    `/api/reports/commission`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCommissionReportQueryOptions = <TData = Awaited<ReturnType<typeof getCommissionReport>>, TError = ErrorType<unknown>>(params?: GetCommissionReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommissionReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommissionReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommissionReport>>> = ({ signal }) => getCommissionReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommissionReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommissionReportQueryResult = NonNullable<Awaited<ReturnType<typeof getCommissionReport>>>
+export type GetCommissionReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Salesman commission report (liters sold x per-liter commission)
+ */
+
+export function useGetCommissionReport<TData = Awaited<ReturnType<typeof getCommissionReport>>, TError = ErrorType<unknown>>(
+ params?: GetCommissionReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommissionReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommissionReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

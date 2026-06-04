@@ -22,6 +22,10 @@ export interface EntityInput {
   address?: string;
   city?: string;
   state?: string;
+  district?: string;
+  area?: string;
+  pinCode?: string;
+  gpsLocation?: string;
   pricingTier?: EntityInputPricingTier;
   creditLimit?: number;
 }

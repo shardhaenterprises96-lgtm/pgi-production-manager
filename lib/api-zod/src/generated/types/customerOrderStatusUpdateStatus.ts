@@ -12,6 +12,10 @@ export type CustomerOrderStatusUpdateStatus = typeof CustomerOrderStatusUpdateSt
 export const CustomerOrderStatusUpdateStatus = {
   pending: 'pending',
   processing: 'processing',
+  production: 'production',
+  ready_for_dispatch: 'ready_for_dispatch',
+  dispatched: 'dispatched',
+  delivered: 'delivered',
   done: 'done',
   cancelled: 'cancelled',
 } as const;

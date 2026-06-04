@@ -62,6 +62,8 @@ export default function Catalog() {
   const { data: brands } = useListBrands();
 
   const isB2B = user?.role === "customer";
+  const isManufacturing = user?.role === "manufacturing";
+  const showRetailOnly = isB2B || isManufacturing;
   const { toast } = useToast();
   const placeOrder = useCreateCustomerOrder();
 
@@ -94,11 +96,12 @@ export default function Catalog() {
   };
   const isStaff = hasRole(["admin", "salesman", "store", "manufacturing", "accountant"]);
 
+  const distinctItems = Object.keys(cart).length;
   const totalItems = Object.values(cart).reduce((a, b) => a + b.qty, 0);
   const totalAmount = Object.entries(cart).reduce((total, [id, { qty }]) => {
     const product = products?.find((p) => p.id === Number(id));
     if (!product) return total;
-    const price = isB2B ? product.retailPrice : product.wholesalePrice;
+    const price = showRetailOnly ? product.retailPrice : product.wholesalePrice;
     return total + qty * price;
   }, 0);
 
@@ -273,7 +276,7 @@ export default function Catalog() {
                   <CardContent className="flex-1 p-3 flex flex-col gap-2">
                     <div className="text-[10px] text-muted-foreground font-mono">{product.itemCode}</div>
                     <h3 className="font-semibold text-sm leading-tight line-clamp-2">{product.name}</h3>
-                    {isB2B ? (
+                    {showRetailOnly ? (
                       <div className="text-primary font-bold">₹{product.retailPrice}</div>
                     ) : (
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground whitespace-nowrap">
@@ -317,7 +320,7 @@ export default function Catalog() {
       <div className="w-72 bg-card border rounded-lg shadow-sm flex flex-col shrink-0 sticky top-6 self-start max-h-[calc(100vh-3rem)]">
         <div className="p-4 border-b bg-muted/30 font-semibold flex items-center justify-between">
           <span>Cart</span>
-          <Badge variant="secondary">{totalItems} items</Badge>
+          <Badge variant="secondary" data-testid="badge-cart-count">{distinctItems} {distinctItems === 1 ? "item" : "items"}</Badge>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {Object.keys(cart).length === 0 ? (
@@ -343,9 +346,19 @@ export default function Catalog() {
           )}
         </div>
         <div className="p-4 border-t space-y-3 bg-muted/10">
-          <div className="flex justify-between font-bold">
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Items</span>
+              <span className="font-medium text-foreground" data-testid="text-cart-distinct">{distinctItems}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Total Qty</span>
+              <span className="font-medium text-foreground" data-testid="text-cart-qty">{totalItems}</span>
+            </div>
+          </div>
+          <div className="flex justify-between font-bold pt-1 border-t">
             <span>Total</span>
-            <span className="text-primary">₹{totalAmount.toLocaleString()}</span>
+            <span className="text-primary" data-testid="text-cart-total">₹{totalAmount.toLocaleString()}</span>
           </div>
           {isStaff ? (
             <Button

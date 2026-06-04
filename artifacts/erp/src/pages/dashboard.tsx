@@ -1,11 +1,30 @@
 import React from "react";
 import { useAuth } from "@/contexts/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useGetDashboardSummary, useGetSalesTrend, useGetLowStockAlerts, useGetRecentInvoices, useGetCapitalSnapshot, getGetCapitalSnapshotQueryKey } from "@workspace/api-client-react";
-import { IndianRupee, FileText, AlertTriangle, CreditCard, PackageOpen, Users, TrendingUp, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import {
+  useGetDashboardSummary,
+  useGetLowStockAlerts,
+  useGetCapitalSnapshot,
+  getGetCapitalSnapshotQueryKey,
+  useListWorkloadCards,
+  useListCustomerOrders,
+} from "@workspace/api-client-react";
+import {
+  IndianRupee,
+  AlertTriangle,
+  CreditCard,
+  PackageOpen,
+  TrendingUp,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  Factory,
+  Clock,
+  Loader2,
+  Truck,
+  CheckCircle2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
 
 export default function Dashboard() {
   const { user, hasRole } = useAuth();
@@ -27,12 +46,25 @@ export default function Dashboard() {
   }
 
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary();
-  const { data: salesTrend } = useGetSalesTrend();
   const { data: lowStockAlerts } = useGetLowStockAlerts();
-  const { data: recentInvoices } = useGetRecentInvoices();
   const { data: capital, isLoading: isLoadingCapital } = useGetCapitalSnapshot({
     query: { queryKey: getGetCapitalSnapshotQueryKey(), enabled: isAdmin },
   });
+  const { data: workloadCards } = useListWorkloadCards();
+  const { data: readyOrders } = useListCustomerOrders({ status: "ready_for_dispatch" });
+
+  const cards = workloadCards ?? [];
+  const workloadPending = cards.filter((c: any) => c.status === "pending").length;
+  const workloadInProgress = cards.filter((c: any) => c.status === "processing").length;
+  const workloadCompleted = cards.filter((c: any) => c.status === "done").length;
+  const workloadReady = (readyOrders ?? []).length;
+
+  const workloadStats = [
+    { label: "Pending", value: workloadPending, icon: Clock, color: "text-amber-600" },
+    { label: "In Progress", value: workloadInProgress, icon: Loader2, color: "text-blue-600" },
+    { label: "Ready for Dispatch", value: workloadReady, icon: Truck, color: "text-purple-600" },
+    { label: "Completed", value: workloadCompleted, icon: CheckCircle2, color: "text-green-600" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -44,7 +76,7 @@ export default function Dashboard() {
       </div>
 
       {isAdmin && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-transparent">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Capital</CardTitle>
@@ -52,27 +84,18 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {isLoadingCapital || !capital ? (
-                <div className="h-8 w-32 bg-muted rounded animate-pulse" />
+                <div className="h-8 w-24 bg-muted rounded animate-pulse" />
               ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {capital.capitalK.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    <span className="text-base text-muted-foreground font-normal ml-1">(₹{capital.capital.toLocaleString(undefined, { maximumFractionDigits: 0 })} / 1000)</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Inventory ₹{capital.inventoryValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    {" + "}Receivable ₹{capital.receivable.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    {" + "}Cash ₹{capital.cashInAccounts.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    {" - "}Payable ₹{capital.payable.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    {" - "}Expenses ₹{capital.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </p>
-                </>
+                <div className="text-2xl font-bold" data-testid="text-capital-value">
+                  {capital.capitalK.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  <span className="text-xs text-muted-foreground font-normal ml-1">k</span>
+                </div>
               )}
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Growth (vs previous day)</CardTitle>
+              <CardTitle className="text-sm font-medium">Growth</CardTitle>
               {capital?.growthK == null ? (
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               ) : capital.growthK >= 0 ? (
@@ -83,24 +106,15 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {isLoadingCapital || !capital ? (
-                <div className="h-8 w-32 bg-muted rounded animate-pulse" />
+                <div className="h-8 w-24 bg-muted rounded animate-pulse" />
               ) : capital.growthK == null ? (
-                <>
-                  <div className="text-2xl font-bold text-muted-foreground">—</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    First-day snapshot saved. Growth will appear from tomorrow.
-                  </p>
-                </>
+                <div className="text-2xl font-bold text-muted-foreground">—</div>
               ) : (
-                <>
-                  <div className={`text-2xl font-bold ${capital.growthK >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {capital.growthK >= 0 ? "+" : ""}
-                    {capital.growthK.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Δ ₹{(capital.growth ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} since {capital.previousDate ?? "—"}
-                  </p>
-                </>
+                <div className={`text-2xl font-bold ${capital.growthK >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="text-growth-value">
+                  {capital.growthK >= 0 ? "+" : ""}
+                  {capital.growthK.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  <span className="text-xs text-muted-foreground font-normal ml-1">k</span>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -175,129 +189,65 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Sales Trend</CardTitle>
-            <CardDescription>Total sales per day for the last 10 days.</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            {salesTrend && salesTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesTrend}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(value) => {
-                      try { return format(new Date(value), "dd MMM"); } catch { return value; }
-                    }}
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `₹${value / 1000}k`}
-                  />
-                  <Tooltip
-                    cursor={{fill: 'hsl(var(--muted)/0.5)'}}
-                    contentStyle={{backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px'}}
-                    labelFormatter={(value) => {
-                      try { return format(new Date(value as string), "EEE, dd MMM yyyy"); } catch { return String(value); }
-                    }}
-                    formatter={(value: any, name) => [
-                      name === "totalSales" ? `₹${Number(value).toLocaleString()}` : value,
-                      name === "totalSales" ? "Sales" : name,
-                    ]}
-                  />
-                  <Bar dataKey="totalSales" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                No sales data available.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Low Stock Alerts</CardTitle>
-            <CardDescription>Products requiring immediate attention.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {lowStockAlerts && lowStockAlerts.length > 0 ? (
-              <div className="space-y-4">
-                {lowStockAlerts.slice(0, 5).map(alert => (
-                  <div key={alert.id} className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">{alert.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Min: {alert.minStockThreshold} {alert.unit}
-                      </p>
-                    </div>
-                    <Badge variant="destructive">
-                      {alert.currentStock} {alert.unit} left
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                <div className="flex flex-col items-center">
-                  <PackageOpen className="h-8 w-8 mb-2 opacity-20" />
-                  <p>Inventory levels are healthy.</p>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Factory className="h-5 w-5 text-primary" />
+            <CardTitle>Manufacturing Workload</CardTitle>
+          </div>
+          <CardDescription>Production pipeline status across all batches.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            {workloadStats.map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-lg border bg-card p-4 flex flex-col gap-2"
+                data-testid={`workload-stat-${stat.label.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
                 </div>
+                <div className="text-2xl font-bold">{stat.value}</div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Recent Invoices</CardTitle>
-            <CardDescription>Latest billing activity across the platform.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {recentInvoices && recentInvoices.length > 0 ? (
-              <div className="space-y-4">
-                {recentInvoices.slice(0, 5).map(invoice => (
-                  <div key={invoice.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">{invoice.invoiceNo}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {invoice.customerName || "Cash Sale"} • {format(new Date(invoice.invoiceDate), "MMM dd, yyyy")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="text-sm font-bold">₹{invoice.grandTotal.toLocaleString()}</div>
-                      <Badge variant={invoice.status === "saved" ? "default" : "secondary"} className="text-[10px] h-4">
-                        {invoice.status}
-                      </Badge>
-                    </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Low Stock Alerts</CardTitle>
+          <CardDescription>Products requiring immediate attention.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {lowStockAlerts && lowStockAlerts.length > 0 ? (
+            <div className="space-y-4">
+              {lowStockAlerts.slice(0, 8).map(alert => (
+                <div key={alert.id} className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium leading-none">{alert.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Min: {alert.minStockThreshold} {alert.unit}
+                    </p>
                   </div>
-                ))}
+                  <Badge variant="destructive">
+                    {alert.currentStock} {alert.unit} left
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+              <div className="flex flex-col items-center">
+                <PackageOpen className="h-8 w-8 mb-2 opacity-20" />
+                <p>Inventory levels are healthy.</p>
               </div>
-            ) : (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                No recent invoices.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

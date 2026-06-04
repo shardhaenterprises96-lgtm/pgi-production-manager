@@ -290,10 +290,15 @@ CREATE TABLE public.customer_orders (
     customer_name text NOT NULL,
     customer_mobile text,
     status text DEFAULT 'pending'::text NOT NULL,
+    is_draft boolean DEFAULT false NOT NULL,
     total_items integer DEFAULT 0 NOT NULL,
     total_amount numeric(14,2) DEFAULT '0'::numeric NOT NULL,
     notes text,
     admin_remarks text,
+    vehicle_number text,
+    driver_name text,
+    dispatch_date timestamp with time zone,
+    dispatch_status text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -332,6 +337,10 @@ CREATE TABLE public.entities (
     address text,
     city text,
     state text,
+    district text,
+    area text,
+    pin_code text,
+    gps_location text,
     pricing_tier text DEFAULT 'retail'::text,
     outstanding_balance numeric(12,2) DEFAULT '0'::numeric NOT NULL,
     credit_limit numeric(12,2),
@@ -677,6 +686,7 @@ CREATE TABLE public.products (
     retail_margin numeric(10,2),
     hsn_code text,
     tax_rate numeric(5,2) DEFAULT '18'::numeric,
+    commission_per_liter numeric(12,2) DEFAULT '0'::numeric NOT NULL,
     liters_per_box numeric(10,3),
     not_for_sale boolean DEFAULT false NOT NULL,
     add_for_manufacturing boolean DEFAULT false NOT NULL,
@@ -879,6 +889,7 @@ ALTER SEQUENCE public.reward_progress_id_seq OWNED BY public.reward_progress.id;
 
 CREATE TABLE public.reward_schemes (
     id integer NOT NULL,
+    scheme_name text DEFAULT ''::text NOT NULL,
     product_id integer NOT NULL,
     target_liters numeric(12,3) NOT NULL,
     reward_type text NOT NULL,

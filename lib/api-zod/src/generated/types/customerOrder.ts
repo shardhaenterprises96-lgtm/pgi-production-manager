@@ -19,12 +19,21 @@ export interface CustomerOrder {
   /** @nullable */
   customerMobile?: string | null;
   status: CustomerOrderStatus;
+  isDraft?: boolean;
   totalItems: number;
   totalAmount: number;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
   adminRemarks?: string | null;
+  /** @nullable */
+  vehicleNumber?: string | null;
+  /** @nullable */
+  driverName?: string | null;
+  /** @nullable */
+  dispatchDate?: string | null;
+  /** @nullable */
+  dispatchStatus?: string | null;
   createdAt: string;
   /** @nullable */
   updatedAt?: string | null;

@@ -7,6 +7,7 @@
  */
 
 export interface RewardSchemeUpdate {
+  schemeName?: string;
   targetLiters?: number;
   rewardType?: string;
   rewardValue?: string;

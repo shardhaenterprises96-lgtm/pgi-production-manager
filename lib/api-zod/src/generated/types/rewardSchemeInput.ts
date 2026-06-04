@@ -8,6 +8,7 @@
 import type { RewardSchemeInputRewardType } from './rewardSchemeInputRewardType';
 
 export interface RewardSchemeInput {
+  schemeName?: string;
   productId: number;
   targetLiters: number;
   rewardType: RewardSchemeInputRewardType;

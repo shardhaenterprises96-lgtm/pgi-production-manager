@@ -29,4 +29,5 @@ export interface ProductUpdate {
   addForManufacturing?: boolean;
   minStockThreshold?: number;
   imageUrl?: string;
+  commissionPerLiter?: number;
 }

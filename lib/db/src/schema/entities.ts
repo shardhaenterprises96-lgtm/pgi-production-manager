@@ -11,6 +11,10 @@ export const entitiesTable = pgTable("entities", {
   address: text("address"),
   city: text("city"),
   state: text("state"),
+  district: text("district"),
+  area: text("area"),
+  pinCode: text("pin_code"),
+  gpsLocation: text("gps_location"), // optional "lat,lng" or map URL
   pricingTier: text("pricing_tier").default("retail"), // retail, wholesale
   outstandingBalance: numeric("outstanding_balance", { precision: 12, scale: 2 }).notNull().default("0"),
   creditLimit: numeric("credit_limit", { precision: 12, scale: 2 }),

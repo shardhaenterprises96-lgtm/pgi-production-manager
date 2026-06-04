@@ -5,8 +5,20 @@ import { eq, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-const ORDER_STATUSES = ["pending", "processing", "done", "cancelled"] as const;
+const ORDER_STATUSES = [
+  "pending",
+  "processing",
+  "production",
+  "ready_for_dispatch",
+  "dispatched",
+  "delivered",
+  "done",
+  "cancelled",
+] as const;
 type OrderStatus = typeof ORDER_STATUSES[number];
+
+// Statuses that should trigger workload-card creation (manufacturing demand).
+const PRODUCTION_STATUSES = new Set(["processing", "production"]);
 
 function formatOrder(row: any) {
   return {
@@ -17,10 +29,15 @@ function formatOrder(row: any) {
     customerName: row.customer_name,
     customerMobile: row.customer_mobile ?? null,
     status: row.status as OrderStatus,
+    isDraft: row.is_draft ?? false,
     totalItems: Number(row.total_items ?? 0),
     totalAmount: Number(row.total_amount ?? 0),
     notes: row.notes ?? null,
     adminRemarks: row.admin_remarks ?? null,
+    vehicleNumber: row.vehicle_number ?? null,
+    driverName: row.driver_name ?? null,
+    dispatchDate: row.dispatch_date?.toISOString ? row.dispatch_date.toISOString() : (row.dispatch_date ?? null),
+    dispatchStatus: row.dispatch_status ?? null,
     createdAt: row.created_at?.toISOString ? row.created_at.toISOString() : row.created_at,
     updatedAt: row.updated_at?.toISOString ? row.updated_at.toISOString() : row.updated_at,
   };
@@ -47,12 +64,17 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  if (session.role !== "customer" && session.role !== "admin") {
-    res.status(403).json({ error: "Only customers can place orders" });
+  if (
+    session.role !== "customer" &&
+    session.role !== "admin" &&
+    session.role !== "salesman"
+  ) {
+    res.status(403).json({ error: "Not allowed to place orders" });
     return;
   }
 
   const body = req.body ?? {};
+  const isDraft = body.isDraft === true;
   const items: Array<{ productId: number; qty: number }> = Array.isArray(body.items) ? body.items : [];
   if (items.length === 0) {
     res.status(400).json({ error: "Order must have at least one item" });
@@ -96,7 +118,12 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     if (!Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
     const p = byId.get(pid);
     if (!p) continue;
-    const price = Number(p.retailPrice ?? 0);
+    // Salesman-created orders are quoted at the wholesale (B2B) tier, matching
+    // the salesman order-entry UI; customers are billed at retail.
+    const price =
+      session.role === "salesman"
+        ? Number(p.wholesalePrice ?? p.retailPrice ?? 0)
+        : Number(p.retailPrice ?? 0);
     const lineTotal = qty * price;
     resolvedItems.push({
       productId: pid,
@@ -119,13 +146,18 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     await client.query("BEGIN");
     // Customer-placed orders go directly to "processing" so the manufacturing
     // team sees them on the workload board immediately.
-    const initialStatus = session.role === "customer" ? "processing" : "pending";
+    // Drafts (salesman work-in-progress) stay pending with no manufacturing demand.
+    const initialStatus = isDraft
+      ? "pending"
+      : session.role === "customer"
+        ? "processing"
+        : "pending";
     const ins = await client.query(
       `INSERT INTO customer_orders
-         (user_id, entity_id, customer_name, customer_mobile, status, total_items, total_amount, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         (user_id, entity_id, customer_name, customer_mobile, status, is_draft, total_items, total_amount, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
-      [session.userId, entityId, customerName, customerMobile, initialStatus, totalItems, totalAmount, body.notes ?? null]
+      [session.userId, entityId, customerName, customerMobile, initialStatus, isDraft, totalItems, totalAmount, body.notes ?? null]
     );
     const order = ins.rows[0];
 
@@ -144,8 +176,8 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
         [order.id, it.productId, it.productName, it.unit, it.qty, it.unitPrice, it.lineTotal]
       );
       // Auto-create workload card for customer orders so manufacturing
-      // sees the demand right away.
-      if (initialStatus === "processing") {
+      // sees the demand right away. Drafts never generate demand.
+      if (!isDraft && PRODUCTION_STATUSES.has(initialStatus)) {
         const wlIns = await client.query(
           `INSERT INTO workload_cards (product_id, target_qty, status, order_type, reference_order_id)
            VALUES ($1, $2, 'pending', 'customer_backorder', $3)
@@ -181,10 +213,11 @@ router.get("/customer-orders", async (req, res): Promise<void> => {
   const params: any[] = [];
   const where: string[] = [];
 
-  if (session.role === "customer") {
+  if (session.role === "customer" || session.role === "salesman") {
     params.push(session.userId);
     where.push(`user_id = $${params.length}`);
-  } else if (session.role !== "admin") {
+  } else if (session.role !== "admin" && session.role !== "manufacturing") {
+    // Manufacturing needs to see all orders (e.g. the ready-for-dispatch queue).
     res.status(403).json({ error: "Forbidden" });
     return;
   }
@@ -217,7 +250,7 @@ router.get("/customer-orders/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  if (session.role === "customer") {
+  if (session.role === "customer" || session.role === "salesman") {
     if (order.user_id !== session.userId) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -233,11 +266,26 @@ router.get("/customer-orders/:id", async (req, res): Promise<void> => {
   });
 });
 
-// PATCH /customer-orders/:id/status — admin only
+// Status transitions each non-admin role is allowed to perform.
+const SALESMAN_STATUSES = new Set(["processing", "production", "cancelled"]);
+const MANUFACTURING_STATUSES = new Set([
+  "production",
+  "ready_for_dispatch",
+  "dispatched",
+  "delivered",
+]);
+
+// PATCH /customer-orders/:id/status — admin (any), salesman (own draft submit),
+// manufacturing (production/dispatch lifecycle).
 router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
   const session = (req as any).session;
-  if (session?.role !== "admin") {
-    res.status(403).json({ error: "Admin only" });
+  const role = session?.role;
+  if (!session?.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  if (role !== "admin" && role !== "salesman" && role !== "manufacturing") {
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
   const id = parseInt(String(req.params.id), 10);
@@ -251,6 +299,20 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
     return;
   }
   const adminRemarks: string | null = req.body?.adminRemarks ?? null;
+  const vehicleNumber: string | null = req.body?.vehicleNumber ?? null;
+  const driverName: string | null = req.body?.driverName ?? null;
+  const dispatchDate: string | null = req.body?.dispatchDate ?? null;
+  // Submitting a draft clears the draft flag; otherwise leave it untouched.
+  const isDraft: boolean | null = typeof req.body?.isDraft === "boolean" ? req.body.isDraft : null;
+  // Keep a lightweight dispatch_status mirror in sync with key lifecycle states.
+  const dispatchStatus =
+    newStatus === "ready_for_dispatch"
+      ? "ready"
+      : newStatus === "dispatched"
+        ? "dispatched"
+        : newStatus === "delivered"
+          ? "delivered"
+          : null;
 
   const client = await pool.connect();
   try {
@@ -266,9 +328,41 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
       return;
     }
 
-    // On transition to processing, create workload cards for each item that
-    // doesn't already have one.
-    if (newStatus === "processing" && existing.status !== "processing" && existing.status !== "done") {
+    // Per-role transition rules (admin is unrestricted). These validate the
+    // actual from->to transition, not just the target status, so non-admin
+    // roles cannot force illogical lifecycle jumps (e.g. cancelled->production).
+    const fromStatus = String(existing.status);
+    if (role === "salesman") {
+      // Salesmen may only act on their OWN order, and only to submit a still-
+      // draft/pending order into the live pipeline or to cancel it.
+      const isOwn = existing.user_id === session.userId;
+      const submittable = existing.is_draft === true || fromStatus === "pending";
+      if (!isOwn || !submittable || !SALESMAN_STATUSES.has(newStatus)) {
+        await client.query("ROLLBACK");
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    } else if (role === "manufacturing") {
+      // Manufacturing drives forward production/dispatch transitions only.
+      const allowedFrom: Record<string, string[]> = {
+        production: ["processing", "production"],
+        ready_for_dispatch: ["processing", "production", "ready_for_dispatch"],
+        dispatched: ["ready_for_dispatch", "dispatched"],
+        delivered: ["dispatched", "delivered"],
+      };
+      const validFrom = allowedFrom[newStatus];
+      if (!MANUFACTURING_STATUSES.has(newStatus) || !validFrom || !validFrom.includes(fromStatus)) {
+        await client.query("ROLLBACK");
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
+
+    // On transition into production, create workload cards for each item that
+    // doesn't already have one. Never resurrect demand for terminal/post-
+    // production states (cancelled/dispatched/delivered/done).
+    const NON_PRODUCIBLE = new Set(["cancelled", "dispatched", "delivered", "done"]);
+    if (PRODUCTION_STATUSES.has(newStatus) && !PRODUCTION_STATUSES.has(existing.status) && !NON_PRODUCIBLE.has(fromStatus)) {
       const itemsRes = await client.query(
         `SELECT * FROM customer_order_items WHERE order_id = $1`,
         [id]
@@ -292,10 +386,24 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
       `UPDATE customer_orders
          SET status = $1,
              admin_remarks = COALESCE($2, admin_remarks),
+             vehicle_number = COALESCE($3, vehicle_number),
+             driver_name = COALESCE($4, driver_name),
+             dispatch_date = COALESCE($5, dispatch_date),
+             dispatch_status = COALESCE($6, dispatch_status),
+             is_draft = COALESCE($7, is_draft),
              updated_at = NOW()
-       WHERE id = $3
+       WHERE id = $8
        RETURNING *`,
-      [newStatus, adminRemarks, id]
+      [
+        newStatus,
+        adminRemarks,
+        vehicleNumber,
+        driverName,
+        dispatchDate ? new Date(dispatchDate) : null,
+        dispatchStatus,
+        isDraft,
+        id,
+      ]
     );
     await client.query("COMMIT");
     res.json(formatOrder(upd.rows[0]));

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
 export const customerOrdersTable = pgTable("customer_orders", {
   id: serial("id").primaryKey(),
@@ -7,11 +7,16 @@ export const customerOrdersTable = pgTable("customer_orders", {
   entityId: integer("entity_id"),
   customerName: text("customer_name").notNull(),
   customerMobile: text("customer_mobile"),
-  status: text("status").notNull().default("pending"), // pending, processing, done, cancelled
+  status: text("status").notNull().default("pending"), // pending, production, ready_for_dispatch, dispatched, delivered, cancelled (legacy: processing, done)
+  isDraft: boolean("is_draft").notNull().default(false), // salesman draft not yet submitted to admin
   totalItems: integer("total_items").notNull().default(0),
   totalAmount: numeric("total_amount", { precision: 14, scale: 2 }).notNull().default("0"),
   notes: text("notes"),
   adminRemarks: text("admin_remarks"),
+  vehicleNumber: text("vehicle_number"),
+  driverName: text("driver_name"),
+  dispatchDate: timestamp("dispatch_date", { withTimezone: true }),
+  dispatchStatus: text("dispatch_status"), // not_dispatched, dispatched, delivered
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

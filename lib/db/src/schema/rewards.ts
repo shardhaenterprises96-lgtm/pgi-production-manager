@@ -6,6 +6,7 @@ import { entitiesTable } from "./entities";
 
 export const rewardSchemesTable = pgTable("reward_schemes", {
   id: serial("id").primaryKey(),
+  schemeName: text("scheme_name").notNull().default(""),
   productId: integer("product_id").notNull().references(() => productsTable.id),
   targetLiters: numeric("target_liters", { precision: 12, scale: 3 }).notNull(),
   rewardType: text("reward_type").notNull(), // free_gift, cash_discount, percentage_cashback

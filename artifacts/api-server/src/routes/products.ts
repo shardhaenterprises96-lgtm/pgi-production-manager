@@ -289,6 +289,7 @@ function formatProduct(p: any) {
     retailMargin: p.retailMargin != null ? Number(p.retailMargin) : null,
     hsnCode: p.hsnCode ?? null,
     taxRate: p.taxRate != null ? Number(p.taxRate) : null,
+    commissionPerLiter: p.commissionPerLiter != null ? Number(p.commissionPerLiter) : null,
     litersPerBox: p.litersPerBox != null ? Number(p.litersPerBox) : null,
     unitsPerBox: p.unitsPerBox != null ? Number(p.unitsPerBox) : null,
     notForSale: p.notForSale,

@@ -1,0 +1,262 @@
+PROJECT: VIPRO ERP (Manufacturing + Distribution ERP)
+
+IMPORTANT:
+Only modify the existing codebase. Do NOT redesign the whole application. Reuse existing components, APIs, database tables, and UI wherever possible to minimize AI credits and development cost.
+
+DASHBOARD CHANGES
+
+1. Capital and Growth cards:
+
+* Show only value in small square cards.
+* Remove all detailed descriptions and extra text.
+
+2. Remove Sales Trend chart completely.
+
+3. Remove Recent Invoices section completely.
+
+4. Add Manufacturing Workload section on Dashboard:
+
+* Pending Production Orders
+* In Progress Orders
+* Ready for Dispatch Orders
+* Completed Orders
+
+SIDEBAR RESTRUCTURE
+
+Keep only 3 main sidebar menus:
+
+1. Dashboard
+2. Menu
+3. Catalog
+
+Inside "Menu":
+
+* Show all ERP modules in grid boxes/cards.
+* Add global search bar on top.
+* User can search any module instantly.
+* Example modules:
+  Billing
+  Customers
+  Inventory
+  Manufacturing
+  Purchases
+  Accounts
+  Payments
+  Rewards
+  Workers
+  Reports
+  Settings
+  User Management
+
+PRODUCT CATALOG
+
+1. After selecting products:
+
+* Cart should always remain visible.
+* Cart can be fixed on right side.
+* Clicking Proceed should directly create Sales Order/Bill.
+
+2. Cart should show:
+
+* Product count
+* Total quantity
+* Total amount
+* Proceed to Billing button
+
+GST IMPROVEMENTS
+
+1. Product GST dropdown should support:
+
+* 0%
+* 5%
+* 12%
+* 18%
+* 28%
+
+2. Billing screen:
+
+* GST should be optional.
+* User can create:
+  a. GST Bill
+  b. Non-GST Bill
+
+3. If GST Bill selected:
+
+* Apply selected GST rate automatically.
+
+REWARD SCHEME MODULE
+
+Create Volume Reward Scheme:
+
+Fields:
+
+* Scheme Name
+* Product
+* Minimum Liters
+* Reward Description
+* Start Date
+* End Date
+
+Example:
+Purchase 100 Liters
+Reward = 1 Free Bucket
+
+Track:
+
+* Customer Progress
+* Achieved Quantity
+* Remaining Quantity
+* Reward Status
+
+MANUFACTURING MODULE
+
+1. Product Selection:
+
+* When user selects a product,
+  open only that product's manufacturing popup.
+
+Popup fields:
+
+* Product Name
+* Batch Qty
+* Production Qty
+* Raw Material Consumption
+* Save Production
+
+2. Manufacturing Dashboard tabs:
+
+* Workload
+* Assemble Items
+* Ready For Dispatch
+
+3. Workload tab:
+   Show:
+
+* Product
+* Required Qty
+* Available Stock
+* Shortage
+* Status
+
+4. Ready For Dispatch tab:
+   Show:
+
+* Party Name
+* Order Number
+* Product
+* Quantity
+* Vehicle Number
+* Driver Name
+* Dispatch Date
+* Dispatch Status
+
+ORDER FLOW
+
+Salesman/Admin/Customer Order
+→ Pending
+→ Production
+→ Ready For Dispatch
+→ Dispatched
+→ Delivered
+
+WORKERS MODULE
+
+Add separate tab:
+
+* Mark Attendance
+
+Attendance fields:
+
+* Worker
+* Date
+* Present/Absent
+* In Time
+* Out Time
+
+CATALOG CHANGES
+
+In Manufacturing Catalog:
+
+* Show only Retail Price.
+* Hide Purchase Price.
+* Hide Wholesale Price.
+
+PRODUCT CREATION
+
+If Product Type = Manufactured Product:
+
+* Purchase Price should NOT be mandatory.
+
+If Product Type = Purchased Product:
+
+* Purchase Price should be mandatory.
+
+SALESMAN FEATURES
+
+1. Add Commission Per Liter.
+
+Fields:
+
+* Product
+* Commission Per Liter
+
+System auto calculates:
+Commission = Sold Liters × Commission Rate
+
+2. Salesman permissions:
+   Can view only:
+
+* Own Sales Orders
+* Own Payments
+* Own Customers
+* Own Collection Entries
+
+Cannot view:
+
+* Other Salesman data
+* Company Accounts
+* Settings
+
+CUSTOMER MODULE
+
+Add Location Fields:
+
+* State
+* District
+* City
+* Area
+* Pin Code
+* GPS Location (optional)
+
+SALESMAN ORDER ENTRY
+
+Salesman should be able to:
+
+* Create customer
+* Create sales order
+* Save draft order
+* Submit order to admin
+
+PERFORMANCE RULES
+
+* Reuse existing database tables wherever possible.
+* Avoid creating duplicate APIs.
+* Avoid unnecessary packages.
+* Avoid UI redesign.
+* Maintain current color theme.
+* Keep mobile responsive.
+* Optimize for low server load.
+* Implement changes module by module.
+* Do not break existing functionality.
+
+DELIVERABLE
+
+Implement all changes incrementally and provide:
+
+1. Database changes
+2. Backend changes
+3. Frontend changes
+4. Migration scripts
+5. Testing checklist
+
+Do not rewrite the entire ERP. Only update existing modules efficiently.

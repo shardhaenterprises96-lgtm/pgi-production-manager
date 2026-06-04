@@ -3,29 +3,9 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/use-auth";
 import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { 
-  LayoutDashboard, 
-  ShoppingCart, 
-  FileText, 
-  Package, 
-  Users, 
-  CreditCard, 
-  Award, 
-  Factory, 
-  BarChart3, 
-  Settings,
-  LogOut,
-  Wallet,
-  HandCoins,
-  KeyRound,
-  Truck,
-  HardHat,
-  Receipt,
-  ClipboardList,
-  Inbox,
-  BadgeIndianRupee,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { topNavItems } from "@/lib/nav-items";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -49,31 +29,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps = {}) {
     });
   };
 
-  const navItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "accountant"] },
-    { name: "Catalog", href: "/catalog", icon: ShoppingCart, roles: ["admin", "salesman", "store", "manufacturing", "customer"] },
-    { name: "My Orders", href: "/my-orders", icon: ClipboardList, roles: ["customer"] },
-    { name: "Customer Orders", href: "/customer-orders", icon: Inbox, roles: ["admin"] },
-    { name: "Billing", href: "/billing", icon: FileText, roles: ["admin", "salesman"] },
-    { name: "Invoices", href: "/invoices", icon: FileText, roles: ["admin", "salesman", "accountant"] },
-    { name: "Inventory", href: "/inventory", icon: Package, roles: ["admin", "store"] },
-    { name: "Customers", href: "/customers", icon: Users, roles: ["admin", "salesman", "accountant"] },
-    { name: "Payments", href: "/payments", icon: CreditCard, roles: ["admin", "salesman", "accountant"] },
-    { name: "Cash Book", href: "/cashbook", icon: HandCoins, roles: ["admin", "accountant"] },
-    { name: "Accounts", href: "/accounts", icon: Wallet, roles: ["admin", "accountant"] },
-    { name: "Rewards", href: "/rewards", icon: Award, roles: ["admin", "customer"] },
-    { name: "Manufacturing", href: "/manufacturing", icon: Factory, roles: ["admin", "manufacturing"] },
-    { name: "Bill of Materials", href: "/bom", icon: FileText, roles: ["admin"] },
-    { name: "Purchases", href: "/purchases", icon: Truck, roles: ["admin", "accountant", "store"] },
-    { name: "Workers", href: "/workers", icon: HardHat, roles: ["admin", "accountant"] },
-    { name: "Expenses", href: "/expenses", icon: Receipt, roles: ["admin", "accountant"] },
-    { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
-    { name: "Subscriptions", href: "/subscriptions", icon: BadgeIndianRupee, roles: ["admin"] },
-    { name: "User Accounts", href: "/users", icon: KeyRound, roles: ["admin"] },
-    { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
-  ];
-
-  const visibleItems = navItems.filter(item => hasRole(item.roles as any));
+  const visibleItems = topNavItems.filter(item => hasRole(item.roles as any));
 
   return (
     <div

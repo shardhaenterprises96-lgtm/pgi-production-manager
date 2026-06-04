@@ -22,6 +22,14 @@ export interface Entity {
   /** @nullable */
   state?: string | null;
   /** @nullable */
+  district?: string | null;
+  /** @nullable */
+  area?: string | null;
+  /** @nullable */
+  pinCode?: string | null;
+  /** @nullable */
+  gpsLocation?: string | null;
+  /** @nullable */
   pricingTier?: EntityPricingTier;
   outstandingBalance?: number;
   /** @nullable */

@@ -37,6 +37,8 @@ export interface Product {
   /** @nullable */
   taxRate?: number | null;
   /** @nullable */
+  commissionPerLiter?: number | null;
+  /** @nullable */
   litersPerBox?: number | null;
   /** @nullable */
   unitsPerBox?: number | null;

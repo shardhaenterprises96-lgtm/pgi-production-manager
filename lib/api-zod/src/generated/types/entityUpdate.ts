@@ -14,6 +14,10 @@ export interface EntityUpdate {
   address?: string;
   city?: string;
   state?: string;
+  district?: string;
+  area?: string;
+  pinCode?: string;
+  gpsLocation?: string;
   pricingTier?: string;
   creditLimit?: number;
 }

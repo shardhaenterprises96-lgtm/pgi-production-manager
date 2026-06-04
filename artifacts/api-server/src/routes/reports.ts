@@ -385,4 +385,81 @@ router.get("/reports/profit-loss", async (req, res): Promise<void> => {
   });
 });
 
+// ── GET /reports/commission ─────────────────────────────────────────
+// Salesman commission = sum of (liters sold x product commission-per-liter)
+// across that salesman's saved invoices. Admin/accountant see every salesman;
+// a salesman sees only their own attributed sales.
+router.get("/reports/commission", async (req, res): Promise<void> => {
+  const role = (req as any).session?.role;
+  const sessionEntityId = (req as any).session?.entityId ?? null;
+  const isPrivileged = role === "admin" || role === "accountant";
+  if (!isPrivileged && role !== "salesman") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  const { from, to } = req.query as any;
+  const params: any[] = [];
+  const where: string[] = [`i.status = 'saved'`, `i.salesman_id IS NOT NULL`];
+  if (from) { params.push(new Date(from)); where.push(`i.invoice_date >= $${params.length}`); }
+  if (to) { const d = new Date(to); d.setHours(23, 59, 59, 999); params.push(d); where.push(`i.invoice_date <= $${params.length}`); }
+
+  // A salesman is hard-scoped to their own entity id; privileged roles may
+  // optionally filter by a specific salesmanId.
+  if (!isPrivileged) {
+    if (!sessionEntityId) {
+      res.json({ totalCommission: 0, totalLiters: 0, rows: [] });
+      return;
+    }
+    params.push(sessionEntityId);
+    where.push(`i.salesman_id = $${params.length}`);
+  } else if ((req.query as any).salesmanId) {
+    params.push(Number((req.query as any).salesmanId));
+    where.push(`i.salesman_id = $${params.length}`);
+  }
+
+  const rows = await queryMany(
+    `SELECT i.salesman_id,
+            COALESCE(i.salesman_name, '—') AS salesman_name,
+            ii.product_id,
+            MAX(ii.product_name) AS product_name,
+            COALESCE(p.commission_per_liter, 0) AS commission_per_liter,
+            SUM(COALESCE(ii.total_liters, ii.qty, 0)) AS liters
+     FROM invoice_items ii
+     JOIN invoices i ON i.id = ii.invoice_id
+     JOIN products p ON p.id = ii.product_id
+     WHERE ${where.join(" AND ")}
+     GROUP BY i.salesman_id, i.salesman_name, ii.product_id, p.commission_per_liter
+     ORDER BY i.salesman_id`, params
+  );
+
+  const bySalesman = new Map<number, any>();
+  for (const r of rows) {
+    const sid = Number(r.salesman_id);
+    const liters = Number(r.liters ?? 0);
+    const cpl = Number(r.commission_per_liter ?? 0);
+    const commission = liters * cpl;
+    let s = bySalesman.get(sid);
+    if (!s) {
+      s = { salesmanId: sid, salesmanName: r.salesman_name, liters: 0, commission: 0, productBreakdown: [] };
+      bySalesman.set(sid, s);
+    }
+    s.liters += liters;
+    s.commission += commission;
+    s.productBreakdown.push({
+      productId: Number(r.product_id),
+      productName: r.product_name,
+      liters,
+      commissionPerLiter: cpl,
+      commission,
+    });
+  }
+
+  const resultRows = Array.from(bySalesman.values()).sort((a, b) => b.commission - a.commission);
+  const totalCommission = resultRows.reduce((acc, s) => acc + s.commission, 0);
+  const totalLiters = resultRows.reduce((acc, s) => acc + s.liters, 0);
+
+  res.json({ totalCommission, totalLiters, rows: resultRows });
+});
+
 export default router;

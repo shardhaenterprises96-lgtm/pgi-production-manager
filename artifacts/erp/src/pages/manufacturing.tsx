@@ -9,10 +9,13 @@ import {
   useUpdateWorkloadCard,
   useCreateBom,
   useUpdateBom,
+  useListCustomerOrders,
+  useUpdateCustomerOrderStatus,
   getListWorkloadCardsQueryKey,
   getListProductsQueryKey,
   getGetLowStockAlertsQueryKey,
   getListBomsQueryKey,
+  getListCustomerOrdersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import {
   Factory, Loader2, PackageCheck, AlertCircle, CheckCircle2, Package, Search, X,
-  ListChecks, AlertTriangle, Plus, Trash2, Pencil,
+  ListChecks, AlertTriangle, Plus, Trash2, Pencil, Truck, Inbox,
 } from "lucide-react";
 import { BomDialog } from "@/components/bom-dialog";
 
@@ -56,9 +59,10 @@ export default function Manufacturing() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="workload" data-testid="tab-workload">Workload</TabsTrigger>
           <TabsTrigger value="assemble" data-testid="tab-assemble">Assemble Item</TabsTrigger>
+          <TabsTrigger value="dispatch" data-testid="tab-dispatch">Ready For Dispatch</TabsTrigger>
         </TabsList>
 
         <TabsContent value="workload" className="mt-6">
@@ -70,6 +74,10 @@ export default function Manufacturing() {
             initialBomId={pendingAssembleBomId}
             onConsumeInitialBomId={() => setPendingAssembleBomId("")}
           />
+        </TabsContent>
+
+        <TabsContent value="dispatch" className="mt-6">
+          <DispatchTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -110,6 +118,15 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
     unit: string;
     suggestedQty: number;
     cardId: number | null; // null means we need to create the card first
+  } | null>(null);
+  // Per-product production popup (enter qty, then start or complete)
+  const [produceDialog, setProduceDialog] = useState<{
+    productId: number;
+    productName: string;
+    unit: string;
+    suggestedQty: number;
+    cardId: number | null;
+    status: "pending" | "processing";
   } | null>(null);
   const [busyProductId, setBusyProductId] = useState<number | null>(null);
 
@@ -224,6 +241,58 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
     }
   };
 
+  const handleOpenProduce = (productId: number, productName: string, unit: string, suggestedQty: number) => {
+    const card = activeCardByProduct.get(productId);
+    setProduceDialog({
+      productId,
+      productName,
+      unit,
+      suggestedQty: card ? Number(card.targetQty) : suggestedQty,
+      cardId: card?.id ?? null,
+      status: card?.status === "processing" ? "processing" : "pending",
+    });
+  };
+
+  const handleProduceStart = async (qty: number) => {
+    if (!produceDialog) return;
+    setBusyProductId(produceDialog.productId);
+    try {
+      const cardId = produceDialog.cardId ?? await ensureCard(produceDialog.productId, qty);
+      await updateCard.mutateAsync({ id: cardId, data: { status: "processing", targetQty: qty } });
+      await refreshLists();
+      toast({ title: "Production started", description: `${produceDialog.productName} moved to processing.` });
+      setProduceDialog(null);
+    } catch (err: any) {
+      toast({ title: "Failed to start", description: err?.message ?? "Server error", variant: "destructive" });
+    } finally {
+      setBusyProductId(null);
+    }
+  };
+
+  const handleProduceComplete = async (finalQty: number) => {
+    if (!produceDialog) return;
+    setBusyProductId(produceDialog.productId);
+    try {
+      const cardId = produceDialog.cardId ?? await ensureCard(produceDialog.productId, finalQty);
+      await updateCard.mutateAsync({ id: cardId, data: { status: "done", targetQty: finalQty } });
+      await refreshLists();
+      toast({
+        title: "Production complete",
+        description: `Added ${finalQty} ${produceDialog.unit} of ${produceDialog.productName}. Raw materials debited.`,
+      });
+      setProduceDialog(null);
+    } catch (err: any) {
+      let desc = err?.message ?? "Server error";
+      try {
+        const body = err?.response ? await err.response.json() : null;
+        if (body?.error) desc = String(body.error).slice(0, 300);
+      } catch {}
+      toast({ title: "Failed to complete", description: desc, variant: "destructive" });
+    } finally {
+      setBusyProductId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -264,11 +333,11 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
 
       <div className="rounded-lg border overflow-hidden">
         <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs uppercase text-muted-foreground font-medium bg-muted/50">
-          <div className="col-span-5">Product</div>
-          <div className="col-span-1 text-right">Stock</div>
-          <div className="col-span-1 text-right">Min</div>
+          <div className="col-span-4">Product</div>
+          <div className="col-span-1 text-right">Required</div>
+          <div className="col-span-1 text-right">Available</div>
           <div className="col-span-2 text-right">Shortage</div>
-          <div className="col-span-3 text-center">Change Status</div>
+          <div className="col-span-4 text-center">Status</div>
         </div>
         <div className="divide-y">
           {alerts.map((a: any) => {
@@ -277,9 +346,15 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
             const imageUrl = product?.imageUrl;
             const itemCode = product?.itemCode;
             const unit = a.unit ?? "";
-            const shortage = Math.max(0, Number(a.minStockThreshold) - Number(a.currentStock));
-            const critical = Number(a.currentStock) <= 0;
+            const available = Number(a.currentStock);
             const card = activeCardByProduct.get(a.id);
+            // Required = the active card's target qty if a worker has set one,
+            // otherwise the qty needed to climb back above the min threshold.
+            const required = card
+              ? Number(card.targetQty)
+              : Math.max(0, Number(a.minStockThreshold) - available);
+            const shortage = Math.max(0, required - available);
+            const critical = available <= 0;
             const status: "pending" | "processing" = card?.status === "processing" ? "processing" : "pending";
             const isBusy = busyProductId === a.id;
             const hasBom = !!bom;
@@ -290,7 +365,7 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                 className="grid grid-cols-12 gap-3 px-4 py-3 items-center"
                 data-testid={`workload-row-${a.id}`}
               >
-                <div className="col-span-5 min-w-0 flex items-center gap-3">
+                <div className="col-span-4 min-w-0 flex items-center gap-3">
                   <div className="w-12 h-12 rounded-md border bg-muted/30 shrink-0 overflow-hidden flex items-center justify-center">
                     {imageUrl ? (
                       <img
@@ -324,18 +399,35 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                     )}
                   </div>
                 </div>
-                <div className={`col-span-1 text-right tabular-nums font-medium ${critical ? "text-destructive" : ""}`}>
-                  {Number(a.currentStock).toLocaleString()} {unit}
+                <div className="col-span-1 text-right tabular-nums font-medium">
+                  {required.toLocaleString()} {unit}
                 </div>
-                <div className="col-span-1 text-right tabular-nums text-muted-foreground">
-                  {Number(a.minStockThreshold).toLocaleString()} {unit}
+                <div className={`col-span-1 text-right tabular-nums ${critical ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                  {available.toLocaleString()} {unit}
                 </div>
                 <div className="col-span-2 text-right tabular-nums">
-                  <Badge variant={critical ? "destructive" : "secondary"}>
+                  <Badge
+                    variant={shortage > 0 ? "destructive" : "secondary"}
+                    className={shortage > 0 ? "text-white" : ""}
+                    data-testid={`shortage-${a.id}`}
+                  >
                     {shortage.toLocaleString()} {unit}
                   </Badge>
                 </div>
-                <div className="col-span-3 flex justify-center items-center gap-2" data-testid={`status-${a.id}`}>
+                <div className="col-span-4 flex justify-center items-center gap-2" data-testid={`status-${a.id}`}>
+                  {hasBom && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      disabled={isBusy}
+                      onClick={() => handleOpenProduce(a.id, a.name, unit, shortage || required || 1)}
+                      data-testid={`button-produce-${a.id}`}
+                    >
+                      <Factory className="h-4 w-4 mr-1.5" />
+                      Produce
+                    </Button>
+                  )}
                   {hasBom ? (
                     <Select
                       value={status}
@@ -419,6 +511,14 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
         submitting={busyProductId != null && doneDialog != null}
         onCancel={() => setDoneDialog(null)}
         onConfirm={handleConfirmDone}
+      />
+
+      <ProduceDialog
+        state={produceDialog}
+        submitting={busyProductId != null && produceDialog != null}
+        onCancel={() => setProduceDialog(null)}
+        onStart={handleProduceStart}
+        onComplete={handleProduceComplete}
       />
 
       <BomDialog
@@ -516,6 +616,116 @@ function MarkDoneDialog({
             {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             <PackageCheck className="w-4 h-4 mr-2" />
             Confirm & Produce
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// --------------------------- PRODUCE DIALOG ---------------------------
+// Per-product production popup: enter qty, then either start (processing) or
+// complete (done) production. Reuses the existing workload-card handlers.
+
+function ProduceDialog({
+  state,
+  submitting,
+  onCancel,
+  onStart,
+  onComplete,
+}: {
+  state: {
+    productId: number;
+    productName: string;
+    unit: string;
+    suggestedQty: number;
+    cardId: number | null;
+    status: "pending" | "processing";
+  } | null;
+  submitting: boolean;
+  onCancel: () => void;
+  onStart: (qty: number) => void;
+  onComplete: (qty: number) => void;
+}) {
+  const [qty, setQty] = useState("");
+  const [touched, setTouched] = useState(false);
+
+  React.useEffect(() => {
+    if (state) {
+      setQty(String(state.suggestedQty || ""));
+      setTouched(false);
+    }
+  }, [state]);
+
+  const numQty = Number(qty);
+  const valid = isFinite(numQty) && numQty > 0;
+
+  return (
+    <Dialog open={state != null} onOpenChange={(v) => { if (!v && !submitting) onCancel(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Factory className="w-5 h-5 text-primary" />
+            Produce {state?.productName}
+          </DialogTitle>
+          <DialogDescription>
+            Enter the quantity to produce. Start production to move it to processing, or
+            complete production to debit raw materials and credit finished stock.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-2">
+          <Label htmlFor="produce-qty">Quantity to produce *</Label>
+          <div className="relative">
+            <Input
+              id="produce-qty"
+              type="number"
+              min="0"
+              step="0.001"
+              autoFocus
+              value={qty}
+              onChange={(e) => { setQty(e.target.value); setTouched(true); }}
+              data-testid="input-produce-qty"
+              className="pr-16"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground uppercase">
+              {state?.unit}
+            </span>
+          </div>
+          {touched && !valid && (
+            <p className="text-xs text-destructive">Enter a quantity greater than zero.</p>
+          )}
+          {state && (
+            <p className="text-xs text-muted-foreground">
+              Suggested: {state.suggestedQty} {state.unit}
+              {state.status === "processing" ? " · already processing" : ""}
+            </p>
+          )}
+        </div>
+        <DialogFooter className="flex-col sm:flex-row sm:justify-end gap-2">
+          <Button variant="outline" onClick={onCancel} disabled={submitting} data-testid="button-produce-cancel">
+            Cancel
+          </Button>
+          {state?.status !== "processing" && (
+            <Button
+              variant="secondary"
+              onClick={() => valid && onStart(numQty)}
+              disabled={!valid || submitting}
+              data-testid="button-produce-start"
+            >
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Factory className="w-4 h-4 mr-2" />
+              Start Production
+            </Button>
+          )}
+          <Button
+            onClick={() => valid && onComplete(numQty)}
+            disabled={!valid || submitting}
+            data-testid="button-produce-complete"
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            <PackageCheck className="w-4 h-4 mr-2" />
+            Complete Production
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -902,6 +1112,166 @@ function AssembleTab({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// --------------------------- DISPATCH TAB ---------------------------
+// Lists customer orders that have been marked ready_for_dispatch. Each row
+// captures vehicle/driver/date and marks the order dispatched.
+
+function DispatchTab() {
+  const { data: orders, isLoading } = useListCustomerOrders({
+    status: "ready_for_dispatch" as any,
+  });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const updateStatus = useUpdateCustomerOrderStatus();
+
+  const [forms, setForms] = useState<
+    Record<number, { vehicleNumber: string; driverName: string; dispatchDate: string }>
+  >({});
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const getForm = (id: number) =>
+    forms[id] ?? { vehicleNumber: "", driverName: "", dispatchDate: "" };
+
+  const setField = (id: number, field: "vehicleNumber" | "driverName" | "dispatchDate", value: string) => {
+    setForms((prev) => ({
+      ...prev,
+      [id]: { ...getForm(id), [field]: value },
+    }));
+  };
+
+  const handleDispatch = async (id: number) => {
+    const form = getForm(id);
+    setBusyId(id);
+    try {
+      await updateStatus.mutateAsync({
+        id,
+        data: {
+          status: "dispatched",
+          vehicleNumber: form.vehicleNumber || undefined,
+          driverName: form.driverName || undefined,
+          dispatchDate: form.dispatchDate || undefined,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: getListCustomerOrdersQueryKey() });
+      toast({ title: "Order dispatched", description: "Marked as dispatched." });
+    } catch (err: any) {
+      toast({ title: "Dispatch failed", description: err?.message ?? "Server error", variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+      </div>
+    );
+  }
+
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="text-center py-12 border border-dashed rounded-lg">
+        <Inbox className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
+        <h3 className="text-lg font-medium">No orders ready for dispatch</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+          Orders appear here once they are marked ready for dispatch. Enter vehicle and driver
+          details and mark them dispatched.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Truck className="w-5 h-5 text-primary" />
+            Ready For Dispatch
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Enter vehicle and driver details, then mark each order dispatched.
+          </p>
+        </div>
+        <Badge variant="secondary" data-testid="badge-dispatch-count">
+          {orders.length} order{orders.length === 1 ? "" : "s"}
+        </Badge>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {orders.map((o: any) => {
+          const form = getForm(o.id);
+          const isBusy = busyId === o.id;
+          return (
+            <Card key={o.id} data-testid={`dispatch-row-${o.id}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center justify-between gap-2">
+                  <span className="line-clamp-1">{o.customerName}</span>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {o.orderNo ?? `#${o.id}`}
+                  </span>
+                </CardTitle>
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>{o.totalItems} item{o.totalItems === 1 ? "" : "s"}</span>
+                  <span className="font-medium text-foreground">
+                    ₹{Number(o.totalAmount).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`vehicle-${o.id}`}>Vehicle Number</Label>
+                  <Input
+                    id={`vehicle-${o.id}`}
+                    value={form.vehicleNumber}
+                    onChange={(e) => setField(o.id, "vehicleNumber", e.target.value)}
+                    placeholder="MH-12-AB-1234"
+                    data-testid={`input-vehicle-${o.id}`}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`driver-${o.id}`}>Driver Name</Label>
+                  <Input
+                    id={`driver-${o.id}`}
+                    value={form.driverName}
+                    onChange={(e) => setField(o.id, "driverName", e.target.value)}
+                    placeholder="Driver name"
+                    data-testid={`input-driver-${o.id}`}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`date-${o.id}`}>Dispatch Date</Label>
+                  <Input
+                    id={`date-${o.id}`}
+                    type="date"
+                    value={form.dispatchDate}
+                    onChange={(e) => setField(o.id, "dispatchDate", e.target.value)}
+                    data-testid={`input-dispatch-date-${o.id}`}
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={isBusy}
+                  onClick={() => handleDispatch(o.id)}
+                  data-testid={`button-dispatch-${o.id}`}
+                >
+                  {isBusy ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Truck className="w-4 h-4 mr-2" />
+                  )}
+                  Mark Dispatched
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

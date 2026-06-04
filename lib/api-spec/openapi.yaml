@@ -1489,6 +1489,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProfitLossReport"
 
+  /reports/commission:
+    get:
+      operationId: getCommissionReport
+      tags: [reports]
+      summary: Salesman commission report (liters sold x per-liter commission)
+      description: |
+        Admin sees all salesmen; a salesman sees only their own commission.
+        Commission accrues on delivered sales = invoice line liters * product commissionPerLiter.
+      parameters:
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: salesmanId, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: Commission report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommissionReport"
+
   /search:
     get:
       operationId: globalSearch
@@ -1776,7 +1796,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [pending, processing, done, cancelled]
+            enum: [pending, processing, production, ready_for_dispatch, dispatched, delivered, done, cancelled]
       responses:
         "200":
           description: Orders
@@ -2353,6 +2373,8 @@ components:
           type: ["string", "null"]
         taxRate:
           type: ["number", "null"]
+        commissionPerLiter:
+          type: ["number", "null"]
         litersPerBox:
           type: ["number", "null"]
         unitsPerBox:
@@ -2408,6 +2430,8 @@ components:
         hsnCode:
           type: string
         taxRate:
+          type: number
+        commissionPerLiter:
           type: number
         litersPerBox:
           type: number
@@ -2469,6 +2493,8 @@ components:
           type: number
         imageUrl:
           type: string
+        commissionPerLiter:
+          type: number
 
     StockMovement:
       type: object
@@ -2531,6 +2557,14 @@ components:
           type: ["string", "null"]
         state:
           type: ["string", "null"]
+        district:
+          type: ["string", "null"]
+        area:
+          type: ["string", "null"]
+        pinCode:
+          type: ["string", "null"]
+        gpsLocation:
+          type: ["string", "null"]
         pricingTier:
           type: ["string", "null"]
           enum: [retail, wholesale, null]
@@ -2566,6 +2600,14 @@ components:
           type: string
         state:
           type: string
+        district:
+          type: string
+        area:
+          type: string
+        pinCode:
+          type: string
+        gpsLocation:
+          type: string
         pricingTier:
           type: string
           enum: [retail, wholesale]
@@ -2588,6 +2630,14 @@ components:
         city:
           type: string
         state:
+          type: string
+        district:
+          type: string
+        area:
+          type: string
+        pinCode:
+          type: string
+        gpsLocation:
           type: string
         pricingTier:
           type: string
@@ -3101,6 +3151,8 @@ components:
       properties:
         id:
           type: integer
+        schemeName:
+          type: ["string", "null"]
         productId:
           type: integer
         productName:
@@ -3125,6 +3177,8 @@ components:
       type: object
       required: [productId, targetLiters, rewardType, rewardValue, startDate, endDate]
       properties:
+        schemeName:
+          type: string
         productId:
           type: integer
         targetLiters:
@@ -3142,6 +3196,8 @@ components:
     RewardSchemeUpdate:
       type: object
       properties:
+        schemeName:
+          type: string
         targetLiters:
           type: number
         rewardType:
@@ -3487,7 +3543,9 @@ components:
           type: ["string", "null"]
         status:
           type: string
-          enum: [pending, processing, done, cancelled]
+          enum: [pending, processing, production, ready_for_dispatch, dispatched, delivered, done, cancelled]
+        isDraft:
+          type: boolean
         totalItems:
           type: integer
         totalAmount:
@@ -3495,6 +3553,14 @@ components:
         notes:
           type: ["string", "null"]
         adminRemarks:
+          type: ["string", "null"]
+        vehicleNumber:
+          type: ["string", "null"]
+        driverName:
+          type: ["string", "null"]
+        dispatchDate:
+          type: ["string", "null"]
+        dispatchStatus:
           type: ["string", "null"]
         createdAt:
           type: string
@@ -3545,6 +3611,8 @@ components:
           type: string
         entityId:
           type: integer
+        isDraft:
+          type: boolean
         notes:
           type: string
         items:
@@ -3566,9 +3634,56 @@ components:
       properties:
         status:
           type: string
-          enum: [pending, processing, done, cancelled]
+          enum: [pending, processing, production, ready_for_dispatch, dispatched, delivered, done, cancelled]
         adminRemarks:
           type: string
+        isDraft:
+          type: boolean
+        vehicleNumber:
+          type: string
+        driverName:
+          type: string
+        dispatchDate:
+          type: string
+
+    CommissionReport:
+      type: object
+      required: [totalCommission, totalLiters, rows]
+      properties:
+        totalCommission:
+          type: number
+        totalLiters:
+          type: number
+        rows:
+          type: array
+          items:
+            type: object
+            required: [salesmanId, salesmanName, liters, commission]
+            properties:
+              salesmanId:
+                type: integer
+              salesmanName:
+                type: string
+              liters:
+                type: number
+              commission:
+                type: number
+              productBreakdown:
+                type: array
+                items:
+                  type: object
+                  required: [productId, productName, liters, commission]
+                  properties:
+                    productId:
+                      type: integer
+                    productName:
+                      type: string
+                    liters:
+                      type: number
+                    commissionPerLiter:
+                      type: number
+                    commission:
+                      type: number
 
     CapitalSnapshot:
       type: object

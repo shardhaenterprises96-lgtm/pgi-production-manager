@@ -56,6 +56,10 @@ export default function Customers() {
       address: "",
       city: "",
       state: "Maharashtra",
+      district: "",
+      area: "",
+      pinCode: "",
+      gpsLocation: "",
       pricingTier: "retail" as "retail" | "wholesale",
     },
   });
@@ -69,6 +73,10 @@ export default function Customers() {
       address: "",
       city: "",
       state: "Maharashtra",
+      district: "",
+      area: "",
+      pinCode: "",
+      gpsLocation: "",
       pricingTier: "retail",
     });
     setShowAdd(true);
@@ -84,6 +92,10 @@ export default function Customers() {
       address: data.address?.trim() || undefined,
       city: data.city?.trim() || undefined,
       state: data.state?.trim() || undefined,
+      district: data.district?.trim() || undefined,
+      area: data.area?.trim() || undefined,
+      pinCode: data.pinCode?.trim() || undefined,
+      gpsLocation: data.gpsLocation?.trim() || undefined,
     };
     if (isCustomer) payload.pricingTier = data.pricingTier;
 
@@ -353,6 +365,60 @@ export default function Customers() {
                       <FormLabel>State</FormLabel>
                       <FormControl>
                         <Input data-testid="input-add-entity-state" placeholder="State" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="district"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>District</FormLabel>
+                      <FormControl>
+                        <Input data-testid="input-add-entity-district" placeholder="District" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="area"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Area</FormLabel>
+                      <FormControl>
+                        <Input data-testid="input-add-entity-area" placeholder="Area" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="pinCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PIN Code</FormLabel>
+                      <FormControl>
+                        <Input data-testid="input-add-entity-pinCode" placeholder="PIN Code" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="gpsLocation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>GPS Location</FormLabel>
+                      <FormControl>
+                        <Input data-testid="input-add-entity-gpsLocation" placeholder="GPS Location" {...field} />
                       </FormControl>
                     </FormItem>
                   )}
