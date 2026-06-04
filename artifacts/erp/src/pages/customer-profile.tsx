@@ -27,8 +27,8 @@ import {
   ArrowLeft,
   FileText,
   CreditCard,
-  Plus,
-  Minus,
+  ArrowUpRight,
+  ArrowDownLeft,
   Paperclip,
   X,
   Loader2,
@@ -127,7 +127,7 @@ export default function CustomerProfile() {
       await queryClient.invalidateQueries({ queryKey: ['ledger', entityId] });
       await queryClient.invalidateQueries({ queryKey: ['entity', entityId] });
       toast({
-        title: direction === "debit" ? "Debit posted" : "Credit posted",
+        title: direction === "debit" ? "Recorded what you gave" : "Recorded what you got",
         description: `₹${amt.toLocaleString()} ${direction === "debit" ? "added to" : "cleared from"} ${entityData?.name}'s khata.`,
       });
       setDialogOpen(false);
@@ -174,10 +174,10 @@ export default function CustomerProfile() {
           {canAdjust && (
             <div className="flex flex-col gap-2">
               <Button size="sm" variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => openDialog("debit")}>
-                <Plus className="h-4 w-4 mr-1" /> Debit
+                <ArrowUpRight className="h-4 w-4 mr-1" /> You Gave
               </Button>
               <Button size="sm" variant="outline" className="border-green-600/40 text-green-600 hover:bg-green-600/10" onClick={() => openDialog("credit")}>
-                <Minus className="h-4 w-4 mr-1" /> Credit
+                <ArrowDownLeft className="h-4 w-4 mr-1" /> You Got
               </Button>
             </div>
           )}
@@ -306,12 +306,12 @@ export default function CustomerProfile() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {direction === "debit" ? "Add Debit (Dr)" : "Add Credit (Cr)"}
+              {direction === "debit" ? "You Gave" : "You Got"}
             </DialogTitle>
             <DialogDescription>
               {direction === "debit"
-                ? "Increases what this customer owes."
-                : "Reduces what this customer owes (e.g. a payment or write-off)."}
+                ? "Money or goods you gave them — increases what they owe."
+                : "Money you received from them — reduces what they owe."}
             </DialogDescription>
           </DialogHeader>
 
@@ -376,7 +376,7 @@ export default function CustomerProfile() {
               className={direction === "credit" ? "bg-green-600 hover:bg-green-700" : ""}
             >
               {createAdjustment.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Post {direction === "debit" ? "Debit" : "Credit"}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
