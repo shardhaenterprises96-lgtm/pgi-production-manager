@@ -11,7 +11,7 @@ import {
   getListCustomerOrdersQueryKey,
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,15 +35,14 @@ import { getLookupEntityByMobileQueryKey } from "@workspace/api-client-react";
 import { useForm } from "react-hook-form";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 
-type CartItem = { qty: number };
-
 export default function Catalog() {
   const { user, hasRole } = useAuth();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState<string>("");
   const [brand, setBrand] = useState<string>("");
-  const [cart, setCart] = useState<Record<number, CartItem>>({});
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedQty, setSelectedQty] = useState<number>(1);
 
   // Customer lookup dialog state
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
@@ -67,20 +66,20 @@ export default function Catalog() {
   const { toast } = useToast();
   const placeOrder = useCreateCustomerOrder();
 
+  const selectedProduct = products?.find((p) => p.id === selectedId) ?? null;
+
   const handlePlaceOrder = () => {
-    const items = Object.entries(cart)
-      .map(([id, { qty }]) => ({ productId: Number(id), qty }))
-      .filter((i) => i.qty > 0);
-    if (items.length === 0) return;
+    if (!selectedProduct || selectedQty <= 0) return;
     placeOrder.mutate(
-      { data: { items } },
+      { data: { items: [{ productId: selectedProduct.id, qty: selectedQty }] } },
       {
         onSuccess: (order: any) => {
           toast({
             title: "Order placed",
             description: `Your order ${order.orderNo ?? ""} has been submitted.`,
           });
-          setCart({});
+          setSelectedId(null);
+          setSelectedQty(1);
           queryClient.invalidateQueries({ queryKey: getListCustomerOrdersQueryKey() });
           setLocation("/my-orders");
         },
@@ -96,33 +95,15 @@ export default function Catalog() {
   };
   const isStaff = hasRole(["admin", "salesman", "store", "manufacturing", "accountant"]);
 
-  const distinctItems = Object.keys(cart).length;
-  const totalItems = Object.values(cart).reduce((a, b) => a + b.qty, 0);
-  const totalAmount = Object.entries(cart).reduce((total, [id, { qty }]) => {
-    const product = products?.find((p) => p.id === Number(id));
-    if (!product) return total;
-    const price = showRetailOnly ? product.retailPrice : product.wholesalePrice;
-    return total + qty * price;
-  }, 0);
-
-  const addToCart = (productId: number) => {
-    setCart((prev) => ({
-      ...prev,
-      [productId]: { qty: (prev[productId]?.qty || 0) + 1 },
-    }));
+  const selectProduct = (productId: number) => {
+    if (selectedId === productId) return;
+    setSelectedId(productId);
+    setSelectedQty(1);
   };
 
-  const removeFromCart = (productId: number) => {
-    setCart((prev) => {
-      const newCart = { ...prev };
-      if (newCart[productId].qty > 1) {
-        newCart[productId] = { qty: newCart[productId].qty - 1 };
-      } else {
-        delete newCart[productId];
-      }
-      return newCart;
-    });
-  };
+  const decreaseQty = () => setSelectedQty((q) => Math.max(1, q - 1));
+  const increaseQty = (maxStock: number) =>
+    setSelectedQty((q) => Math.min(maxStock, q + 1));
 
   const getStockBadge = (stock: number) => {
     if (stock > 10) return <Badge className="bg-green-600 text-white border-transparent text-[10px]">In Stock</Badge>;
@@ -165,8 +146,9 @@ export default function Catalog() {
   }
 
   const proceedToBillingWithCustomer = (customer: any) => {
+    if (!selectedProduct) return;
     const cartParam = encodeURIComponent(JSON.stringify(
-      Object.entries(cart).map(([id, { qty }]) => ({ productId: Number(id), qty }))
+      [{ productId: selectedProduct.id, qty: selectedQty }]
     ));
     const customerParam = encodeURIComponent(JSON.stringify(customer));
     setLocation(`/billing?cart=${cartParam}&customer=${customerParam}`);
@@ -209,10 +191,35 @@ export default function Catalog() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.20))] gap-6">
+    <div className="flex h-[calc(100vh-theme(spacing.20))] flex-col">
       {/* Products grid */}
       <div className="flex-1 flex flex-col space-y-4 min-w-0">
-        <h1 className="text-3xl font-bold tracking-tight">Product Catalog</h1>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h1 className="text-3xl font-bold tracking-tight">Product Catalog</h1>
+          {isStaff ? (
+            <Button
+              disabled={!selectedProduct}
+              onClick={openCustomerDialog}
+              data-testid="button-proceed-billing"
+            >
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Proceed to Billing
+            </Button>
+          ) : (
+            <Button
+              disabled={!selectedProduct || placeOrder.isPending}
+              onClick={handlePlaceOrder}
+              data-testid="button-place-order"
+            >
+              {placeOrder.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ShoppingCart className="w-4 h-4 mr-2" />
+              )}
+              Place Order
+            </Button>
+          )}
+        </div>
 
         <div className="flex items-center gap-3 bg-card p-4 rounded-lg border shadow-sm flex-wrap">
           <div className="relative flex-1 min-w-[180px]">
@@ -257,11 +264,21 @@ export default function Catalog() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products?.map((product) => (
+              {products?.map((product) => {
+                const isSelected = selectedId === product.id;
+                const outOfStock = product.currentStock <= 0;
+                return (
                 <Card
                   key={product.id}
                   data-testid={`card-product-${product.id}`}
-                  className="flex flex-col overflow-hidden transition-all hover:shadow-md border-border/50"
+                  onClick={() => { if (!outOfStock) selectProduct(product.id); }}
+                  className={`flex flex-col overflow-hidden transition-all ${
+                    outOfStock ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:shadow-md"
+                  } ${
+                    isSelected
+                      ? "border-2 border-primary ring-2 ring-primary/30 shadow-md"
+                      : "border-border/50"
+                  }`}
                 >
                   <div className="aspect-square bg-muted flex items-center justify-center relative p-1 sm:p-2">
                     {product.imageUrl ? (
@@ -272,6 +289,11 @@ export default function Catalog() {
                       </div>
                     )}
                     <div className="absolute top-2 right-2">{getStockBadge(product.currentStock)}</div>
+                    {isSelected && (
+                      <div className="absolute top-2 left-2">
+                        <CheckCircle className="w-5 h-5 text-primary fill-background" />
+                      </div>
+                    )}
                   </div>
                   <CardContent className="flex-1 p-3 flex flex-col gap-2">
                     <div className="text-[10px] text-muted-foreground font-mono">{product.itemCode}</div>
@@ -286,104 +308,36 @@ export default function Catalog() {
                       </div>
                     )}
                     <div className="mt-auto">
-                      {cart[product.id] ? (
-                        <div className="flex items-center justify-between w-full gap-2">
-                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => removeFromCart(product.id)} data-testid={`button-remove-${product.id}`}>
+                      {isSelected ? (
+                        <div
+                          className="flex items-center justify-between w-full gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={decreaseQty} disabled={selectedQty <= 1} data-testid={`button-qty-minus-${product.id}`}>
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="font-bold text-sm w-6 text-center">{cart[product.id].qty}</span>
-                          <Button size="icon" className="h-8 w-8" onClick={() => addToCart(product.id)} disabled={cart[product.id].qty >= product.currentStock} data-testid={`button-add-${product.id}`}>
+                          <span className="font-bold text-sm w-8 text-center" data-testid={`text-qty-${product.id}`}>{selectedQty}</span>
+                          <Button size="icon" className="h-8 w-8" onClick={() => increaseQty(product.currentStock)} disabled={selectedQty >= product.currentStock} data-testid={`button-qty-plus-${product.id}`}>
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
                       ) : (
                         <Button
+                          variant="outline"
                           className="w-full h-8 text-xs"
-                          onClick={() => addToCart(product.id)}
-                          disabled={product.currentStock <= 0}
-                          data-testid={`button-addcart-${product.id}`}
+                          onClick={(e) => { e.stopPropagation(); selectProduct(product.id); }}
+                          disabled={outOfStock}
+                          data-testid={`button-select-${product.id}`}
                         >
-                          <ShoppingCart className="w-3 h-3 mr-1" />
-                          Add to Cart
+                          Select
                         </Button>
                       )}
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Cart sidebar */}
-      <div className="w-72 bg-card border rounded-lg shadow-sm flex flex-col shrink-0 sticky top-6 self-start max-h-[calc(100vh-3rem)]">
-        <div className="p-4 border-b bg-muted/30 font-semibold flex items-center justify-between">
-          <span>Cart</span>
-          <Badge variant="secondary" data-testid="badge-cart-count">{distinctItems} {distinctItems === 1 ? "item" : "items"}</Badge>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {Object.keys(cart).length === 0 ? (
-            <div className="text-center text-muted-foreground text-sm mt-8 flex flex-col items-center">
-              <ShoppingCart className="w-10 h-10 mb-3 opacity-20" />
-              Cart is empty
-            </div>
-          ) : (
-            Object.entries(cart).map(([id, { qty }]) => {
-              const product = products?.find((p) => p.id === Number(id));
-              if (!product) return null;
-              const price = isB2B ? product.retailPrice : product.wholesalePrice;
-              return (
-                <div key={id} data-testid={`cart-item-${id}`} className="flex justify-between text-sm gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-xs line-clamp-1">{product.name}</p>
-                    <p className="text-muted-foreground text-xs">{qty} × ₹{price}</p>
-                  </div>
-                  <div className="font-bold text-xs shrink-0">₹{(qty * price).toLocaleString()}</div>
-                </div>
-              );
-            })
-          )}
-        </div>
-        <div className="p-4 border-t space-y-3 bg-muted/10">
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Items</span>
-              <span className="font-medium text-foreground" data-testid="text-cart-distinct">{distinctItems}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Total Qty</span>
-              <span className="font-medium text-foreground" data-testid="text-cart-qty">{totalItems}</span>
-            </div>
-          </div>
-          <div className="flex justify-between font-bold pt-1 border-t">
-            <span>Total</span>
-            <span className="text-primary" data-testid="text-cart-total">₹{totalAmount.toLocaleString()}</span>
-          </div>
-          {isStaff ? (
-            <Button
-              className="w-full"
-              disabled={totalItems === 0}
-              onClick={openCustomerDialog}
-              data-testid="button-proceed-billing"
-            >
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              Proceed to Billing
-            </Button>
-          ) : (
-            <Button
-              className="w-full"
-              disabled={totalItems === 0 || placeOrder.isPending}
-              onClick={handlePlaceOrder}
-              data-testid="button-place-order"
-            >
-              {placeOrder.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <ShoppingCart className="w-4 h-4 mr-2" />
-              )}
-              Place Order
-            </Button>
           )}
         </div>
       </div>
