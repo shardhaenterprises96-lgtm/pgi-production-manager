@@ -78,6 +78,100 @@ export const UpdateRolePermissionsResponse = zod.array(UpdateRolePermissionsResp
 
 
 /**
+ * @summary Get application settings (default invoice template, etc.)
+ */
+export const GetAppSettingsResponse = zod.object({
+  "defaultInvoiceTemplate": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update application settings (admin only)
+ */
+export const UpdateAppSettingsBody = zod.object({
+  "defaultInvoiceTemplate": zod.string().optional()
+})
+
+export const UpdateAppSettingsResponse = zod.object({
+  "defaultInvoiceTemplate": zod.string().nullable()
+})
+
+
+/**
+ * @summary List document number series configs (invoice / order / quotation)
+ */
+export const ListNumberSeriesResponseItem = zod.object({
+  "seriesType": zod.enum(['invoice', 'order', 'quotation']),
+  "prefix": zod.string(),
+  "includeYear": zod.boolean(),
+  "includeMonth": zod.boolean(),
+  "yearFormat": zod.enum(['calendar', 'fiscal']),
+  "separator": zod.string(),
+  "padding": zod.number(),
+  "startNumber": zod.number(),
+  "nextNumber": zod.number(),
+  "resetRule": zod.enum(['never', 'daily', 'monthly', 'yearly', 'fiscal']),
+  "periodKey": zod.string().nullish(),
+  "preview": zod.string().optional()
+})
+export const ListNumberSeriesResponse = zod.array(ListNumberSeriesResponseItem)
+
+
+/**
+ * @summary Update a document number series config (admin only)
+ */
+export const UpdateNumberSeriesParams = zod.object({
+  "seriesType": zod.enum(['invoice', 'order', 'quotation'])
+})
+
+export const UpdateNumberSeriesBody = zod.object({
+  "prefix": zod.string().optional(),
+  "includeYear": zod.boolean().optional(),
+  "includeMonth": zod.boolean().optional(),
+  "yearFormat": zod.enum(['calendar', 'fiscal']).optional(),
+  "separator": zod.string().optional(),
+  "padding": zod.number().optional(),
+  "startNumber": zod.number().optional(),
+  "nextNumber": zod.number().optional(),
+  "resetRule": zod.enum(['never', 'daily', 'monthly', 'yearly', 'fiscal']).optional()
+})
+
+export const UpdateNumberSeriesResponse = zod.object({
+  "seriesType": zod.enum(['invoice', 'order', 'quotation']),
+  "prefix": zod.string(),
+  "includeYear": zod.boolean(),
+  "includeMonth": zod.boolean(),
+  "yearFormat": zod.enum(['calendar', 'fiscal']),
+  "separator": zod.string(),
+  "padding": zod.number(),
+  "startNumber": zod.number(),
+  "nextNumber": zod.number(),
+  "resetRule": zod.enum(['never', 'daily', 'monthly', 'yearly', 'fiscal']),
+  "periodKey": zod.string().nullish(),
+  "preview": zod.string().optional()
+})
+
+
+/**
+ * @summary Fetch business details for a GSTIN (optional external provider)
+ */
+export const LookupGstinQueryParams = zod.object({
+  "gstin": zod.coerce.string()
+})
+
+export const LookupGstinResponse = zod.object({
+  "found": zod.boolean(),
+  "gstin": zod.string().optional(),
+  "legalName": zod.string().optional(),
+  "tradeName": zod.string().optional(),
+  "address": zod.string().optional(),
+  "state": zod.string().optional(),
+  "pinCode": zod.string().optional(),
+  "error": zod.string().optional()
+})
+
+
+/**
  * @summary List all user accounts (admin only)
  */
 export const ListUsersResponseItem = zod.object({

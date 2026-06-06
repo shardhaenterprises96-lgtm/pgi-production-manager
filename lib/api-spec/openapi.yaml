@@ -18,6 +18,7 @@ tags:
   - name: dashboard
   - name: reports
   - name: subscriptions
+  - name: settings
 
 paths:
   /healthz:
@@ -113,6 +114,101 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/RolePermission"
+
+  # SETTINGS (admin only)
+  /settings:
+    get:
+      operationId: getAppSettings
+      tags: [settings]
+      summary: Get application settings (default invoice template, etc.)
+      responses:
+        "200":
+          description: App settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+    put:
+      operationId: updateAppSettings
+      tags: [settings]
+      summary: Update application settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppSettingsUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+        "403":
+          description: Admin access required
+
+  /number-series:
+    get:
+      operationId: listNumberSeries
+      tags: [settings]
+      summary: List document number series configs (invoice / order / quotation)
+      responses:
+        "200":
+          description: Number series list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NumberSeries"
+
+  /number-series/{seriesType}:
+    put:
+      operationId: updateNumberSeries
+      tags: [settings]
+      summary: Update a document number series config (admin only)
+      parameters:
+        - name: seriesType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [invoice, order, quotation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NumberSeriesUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NumberSeries"
+        "403":
+          description: Admin access required
+
+  /gstin-lookup:
+    get:
+      operationId: lookupGstin
+      tags: [settings]
+      summary: Fetch business details for a GSTIN (optional external provider)
+      parameters:
+        - name: gstin
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lookup result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstinLookupResult"
 
   # USER ACCOUNTS (admin only)
   /users:
@@ -2327,6 +2423,96 @@ components:
                 type: string
               allowed:
                 type: boolean
+
+    AppSettings:
+      type: object
+      required: [defaultInvoiceTemplate]
+      properties:
+        defaultInvoiceTemplate:
+          type: ["string", "null"]
+
+    AppSettingsUpdate:
+      type: object
+      properties:
+        defaultInvoiceTemplate:
+          type: string
+
+    NumberSeries:
+      type: object
+      required: [seriesType, prefix, includeYear, includeMonth, yearFormat, separator, padding, startNumber, nextNumber, resetRule]
+      properties:
+        seriesType:
+          type: string
+          enum: [invoice, order, quotation]
+        prefix:
+          type: string
+        includeYear:
+          type: boolean
+        includeMonth:
+          type: boolean
+        yearFormat:
+          type: string
+          enum: [calendar, fiscal]
+        separator:
+          type: string
+        padding:
+          type: integer
+        startNumber:
+          type: integer
+        nextNumber:
+          type: integer
+        resetRule:
+          type: string
+          enum: [never, daily, monthly, yearly, fiscal]
+        periodKey:
+          type: ["string", "null"]
+        preview:
+          type: string
+
+    NumberSeriesUpdate:
+      type: object
+      properties:
+        prefix:
+          type: string
+        includeYear:
+          type: boolean
+        includeMonth:
+          type: boolean
+        yearFormat:
+          type: string
+          enum: [calendar, fiscal]
+        separator:
+          type: string
+        padding:
+          type: integer
+        startNumber:
+          type: integer
+        nextNumber:
+          type: integer
+        resetRule:
+          type: string
+          enum: [never, daily, monthly, yearly, fiscal]
+
+    GstinLookupResult:
+      type: object
+      required: [found]
+      properties:
+        found:
+          type: boolean
+        gstin:
+          type: string
+        legalName:
+          type: string
+        tradeName:
+          type: string
+        address:
+          type: string
+        state:
+          type: string
+        pinCode:
+          type: string
+        error:
+          type: string
 
     Product:
       type: object

@@ -41,8 +41,9 @@ export default function Catalog() {
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState<string>("");
   const [brand, setBrand] = useState<string>("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [selectedQty, setSelectedQty] = useState<number>(1);
+  // Multi-product selection: productId -> quantity. A product is "in the cart"
+  // when it has an entry here.
+  const [cart, setCart] = useState<Record<number, number>>({});
 
   // Customer lookup dialog state
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
@@ -62,24 +63,32 @@ export default function Catalog() {
 
   const isB2B = user?.role === "customer";
   const isManufacturing = user?.role === "manufacturing";
+  const isSalesman = user?.role === "salesman";
   const showRetailOnly = isB2B || isManufacturing;
+  // Salesmen never see catalog prices, and advanced (group/brand) filters are
+  // hidden for them — search only.
+  const hidePrices = isSalesman;
+  const showAdvancedFilters = !isSalesman;
   const { toast } = useToast();
   const placeOrder = useCreateCustomerOrder();
 
-  const selectedProduct = products?.find((p) => p.id === selectedId) ?? null;
+  const cartItems = Object.entries(cart)
+    .map(([id, qty]) => ({ productId: Number(id), qty }))
+    .filter((i) => i.qty > 0);
+  const cartCount = cartItems.length;
+  const hasSelection = cartCount > 0;
 
   const handlePlaceOrder = () => {
-    if (!selectedProduct || selectedQty <= 0) return;
+    if (!hasSelection) return;
     placeOrder.mutate(
-      { data: { items: [{ productId: selectedProduct.id, qty: selectedQty }] } },
+      { data: { items: cartItems } },
       {
         onSuccess: (order: any) => {
           toast({
             title: "Order placed",
             description: `Your order ${order.orderNo ?? ""} has been submitted.`,
           });
-          setSelectedId(null);
-          setSelectedQty(1);
+          setCart({});
           queryClient.invalidateQueries({ queryKey: getListCustomerOrdersQueryKey() });
           setLocation("/my-orders");
         },
@@ -96,14 +105,21 @@ export default function Catalog() {
   const isStaff = hasRole(["admin", "salesman", "store", "manufacturing", "accountant"]);
 
   const selectProduct = (productId: number) => {
-    if (selectedId === productId) return;
-    setSelectedId(productId);
-    setSelectedQty(1);
+    setCart((c) => (c[productId] ? c : { ...c, [productId]: 1 }));
   };
 
-  const decreaseQty = () => setSelectedQty((q) => Math.max(1, q - 1));
-  const increaseQty = (maxStock: number) =>
-    setSelectedQty((q) => Math.min(maxStock, q + 1));
+  const removeProduct = (productId: number) => {
+    setCart((c) => {
+      const next = { ...c };
+      delete next[productId];
+      return next;
+    });
+  };
+
+  const decreaseQty = (productId: number) =>
+    setCart((c) => ({ ...c, [productId]: Math.max(1, (c[productId] ?? 1) - 1) }));
+  const increaseQty = (productId: number, maxStock: number) =>
+    setCart((c) => ({ ...c, [productId]: Math.min(maxStock, (c[productId] ?? 1) + 1) }));
 
   const getStockBadge = (stock: number) => {
     if (stock > 10) return <Badge className="bg-green-600 text-white border-transparent text-[10px]">In Stock</Badge>;

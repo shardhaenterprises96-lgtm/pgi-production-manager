@@ -21,28 +21,15 @@ import {
   DeleteInvoiceParams,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { generateSeriesNumber } from "../lib/number-series";
 
 const router: IRouter = Router();
 
+// Invoice numbers come from the configurable `invoice` series (see number-series.ts).
+// The series engine seeds itself from the legacy invoice_sequence counter on first
+// use, so the running number is preserved across the cutover.
 async function generateInvoiceNumber(client: any): Promise<string> {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
-
-  // Atomic upsert: insert row on first invoice of the month, increment on every subsequent one.
-  // Requires unique constraint on (month, year) — see schema.
-  const result = await client.query(
-    `INSERT INTO invoice_sequence (month, year, last_number)
-     VALUES ($1, $2, 1)
-     ON CONFLICT (month, year) DO UPDATE
-       SET last_number = invoice_sequence.last_number + 1
-     RETURNING last_number`,
-    [month, year]
-  );
-
-  const seqNum: number = result.rows[0].last_number;
-  const monthStr = String(month).padStart(2, "0");
-  return `INV/${year}/${monthStr}/${seqNum}`;
+  return generateSeriesNumber(client, "invoice");
 }
 
 // GET /invoices
@@ -67,6 +54,9 @@ router.get("/invoices", async (req, res): Promise<void> => {
       return;
     }
     conditions.push(eq(invoicesTable.salesmanId, session.entityId));
+    // Salesmen may only ever see invoices from the last 7 days — enforced
+    // server-side so the restriction can't be bypassed from the client.
+    conditions.push(sql`${invoicesTable.invoiceDate} >= (CURRENT_DATE - INTERVAL '7 days')`);
   } else if (params.data.salesmanId) {
     conditions.push(eq(invoicesTable.salesmanId, params.data.salesmanId));
   }

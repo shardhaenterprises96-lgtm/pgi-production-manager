@@ -16,6 +16,8 @@ import expensesRouter from "./expenses";
 import customerOrdersRouter from "./customer-orders";
 import reportsRouter from "./reports";
 import subscriptionsRouter from "./subscriptions";
+import settingsRouter from "./settings";
+import gstinRouter from "./gstin";
 
 const router: IRouter = Router();
 
@@ -36,5 +38,7 @@ router.use(expensesRouter);
 router.use(customerOrdersRouter);
 router.use(reportsRouter);
 router.use(subscriptionsRouter);
+router.use(settingsRouter);
+router.use(gstinRouter);
 
 export default router;

@@ -2155,6 +2155,27 @@ CREATE TABLE IF NOT EXISTS public.subscription_alerts (
 CREATE INDEX IF NOT EXISTS subscription_alert_sub_idx ON public.subscription_alerts (subscription_id);
 CREATE UNIQUE INDEX IF NOT EXISTS subscription_alert_type_unique ON public.subscription_alerts (subscription_id, alert_type);
 
+CREATE TABLE IF NOT EXISTS public.app_settings (
+    key text PRIMARY KEY,
+    value text,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.number_series (
+    series_type text PRIMARY KEY,
+    prefix text DEFAULT '' NOT NULL,
+    include_year boolean DEFAULT true NOT NULL,
+    include_month boolean DEFAULT true NOT NULL,
+    year_format text DEFAULT 'calendar'::text NOT NULL,
+    separator text DEFAULT '/'::text NOT NULL,
+    padding integer DEFAULT 0 NOT NULL,
+    start_number integer DEFAULT 1 NOT NULL,
+    next_number integer DEFAULT 1 NOT NULL,
+    reset_rule text DEFAULT 'monthly'::text NOT NULL,
+    period_key text,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 
 -- Default admin user (plaintext password by current app design: plain === hash)
 INSERT INTO public.users (username, password_hash, role, name, is_active)

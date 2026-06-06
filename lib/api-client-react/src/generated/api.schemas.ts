@@ -265,6 +265,101 @@ export interface RolePermissionsUpdate {
   permissions: RolePermissionsUpdatePermissionsItem[];
 }
 
+export interface AppSettings {
+  /** @nullable */
+  defaultInvoiceTemplate: string | null;
+}
+
+export interface AppSettingsUpdate {
+  defaultInvoiceTemplate?: string;
+}
+
+export type NumberSeriesSeriesType = typeof NumberSeriesSeriesType[keyof typeof NumberSeriesSeriesType];
+
+
+export const NumberSeriesSeriesType = {
+  invoice: 'invoice',
+  order: 'order',
+  quotation: 'quotation',
+} as const;
+
+export type NumberSeriesYearFormat = typeof NumberSeriesYearFormat[keyof typeof NumberSeriesYearFormat];
+
+
+export const NumberSeriesYearFormat = {
+  calendar: 'calendar',
+  fiscal: 'fiscal',
+} as const;
+
+export type NumberSeriesResetRule = typeof NumberSeriesResetRule[keyof typeof NumberSeriesResetRule];
+
+
+export const NumberSeriesResetRule = {
+  never: 'never',
+  daily: 'daily',
+  monthly: 'monthly',
+  yearly: 'yearly',
+  fiscal: 'fiscal',
+} as const;
+
+export interface NumberSeries {
+  seriesType: NumberSeriesSeriesType;
+  prefix: string;
+  includeYear: boolean;
+  includeMonth: boolean;
+  yearFormat: NumberSeriesYearFormat;
+  separator: string;
+  padding: number;
+  startNumber: number;
+  nextNumber: number;
+  resetRule: NumberSeriesResetRule;
+  /** @nullable */
+  periodKey?: string | null;
+  preview?: string;
+}
+
+export type NumberSeriesUpdateYearFormat = typeof NumberSeriesUpdateYearFormat[keyof typeof NumberSeriesUpdateYearFormat];
+
+
+export const NumberSeriesUpdateYearFormat = {
+  calendar: 'calendar',
+  fiscal: 'fiscal',
+} as const;
+
+export type NumberSeriesUpdateResetRule = typeof NumberSeriesUpdateResetRule[keyof typeof NumberSeriesUpdateResetRule];
+
+
+export const NumberSeriesUpdateResetRule = {
+  never: 'never',
+  daily: 'daily',
+  monthly: 'monthly',
+  yearly: 'yearly',
+  fiscal: 'fiscal',
+} as const;
+
+export interface NumberSeriesUpdate {
+  prefix?: string;
+  includeYear?: boolean;
+  includeMonth?: boolean;
+  yearFormat?: NumberSeriesUpdateYearFormat;
+  separator?: string;
+  padding?: number;
+  startNumber?: number;
+  nextNumber?: number;
+  resetRule?: NumberSeriesUpdateResetRule;
+}
+
+export interface GstinLookupResult {
+  found: boolean;
+  gstin?: string;
+  legalName?: string;
+  tradeName?: string;
+  address?: string;
+  state?: string;
+  pinCode?: string;
+  error?: string;
+}
+
 export type ProductPricingBasis = typeof ProductPricingBasis[keyof typeof ProductPricingBasis];
 
 
@@ -1858,6 +1953,10 @@ export interface ProfitLossReport {
   purchases: number;
   expensesByCategory: ProfitLossReportExpensesByCategoryItem[];
 }
+
+export type LookupGstinParams = {
+gstin: string;
+};
 
 export type ListProductsParams = {
 search?: string;

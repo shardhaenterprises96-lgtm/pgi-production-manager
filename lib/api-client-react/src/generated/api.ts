@@ -24,6 +24,8 @@ import type {
   AccountInput,
   AccountTransaction,
   AccountTransactionInput,
+  AppSettings,
+  AppSettingsUpdate,
   AssembleItem409,
   AssembleItemInput,
   AuditEntry,
@@ -66,6 +68,7 @@ import type {
   GetSalesReportParams,
   GetTaxReportParams,
   GlobalSearchParams,
+  GstinLookupResult,
   HealthStatus,
   Invoice,
   InvoiceInput,
@@ -89,7 +92,10 @@ import type {
   ListWorkloadCardsParams,
   LoginInput,
   LookupEntityByMobileParams,
+  LookupGstinParams,
   LowStockAlert,
+  NumberSeries,
+  NumberSeriesUpdate,
   Payment,
   PaymentInput,
   Product,
@@ -583,6 +589,387 @@ export const useUpdateRolePermissions = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpdateRolePermissionsMutationOptions(options));
     }
+
+export const getGetAppSettingsUrl = () => {
+
+
+
+
+  return `/api/settings`
+}
+
+/**
+ * @summary Get application settings (default invoice template, etc.)
+ */
+export const getAppSettings = async ( options?: RequestInit): Promise<AppSettings> => {
+
+  return customFetch<AppSettings>(getGetAppSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAppSettingsQueryKey = () => {
+    return [
+    `/api/settings`
+    ] as const;
+    }
+
+
+export const getGetAppSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAppSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAppSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAppSettings>>> = ({ signal }) => getAppSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAppSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAppSettings>>>
+export type GetAppSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get application settings (default invoice template, etc.)
+ */
+
+export function useGetAppSettings<TData = Awaited<ReturnType<typeof getAppSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAppSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateAppSettingsUrl = () => {
+
+
+
+
+  return `/api/settings`
+}
+
+/**
+ * @summary Update application settings (admin only)
+ */
+export const updateAppSettings = async (appSettingsUpdate: AppSettingsUpdate, options?: RequestInit): Promise<AppSettings> => {
+
+  return customFetch<AppSettings>(getUpdateAppSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      appSettingsUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateAppSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAppSettings>>, TError,{data: BodyType<AppSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAppSettings>>, TError,{data: BodyType<AppSettingsUpdate>}, TContext> => {
+
+const mutationKey = ['updateAppSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAppSettings>>, {data: BodyType<AppSettingsUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAppSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAppSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAppSettings>>>
+    export type UpdateAppSettingsMutationBody = BodyType<AppSettingsUpdate>
+    export type UpdateAppSettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Update application settings (admin only)
+ */
+export const useUpdateAppSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAppSettings>>, TError,{data: BodyType<AppSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAppSettings>>,
+        TError,
+        {data: BodyType<AppSettingsUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateAppSettingsMutationOptions(options));
+    }
+
+export const getListNumberSeriesUrl = () => {
+
+
+
+
+  return `/api/number-series`
+}
+
+/**
+ * @summary List document number series configs (invoice / order / quotation)
+ */
+export const listNumberSeries = async ( options?: RequestInit): Promise<NumberSeries[]> => {
+
+  return customFetch<NumberSeries[]>(getListNumberSeriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListNumberSeriesQueryKey = () => {
+    return [
+    `/api/number-series`
+    ] as const;
+    }
+
+
+export const getListNumberSeriesQueryOptions = <TData = Awaited<ReturnType<typeof listNumberSeries>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listNumberSeries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListNumberSeriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNumberSeries>>> = ({ signal }) => listNumberSeries({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNumberSeries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListNumberSeriesQueryResult = NonNullable<Awaited<ReturnType<typeof listNumberSeries>>>
+export type ListNumberSeriesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List document number series configs (invoice / order / quotation)
+ */
+
+export function useListNumberSeries<TData = Awaited<ReturnType<typeof listNumberSeries>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listNumberSeries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListNumberSeriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateNumberSeriesUrl = (seriesType: 'invoice' | 'order' | 'quotation',) => {
+
+
+
+
+  return `/api/number-series/${seriesType}`
+}
+
+/**
+ * @summary Update a document number series config (admin only)
+ */
+export const updateNumberSeries = async (seriesType: 'invoice' | 'order' | 'quotation',
+    numberSeriesUpdate: NumberSeriesUpdate, options?: RequestInit): Promise<NumberSeries> => {
+
+  return customFetch<NumberSeries>(getUpdateNumberSeriesUrl(seriesType),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      numberSeriesUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateNumberSeriesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumberSeries>>, TError,{seriesType: 'invoice' | 'order' | 'quotation';data: BodyType<NumberSeriesUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateNumberSeries>>, TError,{seriesType: 'invoice' | 'order' | 'quotation';data: BodyType<NumberSeriesUpdate>}, TContext> => {
+
+const mutationKey = ['updateNumberSeries'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateNumberSeries>>, {seriesType: 'invoice' | 'order' | 'quotation';data: BodyType<NumberSeriesUpdate>}> = (props) => {
+          const {seriesType,data} = props ?? {};
+
+          return  updateNumberSeries(seriesType,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateNumberSeriesMutationResult = NonNullable<Awaited<ReturnType<typeof updateNumberSeries>>>
+    export type UpdateNumberSeriesMutationBody = BodyType<NumberSeriesUpdate>
+    export type UpdateNumberSeriesMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a document number series config (admin only)
+ */
+export const useUpdateNumberSeries = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumberSeries>>, TError,{seriesType: 'invoice' | 'order' | 'quotation';data: BodyType<NumberSeriesUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateNumberSeries>>,
+        TError,
+        {seriesType: 'invoice' | 'order' | 'quotation';data: BodyType<NumberSeriesUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateNumberSeriesMutationOptions(options));
+    }
+
+export const getLookupGstinUrl = (params: LookupGstinParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/gstin-lookup?${stringifiedParams}` : `/api/gstin-lookup`
+}
+
+/**
+ * @summary Fetch business details for a GSTIN (optional external provider)
+ */
+export const lookupGstin = async (params: LookupGstinParams, options?: RequestInit): Promise<GstinLookupResult> => {
+
+  return customFetch<GstinLookupResult>(getLookupGstinUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLookupGstinQueryKey = (params?: LookupGstinParams,) => {
+    return [
+    `/api/gstin-lookup`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLookupGstinQueryOptions = <TData = Awaited<ReturnType<typeof lookupGstin>>, TError = ErrorType<unknown>>(params: LookupGstinParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof lookupGstin>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLookupGstinQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof lookupGstin>>> = ({ signal }) => lookupGstin(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof lookupGstin>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type LookupGstinQueryResult = NonNullable<Awaited<ReturnType<typeof lookupGstin>>>
+export type LookupGstinQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Fetch business details for a GSTIN (optional external provider)
+ */
+
+export function useLookupGstin<TData = Awaited<ReturnType<typeof lookupGstin>>, TError = ErrorType<unknown>>(
+ params: LookupGstinParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof lookupGstin>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getLookupGstinQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListUsersUrl = () => {
 

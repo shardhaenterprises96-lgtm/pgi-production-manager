@@ -14,3 +14,4 @@ export * from "./account-transactions";
 export * from "./capital-snapshots";
 export * from "./customer-orders";
 export * from "./subscriptions";
+export * from "./settings";

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { pool, db, productsTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
+import { generateSeriesNumber } from "../lib/number-series";
 
 const router: IRouter = Router();
 
@@ -161,9 +162,11 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     );
     const order = ins.rows[0];
 
-    const d = new Date(order.created_at);
-    const ym = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const orderNo = `ORD-${ym}-${String(order.id).padStart(5, "0")}`;
+    // Order numbers come from the configurable `order` series. Drafts are
+    // work-in-progress and don't burn a number until submitted.
+    const orderNo = isDraft
+      ? `DRAFT-${order.id}`
+      : await generateSeriesNumber(client, "order");
     await client.query(`UPDATE customer_orders SET order_no = $1 WHERE id = $2`, [orderNo, order.id]);
     order.order_no = orderNo;
 
