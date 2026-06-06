@@ -1,0 +1,224 @@
+Update the existing ERP system with ONLY the following changes. Do not redesign, restructure, or modify any other working functionality. Reuse existing components, database tables, APIs, and UI wherever possible to minimize development time, AI credits, deployment cost, and maintenance effort.
+
+## 1. Salesman Role Restrictions
+
+### Catalog View
+
+* Hide all product prices from Salesman users.
+* Salesman should only see:
+
+  * Product Image
+  * Product Name
+  * SKU/Item Code
+  * GST %
+  * Available Stock
+
+### Filters
+
+* Remove advanced filters from Salesman Catalog.
+* Keep only basic search if already available.
+
+### Invoice Visibility
+
+* Salesman should only be able to view invoices from the last 7 days.
+* Older invoices should not be visible to Salesman.
+
+---
+
+## 2. Multi-Product Selection & Order Creation
+
+### Catalog Selection
+
+* Allow Salesman to select one or multiple products.
+* Add quantity input field (number only).
+* User can enter quantity directly.
+
+### Proceed Action
+
+* Enable "Proceed to Order" button when at least one product is selected.
+* Selected products should be added to the order screen automatically.
+
+---
+
+## 3. Order and Invoice Workflow
+
+When completing a sale provide two options:
+
+### Option 1
+
+Create Order
+
+### Option 2
+
+Create Invoice
+
+Requirements:
+
+* Orders and Invoices must be stored separately.
+* Order numbering and Invoice numbering should be separate.
+* Existing functionality should remain unchanged.
+
+---
+
+## 4. GST Handling
+
+### Product Creation
+
+Admin must enter:
+
+* Product Name
+* Retail Price (GST Inclusive)
+* GST Rate (%)
+
+### Catalog Display
+
+Show:
+
+* GST %
+* Retail Price
+
+### Billing
+
+System should:
+
+* Automatically calculate GST breakup.
+* Calculate CGST/SGST or IGST where applicable.
+* Use GST-inclusive price entered by Admin.
+* No manual GST calculation required during billing.
+
+---
+
+## 5. Invoice Template Management
+
+Create Invoice Template Settings.
+
+### A4 Templates
+
+Provide 5 professional A4 invoice templates.
+
+### A5 Templates
+
+Provide 5 professional A5 invoice templates.
+
+### Admin Controls
+
+* Admin can preview templates.
+* Admin can select default template.
+* All newly generated invoices should use selected template automatically.
+
+---
+
+## 6. GST Number Auto-Fetch Customer Details
+
+Customer Creation Screen:
+
+Fields:
+
+* Mobile Number
+* GST Number
+
+When GST Number is entered:
+
+Automatically fetch:
+
+* Business Name
+* Customer Name
+* Registered Address
+* State
+* GST Status
+
+Auto-fill fields before saving.
+
+Admin/User can manually edit fetched details before saving.
+
+---
+
+## 7. Bill Number Series Management
+
+Create a dedicated Number Series Settings page.
+
+### Invoice Series Formats
+
+Allow Admin to select:
+
+1. Sequential
+   Example:
+   INV-0001
+   INV-0002
+
+2. Date + Serial
+   Example:
+   INV-20260805-001
+   INV-20260805-002
+
+3. Month + Serial
+   Example:
+   INV-2026-08-001
+   INV-2026-08-002
+
+4. Financial Year + Serial
+   Example:
+   INV-25-26-001
+
+5. Custom Prefix + Serial
+   Example:
+   PGI-INV-001
+
+### Reset Options
+
+Allow Admin to choose:
+
+* Never Reset
+* Daily Reset
+* Monthly Reset
+* Financial Year Reset
+* Annual Reset
+
+### Separate Series
+
+Maintain separate numbering for:
+
+* Orders
+* Invoices
+* Quotations (if available)
+
+### Admin Controls
+
+Admin should be able to:
+
+* Set Prefix
+* Set Starting Number
+* Select Format
+* Select Reset Rule
+* Preview Next Number
+
+---
+
+## 8. Performance Requirements
+
+Important:
+
+* Do not redesign UI.
+* Do not change working features.
+* Do not create duplicate pages.
+* Reuse existing components.
+* Reuse existing APIs.
+* Reuse existing database tables whenever possible.
+* Avoid installing unnecessary packages.
+* Keep application lightweight and fast.
+* Minimize database migrations.
+* Maintain current ERP design and workflow.
+
+---
+
+## After Implementation Provide
+
+1. Database changes (if any)
+2. New settings added
+3. Files modified
+4. APIs modified
+5. Testing checklist
+6. Any migration required
+7. Any manual configuration required
+8. Deployment notes
+9. Potential backward compatibility issues
