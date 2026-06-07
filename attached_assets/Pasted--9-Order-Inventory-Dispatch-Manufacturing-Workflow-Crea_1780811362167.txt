@@ -1,0 +1,147 @@
+## 9. Order → Inventory → Dispatch → Manufacturing Workflow
+
+Create an automatic workflow after Order Creation.
+
+### Order Sources
+
+Orders can be created by:
+
+* Admin
+* Salesman
+* Customer Portal (future ready)
+
+### Order Processing Logic
+
+When an Order is created:
+
+#### Step 1: Stock Verification
+
+System should automatically check available stock for all ordered products.
+
+### If Stock Available
+
+Status Flow:
+
+Order Created
+→ Stock Verified
+→ Ready For Dispatch
+→ Create Invoice
+→ Dispatch
+→ Completed
+
+Requirements:
+
+* Reserve stock immediately after order confirmation.
+* Generate invoice directly from order.
+* Reduce inventory automatically.
+* Mark order as Ready For Dispatch.
+
+### If Stock Not Available
+
+Status Flow:
+
+Order Created
+→ Stock Shortage
+→ Manufacturing Required
+→ Create Work Order
+→ Production Planning
+→ Manufacturing In Progress
+→ Quality Check
+→ Finished Goods Entry
+→ Ready For Dispatch
+→ Create Invoice
+→ Dispatch
+→ Completed
+
+### Work Order Generation
+
+Automatically create Production Work Order when:
+
+Available Stock < Ordered Quantity
+
+Work Order should contain:
+
+* Work Order Number
+* Product Name
+* Required Quantity
+* Available Quantity
+* Shortage Quantity
+* BOM (if available)
+* Target Completion Date
+* Priority
+
+### Production Department
+
+Production team should see:
+
+* Pending Work Orders
+* In Progress Work Orders
+* Completed Work Orders
+
+### Manufacturing Completion
+
+When production is completed:
+
+* Finished goods inventory should increase automatically.
+* Related order should move to Ready For Dispatch.
+* User can create invoice immediately.
+
+### Partial Stock Logic
+
+If:
+Ordered Quantity = 100
+Available Stock = 60
+
+System should:
+
+Option A:
+
+* Dispatch available 60
+* Create work order for remaining 40
+
+OR
+
+Option B:
+
+* Wait until full quantity is manufactured
+
+Admin can choose preferred behavior from settings.
+
+### Workflow Dashboard
+
+Add order status tracking:
+
+* Order Created
+* Stock Verified
+* Stock Shortage
+* Manufacturing Required
+* Work Order Created
+* Production In Progress
+* Quality Check
+* Ready For Dispatch
+* Invoice Generated
+* Dispatched
+* Completed
+
+### Notifications
+
+Notify:
+
+* Salesman
+* Admin
+* Production Manager
+
+when:
+
+* Stock shortage detected
+* Work order created
+* Production completed
+* Order ready for dispatch
+
+### Performance Requirement
+
+* Reuse existing inventory tables.
+* Reuse existing order and invoice modules.
+* Do not redesign UI.
+* Add workflow using existing architecture.
+* Minimize database changes.
