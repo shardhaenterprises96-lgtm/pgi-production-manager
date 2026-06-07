@@ -29,11 +29,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Plus, Minus, ShoppingCart, Phone, User, CheckCircle, UserPlus, Loader2 } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Minus,
+  ShoppingCart,
+  Phone,
+  User,
+  CheckCircle,
+  UserPlus,
+  Loader2,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLookupEntityByMobileQueryKey } from "@workspace/api-client-react";
 import { useForm } from "react-hook-form";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 
 export default function Catalog() {
   const { user, hasRole } = useAuth();
@@ -41,8 +58,7 @@ export default function Catalog() {
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState<string>("");
   const [brand, setBrand] = useState<string>("");
-  // Multi-product selection: productId -> quantity. A product is "in the cart"
-  // when it has an entry here.
+  // Multi-product cart: productId -> quantity
   const [cart, setCart] = useState<Record<number, number>>({});
 
   // Customer lookup dialog state
@@ -65,18 +81,76 @@ export default function Catalog() {
   const isManufacturing = user?.role === "manufacturing";
   const isSalesman = user?.role === "salesman";
   const showRetailOnly = isB2B || isManufacturing;
-  // Salesmen never see catalog prices, and advanced (group/brand) filters are
-  // hidden for them — search only.
   const hidePrices = isSalesman;
   const showAdvancedFilters = !isSalesman;
   const { toast } = useToast();
   const placeOrder = useCreateCustomerOrder();
+  const queryClient = useQueryClient();
 
+  // Derived cart data
   const cartItems = Object.entries(cart)
     .map(([id, qty]) => ({ productId: Number(id), qty }))
     .filter((i) => i.qty > 0);
   const cartCount = cartItems.length;
   const hasSelection = cartCount > 0;
+
+  // Cart helpers
+  const addToCart = (productId: number) => {
+    setCart((c) => ({ ...c, [productId]: (c[productId] ?? 0) + 1 }));
+  };
+
+  const removeFromCart = (productId: number) => {
+    setCart((c) => {
+      const next = { ...c };
+      delete next[productId];
+      return next;
+    });
+  };
+
+  const setQty = (productId: number, qty: number, maxStock: number) => {
+    const clamped = Math.max(1, Math.min(maxStock, qty));
+    setCart((c) => ({ ...c, [productId]: clamped }));
+  };
+
+  const decreaseQty = (productId: number) =>
+    setCart((c) => {
+      const next = (c[productId] ?? 1) - 1;
+      if (next <= 0) {
+        const updated = { ...c };
+        delete updated[productId];
+        return updated;
+      }
+      return { ...c, [productId]: next };
+    });
+
+  const increaseQty = (productId: number, maxStock: number) =>
+    setCart((c) => ({
+      ...c,
+      [productId]: Math.min(maxStock, (c[productId] ?? 0) + 1),
+    }));
+
+  const getStockBadge = (stock: number) => {
+    if (stock > 10)
+      return (
+        <Badge className="bg-green-600 text-white border-transparent text-[10px]">
+          In Stock
+        </Badge>
+      );
+    if (stock > 0)
+      return (
+        <Badge
+          variant="outline"
+          className="text-amber-500 border-amber-500 text-[10px]"
+        >
+          Only {stock} Left!
+        </Badge>
+      );
+    return (
+      <Badge variant="destructive" className="text-[10px]">
+        Out of Stock
+      </Badge>
+    );
+  };
 
   const handlePlaceOrder = () => {
     if (!hasSelection) return;
@@ -89,7 +163,9 @@ export default function Catalog() {
             description: `Your order ${order.orderNo ?? ""} has been submitted.`,
           });
           setCart({});
-          queryClient.invalidateQueries({ queryKey: getListCustomerOrdersQueryKey() });
+          queryClient.invalidateQueries({
+            queryKey: getListCustomerOrdersQueryKey(),
+          });
           setLocation("/my-orders");
         },
         onError: (err: any) => {
@@ -102,35 +178,24 @@ export default function Catalog() {
       },
     );
   };
-  const isStaff = hasRole(["admin", "salesman", "store", "manufacturing", "accountant"]);
 
-  const selectProduct = (productId: number) => {
-    setCart((c) => (c[productId] ? c : { ...c, [productId]: 1 }));
-  };
-
-  const removeProduct = (productId: number) => {
-    setCart((c) => {
-      const next = { ...c };
-      delete next[productId];
-      return next;
-    });
-  };
-
-  const decreaseQty = (productId: number) =>
-    setCart((c) => ({ ...c, [productId]: Math.max(1, (c[productId] ?? 1) - 1) }));
-  const increaseQty = (productId: number, maxStock: number) =>
-    setCart((c) => ({ ...c, [productId]: Math.min(maxStock, (c[productId] ?? 1) + 1) }));
-
-  const getStockBadge = (stock: number) => {
-    if (stock > 10) return <Badge className="bg-green-600 text-white border-transparent text-[10px]">In Stock</Badge>;
-    if (stock > 0) return <Badge variant="outline" className="text-amber-500 border-amber-500 text-[10px]">Only {stock} Left!</Badge>;
-    return <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>;
-  };
+  const isStaff = hasRole([
+    "admin",
+    "salesman",
+    "store",
+    "manufacturing",
+    "accountant",
+  ]);
 
   // Lookup hook — only fires when searchMobile is set
   const { data: lookupResult, isFetching: isLooking } = useLookupEntityByMobile(
     { mobile: searchMobile },
-    { query: { enabled: searchMobile.length === 10, queryKey: getLookupEntityByMobileQueryKey({ mobile: searchMobile }) } }
+    {
+      query: {
+        enabled: searchMobile.length === 10,
+        queryKey: getLookupEntityByMobileQueryKey({ mobile: searchMobile }),
+      },
+    },
   );
 
   const handleMobileLookup = () => {
@@ -138,7 +203,6 @@ export default function Catalog() {
     setSearchMobile(mobileInput);
   };
 
-  // When lookup result changes, decide next step
   const handleLookupResult = () => {
     if (!lookupResult) return;
     if (lookupResult.found && lookupResult.entity) {
@@ -149,23 +213,18 @@ export default function Catalog() {
     }
   };
 
-  // Watch lookup result
-  useState(() => {
-    if (lookupResult !== undefined && searchMobile) {
-      handleLookupResult();
-    }
-  });
-
-  // When lookup finishes, auto-advance
-  if (lookupResult !== undefined && searchMobile && step === "mobile" && !isLooking) {
+  // Auto-advance when lookup finishes
+  if (
+    lookupResult !== undefined &&
+    searchMobile &&
+    step === "mobile" &&
+    !isLooking
+  ) {
     handleLookupResult();
   }
 
-  const proceedToBillingWithCustomer = (customer: any) => {
-    if (!selectedProduct) return;
-    const cartParam = encodeURIComponent(JSON.stringify(
-      [{ productId: selectedProduct.id, qty: selectedQty }]
-    ));
+  const proceedToOrderWithCustomer = (customer: any) => {
+    const cartParam = encodeURIComponent(JSON.stringify(cartItems));
     const customerParam = encodeURIComponent(JSON.stringify(customer));
     setLocation(`/billing?cart=${cartParam}&customer=${customerParam}`);
   };
@@ -184,16 +243,15 @@ export default function Catalog() {
   });
 
   const createEntity = useCreateEntity();
-  const queryClient = useQueryClient();
 
   const handleCreateCustomer = newCustomerForm.handleSubmit(async (data) => {
     createEntity.mutate(
       { data: { type: "customer", ...data, mobile: mobileInput } },
       {
         onSuccess: (newCustomer) => {
-          proceedToBillingWithCustomer(newCustomer);
+          proceedToOrderWithCustomer(newCustomer);
         },
-      }
+      },
     );
   });
 
@@ -202,28 +260,61 @@ export default function Catalog() {
     setSearchMobile("");
     setStep("mobile");
     setFoundCustomer(null);
-    newCustomerForm.reset({ name: "", mobile: "", gstin: "", address: "", city: "", state: "Maharashtra", pricingTier: "retail" });
+    newCustomerForm.reset({
+      name: "",
+      mobile: "",
+      gstin: "",
+      address: "",
+      city: "",
+      state: "Maharashtra",
+      pricingTier: "retail",
+    });
     setShowCustomerDialog(true);
   };
 
+  // Cart summary data — join cart with product details
+  const cartSummaryRows = cartItems
+    .map(({ productId, qty }) => {
+      const product = products?.find((p) => p.id === productId);
+      if (!product) return null;
+      const rate = showRetailOnly
+        ? Number(product.retailPrice)
+        : Number(product.wholesalePrice);
+      const gstRate = Number(product.gstRate ?? 0);
+      const baseAmount = rate * qty;
+      const gstAmount = (baseAmount * gstRate) / 100;
+      const lineTotal = baseAmount + gstAmount;
+      return { product, qty, rate, gstRate, gstAmount, lineTotal };
+    })
+    .filter(Boolean) as Array<{
+    product: NonNullable<typeof products>[number];
+    qty: number;
+    rate: number;
+    gstRate: number;
+    gstAmount: number;
+    lineTotal: number;
+  }>;
+
+  const grandTotal = cartSummaryRows.reduce((sum, r) => sum + r.lineTotal, 0);
+
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.20))] flex-col">
-      {/* Products grid */}
-      <div className="flex-1 flex flex-col space-y-4 min-w-0">
+    <div className="flex h-[calc(100vh-theme(spacing.20))] gap-4">
+      {/* Left: Products grid */}
+      <div className="flex-1 flex flex-col space-y-4 min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-3xl font-bold tracking-tight">Product Catalog</h1>
           {isStaff ? (
             <Button
-              disabled={!selectedProduct}
+              disabled={!hasSelection}
               onClick={openCustomerDialog}
-              data-testid="button-proceed-billing"
+              data-testid="button-proceed-order"
             >
               <ShoppingCart className="w-4 h-4 mr-2" />
-              Proceed to Billing
+              Proceed to Order
             </Button>
           ) : (
             <Button
-              disabled={!selectedProduct || placeOrder.isPending}
+              disabled={!hasSelection || placeOrder.isPending}
               onClick={handlePlaceOrder}
               data-testid="button-place-order"
             >
@@ -248,30 +339,50 @@ export default function Catalog() {
               data-testid="input-search-products"
             />
           </div>
-          <Select value={group} onValueChange={(v) => setGroup(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All Groups" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Groups</SelectItem>
-              {groups?.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={brand} onValueChange={(v) => setBrand(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="All Brands" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Brands</SelectItem>
-              {brands?.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {showAdvancedFilters && (
+            <>
+              <Select
+                value={group}
+                onValueChange={(v) => setGroup(v === "all" ? "" : v)}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Groups" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Groups</SelectItem>
+                  {groups?.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {g}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={brand}
+                onValueChange={(v) => setBrand(v === "all" ? "" : v)}
+              >
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="All Brands" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Brands</SelectItem>
+                  {brands?.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto pr-1 pb-4">
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => <Card key={i} className="animate-pulse h-[340px]" />)}
+              {[...Array(8)].map((_, i) => (
+                <Card key={i} className="animate-pulse h-[340px]" />
+              ))}
             </div>
           ) : products?.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
@@ -281,81 +392,222 @@ export default function Catalog() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {products?.map((product) => {
-                const isSelected = selectedId === product.id;
+                const inCart = product.id in cart;
+                const qty = cart[product.id] ?? 0;
                 const outOfStock = product.currentStock <= 0;
                 return (
-                <Card
-                  key={product.id}
-                  data-testid={`card-product-${product.id}`}
-                  onClick={() => { if (!outOfStock) selectProduct(product.id); }}
-                  className={`flex flex-col overflow-hidden transition-all ${
-                    outOfStock ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:shadow-md"
-                  } ${
-                    isSelected
-                      ? "border-2 border-primary ring-2 ring-primary/30 shadow-md"
-                      : "border-border/50"
-                  }`}
-                >
-                  <div className="aspect-square bg-muted flex items-center justify-center relative p-1 sm:p-2">
-                    {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} className="object-contain h-full w-full" />
-                    ) : (
-                      <div className="w-24 h-24 opacity-10 text-foreground">
-                        <ShoppingCart className="w-full h-full" />
-                      </div>
-                    )}
-                    <div className="absolute top-2 right-2">{getStockBadge(product.currentStock)}</div>
-                    {isSelected && (
-                      <div className="absolute top-2 left-2">
-                        <CheckCircle className="w-5 h-5 text-primary fill-background" />
-                      </div>
-                    )}
-                  </div>
-                  <CardContent className="flex-1 p-3 flex flex-col gap-2">
-                    <div className="text-[10px] text-muted-foreground font-mono">{product.itemCode}</div>
-                    <h3 className="font-semibold text-sm leading-tight line-clamp-2">{product.name}</h3>
-                    {showRetailOnly ? (
-                      <div className="text-primary font-bold">₹{product.retailPrice}</div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground whitespace-nowrap">
-                        <span>W: <span className="text-foreground font-medium">₹{product.wholesalePrice}</span></span>
-                        <span className="text-border">|</span>
-                        <span>R: <span className="text-foreground font-medium">₹{product.retailPrice}</span></span>
-                      </div>
-                    )}
-                    <div className="mt-auto">
-                      {isSelected ? (
-                        <div
-                          className="flex items-center justify-between w-full gap-2"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={decreaseQty} disabled={selectedQty <= 1} data-testid={`button-qty-minus-${product.id}`}>
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="font-bold text-sm w-8 text-center" data-testid={`text-qty-${product.id}`}>{selectedQty}</span>
-                          <Button size="icon" className="h-8 w-8" onClick={() => increaseQty(product.currentStock)} disabled={selectedQty >= product.currentStock} data-testid={`button-qty-plus-${product.id}`}>
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
+                  <Card
+                    key={product.id}
+                    data-testid={`card-product-${product.id}`}
+                    className={`flex flex-col overflow-hidden transition-all ${
+                      outOfStock ? "opacity-60" : ""
+                    } ${
+                      inCart
+                        ? "border-2 border-primary ring-2 ring-primary/30 shadow-md"
+                        : "border-border/50"
+                    }`}
+                  >
+                    <div className="aspect-square bg-muted flex items-center justify-center relative p-1 sm:p-2">
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="object-contain h-full w-full"
+                        />
                       ) : (
-                        <Button
-                          variant="outline"
-                          className="w-full h-8 text-xs"
-                          onClick={(e) => { e.stopPropagation(); selectProduct(product.id); }}
-                          disabled={outOfStock}
-                          data-testid={`button-select-${product.id}`}
-                        >
-                          Select
-                        </Button>
+                        <div className="w-24 h-24 opacity-10 text-foreground">
+                          <ShoppingCart className="w-full h-full" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        {getStockBadge(product.currentStock)}
+                      </div>
+                      {inCart && (
+                        <div className="absolute top-2 left-2">
+                          <CheckCircle className="w-5 h-5 text-primary fill-background" />
+                        </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                    <CardContent className="flex-1 p-3 flex flex-col gap-2">
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {product.itemCode}
+                      </div>
+                      <h3 className="font-semibold text-sm leading-tight line-clamp-2">
+                        {product.name}
+                      </h3>
+                      {!hidePrices &&
+                        (showRetailOnly ? (
+                          <div className="text-primary font-bold">
+                            ₹{product.retailPrice}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground whitespace-nowrap">
+                            <span>
+                              W:{" "}
+                              <span className="text-foreground font-medium">
+                                ₹{product.wholesalePrice}
+                              </span>
+                            </span>
+                            <span className="text-border">|</span>
+                            <span>
+                              R:{" "}
+                              <span className="text-foreground font-medium">
+                                ₹{product.retailPrice}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      <div className="mt-auto flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={product.currentStock}
+                            value={qty > 0 ? qty : ""}
+                            placeholder="Qty"
+                            className="h-8 w-20 text-sm text-center"
+                            disabled={outOfStock}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val) && val > 0) {
+                                setQty(product.id, val, product.currentStock);
+                              }
+                            }}
+                            data-testid={`input-qty-${product.id}`}
+                          />
+                          <div className="flex gap-1">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              onClick={() => decreaseQty(product.id)}
+                              disabled={outOfStock || !inCart}
+                              data-testid={`button-qty-minus-${product.id}`}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              onClick={() =>
+                                increaseQty(product.id, product.currentStock)
+                              }
+                              disabled={
+                                outOfStock || qty >= product.currentStock
+                              }
+                              data-testid={`button-qty-plus-${product.id}`}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <Button
+                          variant={inCart ? "default" : "outline"}
+                          className="w-full h-8 text-xs"
+                          onClick={() => {
+                            if (inCart) {
+                              removeFromCart(product.id);
+                            } else {
+                              addToCart(product.id);
+                            }
+                          }}
+                          disabled={outOfStock}
+                          data-testid={`button-add-to-cart-${product.id}`}
+                        >
+                          {inCart ? "Remove" : "Add to Cart"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
           )}
         </div>
+      </div>
+
+      {/* Right: Cart Summary Panel */}
+      <div className="w-80 shrink-0 flex flex-col border rounded-lg bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/40">
+          <ShoppingCart className="w-4 h-4 text-primary" />
+          <span className="font-semibold text-sm">Cart Summary</span>
+          {cartCount > 0 && (
+            <Badge className="ml-auto text-[10px]">
+              {cartCount} item{cartCount !== 1 ? "s" : ""}
+            </Badge>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {cartSummaryRows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
+              <ShoppingCart className="w-8 h-8 opacity-20" />
+              <p>No items in cart</p>
+            </div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/20 text-muted-foreground">
+                  <th className="text-left px-3 py-2">Product</th>
+                  <th className="text-right px-2 py-2">Qty</th>
+                  <th className="text-right px-2 py-2">Rate</th>
+                  <th className="text-right px-2 py-2">GST</th>
+                  <th className="text-right px-3 py-2">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cartSummaryRows.map((row) => (
+                  <tr
+                    key={row.product.id}
+                    className="border-b last:border-0 hover:bg-muted/10"
+                  >
+                    <td className="px-3 py-2 font-medium leading-tight max-w-[100px]">
+                      <div className="truncate" title={row.product.name}>
+                        {row.product.name}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {row.product.itemCode}
+                      </div>
+                    </td>
+                    <td className="text-right px-2 py-2">{row.qty}</td>
+                    <td className="text-right px-2 py-2">
+                      ₹{row.rate.toFixed(2)}
+                    </td>
+                    <td className="text-right px-2 py-2 text-muted-foreground">
+                      {row.gstRate > 0 ? `₹${row.gstAmount.toFixed(2)}` : "—"}
+                    </td>
+                    <td className="text-right px-3 py-2 font-semibold text-primary">
+                      ₹{row.lineTotal.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        {cartSummaryRows.length > 0 && (
+          <div className="border-t px-4 py-3 space-y-3 bg-muted/10">
+            <div className="flex items-center justify-between text-sm font-bold">
+              <span>Grand Total</span>
+              <span className="text-primary">₹{grandTotal.toFixed(2)}</span>
+            </div>
+            <Button
+              className="w-full"
+              disabled={
+                !hasSelection || (isStaff ? false : placeOrder.isPending)
+              }
+              onClick={isStaff ? openCustomerDialog : handlePlaceOrder}
+              data-testid="button-proceed-order-summary"
+            >
+              {placeOrder.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ShoppingCart className="w-4 h-4 mr-2" />
+              )}
+              Proceed to Order
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Customer Lookup Dialog */}
@@ -371,7 +623,8 @@ export default function Catalog() {
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 <p className="text-sm text-muted-foreground">
-                  Enter the customer's mobile number to look up their profile or register a new customer.
+                  Enter the customer's mobile number to look up their profile or
+                  register a new customer.
                 </p>
                 <div className="space-y-2">
                   <Label htmlFor="mobile-input">Mobile Number</Label>
@@ -387,7 +640,9 @@ export default function Catalog() {
                         setMobileInput(v);
                         setSearchMobile("");
                       }}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleMobileLookup(); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleMobileLookup();
+                      }}
                       className="text-lg tracking-wider font-mono"
                     />
                     <Button
@@ -395,14 +650,24 @@ export default function Catalog() {
                       disabled={mobileInput.length !== 10 || isLooking}
                       data-testid="button-lookup-mobile"
                     >
-                      {isLooking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                      {isLooking ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
                   {mobileInput.length > 0 && mobileInput.length < 10 && (
-                    <p className="text-xs text-muted-foreground">{10 - mobileInput.length} more digits needed</p>
+                    <p className="text-xs text-muted-foreground">
+                      {10 - mobileInput.length} more digits needed
+                    </p>
                   )}
                 </div>
-                <Button variant="outline" className="w-full" onClick={() => proceedToBillingWithCustomer(null)}>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => proceedToOrderWithCustomer(null)}
+                >
                   Skip — Walk-in / Cash Customer
                 </Button>
               </div>
@@ -421,7 +686,9 @@ export default function Catalog() {
                 <div className="bg-muted rounded-lg p-4 space-y-2">
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold text-lg">{foundCustomer.name}</span>
+                    <span className="font-semibold text-lg">
+                      {foundCustomer.name}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="w-3 h-3" />
@@ -430,33 +697,54 @@ export default function Catalog() {
                   {foundCustomer.gstin && (
                     <div className="text-sm">
                       <span className="text-muted-foreground">GSTIN: </span>
-                      <span className="font-mono text-xs">{foundCustomer.gstin}</span>
+                      <span className="font-mono text-xs">
+                        {foundCustomer.gstin}
+                      </span>
                     </div>
                   )}
                   {foundCustomer.address && (
-                    <div className="text-sm text-muted-foreground line-clamp-2">{foundCustomer.address}{foundCustomer.city ? `, ${foundCustomer.city}` : ""}</div>
+                    <div className="text-sm text-muted-foreground line-clamp-2">
+                      {foundCustomer.address}
+                      {foundCustomer.city ? `, ${foundCustomer.city}` : ""}
+                    </div>
                   )}
                   <div className="flex items-center justify-between text-sm pt-1 border-t border-border/40">
-                    <span className="text-muted-foreground">Outstanding Balance</span>
-                    <span className={`font-bold ${foundCustomer.outstandingBalance > 0 ? "text-destructive" : "text-green-600"}`}>
-                      ₹{Number(foundCustomer.outstandingBalance).toLocaleString()}
+                    <span className="text-muted-foreground">
+                      Outstanding Balance
+                    </span>
+                    <span
+                      className={`font-bold ${foundCustomer.outstandingBalance > 0 ? "text-destructive" : "text-green-600"}`}
+                    >
+                      ₹
+                      {Number(
+                        foundCustomer.outstandingBalance,
+                      ).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Pricing Tier</span>
-                    <Badge variant="outline" className="capitalize">{foundCustomer.pricingTier}</Badge>
+                    <Badge variant="outline" className="capitalize">
+                      {foundCustomer.pricingTier}
+                    </Badge>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => { setStep("mobile"); setSearchMobile(""); }}>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setStep("mobile");
+                      setSearchMobile("");
+                    }}
+                  >
                     Change
                   </Button>
                   <Button
                     className="flex-1"
-                    onClick={() => proceedToBillingWithCustomer(foundCustomer)}
+                    onClick={() => proceedToOrderWithCustomer(foundCustomer)}
                     data-testid="button-confirm-customer"
                   >
-                    Proceed to Billing
+                    Proceed to Order
                   </Button>
                 </div>
               </div>
@@ -473,7 +761,8 @@ export default function Catalog() {
               </DialogHeader>
               <div className="space-y-3 pt-2">
                 <p className="text-sm text-muted-foreground">
-                  This mobile number is not registered. Fill in customer details to register and proceed.
+                  This mobile number is not registered. Fill in customer details
+                  to register and proceed.
                 </p>
                 <Form {...newCustomerForm}>
                   <form onSubmit={handleCreateCustomer} className="space-y-3">
@@ -482,21 +771,34 @@ export default function Catalog() {
                       name="name"
                       rules={{
                         validate: (value) =>
-                          newCustomerForm.getValues("pricingTier") === "wholesale" && !value?.trim()
+                          newCustomerForm.getValues("pricingTier") ===
+                            "wholesale" && !value?.trim()
                             ? "Name is required for wholesale customers"
                             : true,
                       }}
                       render={({ field }) => {
-                        const isWholesale = newCustomerForm.watch("pricingTier") === "wholesale";
+                        const isWholesale =
+                          newCustomerForm.watch("pricingTier") === "wholesale";
                         return (
                           <FormItem>
                             <FormLabel>
-                              Customer Name {isWholesale ? "*" : <span className="text-muted-foreground font-normal">(optional for retail)</span>}
+                              Customer Name{" "}
+                              {isWholesale ? (
+                                "*"
+                              ) : (
+                                <span className="text-muted-foreground font-normal">
+                                  (optional for retail)
+                                </span>
+                              )}
                             </FormLabel>
                             <FormControl>
                               <Input
                                 data-testid="input-new-customer-name"
-                                placeholder={isWholesale ? "Business name" : "Leave blank for walk-in retail"}
+                                placeholder={
+                                  isWholesale
+                                    ? "Business name"
+                                    : "Leave blank for walk-in retail"
+                                }
                                 {...field}
                               />
                             </FormControl>
@@ -513,7 +815,11 @@ export default function Catalog() {
                           <FormItem>
                             <FormLabel>GSTIN</FormLabel>
                             <FormControl>
-                              <Input data-testid="input-new-customer-gstin" placeholder="Optional" {...field} />
+                              <Input
+                                data-testid="input-new-customer-gstin"
+                                placeholder="Optional"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -525,7 +831,10 @@ export default function Catalog() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Pricing Tier</FormLabel>
-                            <Select value={field.value} onValueChange={field.onChange}>
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                            >
                               <FormControl>
                                 <SelectTrigger data-testid="select-pricing-tier">
                                   <SelectValue />
@@ -533,7 +842,9 @@ export default function Catalog() {
                               </FormControl>
                               <SelectContent>
                                 <SelectItem value="retail">Retail</SelectItem>
-                                <SelectItem value="wholesale">Wholesale</SelectItem>
+                                <SelectItem value="wholesale">
+                                  Wholesale
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -548,7 +859,11 @@ export default function Catalog() {
                         <FormItem>
                           <FormLabel>Address</FormLabel>
                           <FormControl>
-                            <Input data-testid="input-new-customer-address" placeholder="Street address" {...field} />
+                            <Input
+                              data-testid="input-new-customer-address"
+                              placeholder="Street address"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -562,7 +877,11 @@ export default function Catalog() {
                           <FormItem>
                             <FormLabel>City</FormLabel>
                             <FormControl>
-                              <Input data-testid="input-new-customer-city" placeholder="City" {...field} />
+                              <Input
+                                data-testid="input-new-customer-city"
+                                placeholder="City"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -575,7 +894,11 @@ export default function Catalog() {
                           <FormItem>
                             <FormLabel>State</FormLabel>
                             <FormControl>
-                              <Input data-testid="input-new-customer-state" placeholder="State" {...field} />
+                              <Input
+                                data-testid="input-new-customer-state"
+                                placeholder="State"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -583,7 +906,15 @@ export default function Catalog() {
                       />
                     </div>
                     <div className="flex gap-2 pt-1">
-                      <Button type="button" variant="outline" className="flex-1" onClick={() => { setStep("mobile"); setSearchMobile(""); }}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setStep("mobile");
+                          setSearchMobile("");
+                        }}
+                      >
                         Back
                       </Button>
                       <Button
@@ -592,8 +923,12 @@ export default function Catalog() {
                         disabled={createEntity.isPending}
                         data-testid="button-create-customer"
                       >
-                        {createEntity.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
-                        Register & Bill
+                        {createEntity.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <UserPlus className="w-4 h-4 mr-2" />
+                        )}
+                        Register & Proceed
                       </Button>
                     </div>
                   </form>
