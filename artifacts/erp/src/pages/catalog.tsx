@@ -39,6 +39,7 @@ import {
   CheckCircle,
   UserPlus,
   Loader2,
+  X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLookupEntityByMobileQueryKey } from "@workspace/api-client-react";
@@ -60,6 +61,9 @@ export default function Catalog() {
   const [brand, setBrand] = useState<string>("");
   // Multi-product cart: productId -> quantity
   const [cart, setCart] = useState<Record<number, number>>({});
+
+  // Cart review dialog (shown before customer lookup)
+  const [showCartReview, setShowCartReview] = useState(false);
 
   // Customer lookup dialog state
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
@@ -187,6 +191,31 @@ export default function Catalog() {
     "accountant",
   ]);
 
+  // Cart summary rows — join cart with product details
+  const cartSummaryRows = cartItems
+    .map(({ productId, qty }) => {
+      const product = products?.find((p) => p.id === productId);
+      if (!product) return null;
+      const rate = showRetailOnly
+        ? Number(product.retailPrice)
+        : Number(product.wholesalePrice);
+      const gstRate = Number(product.gstRate ?? 0);
+      const baseAmount = rate * qty;
+      const gstAmount = (baseAmount * gstRate) / 100;
+      const lineTotal = baseAmount + gstAmount;
+      return { product, qty, rate, gstRate, gstAmount, lineTotal };
+    })
+    .filter(Boolean) as Array<{
+    product: NonNullable<typeof products>[number];
+    qty: number;
+    rate: number;
+    gstRate: number;
+    gstAmount: number;
+    lineTotal: number;
+  }>;
+
+  const grandTotal = cartSummaryRows.reduce((sum, r) => sum + r.lineTotal, 0);
+
   // Lookup hook — only fires when searchMobile is set
   const { data: lookupResult, isFetching: isLooking } = useLookupEntityByMobile(
     { mobile: searchMobile },
@@ -229,6 +258,31 @@ export default function Catalog() {
     setLocation(`/billing?cart=${cartParam}&customer=${customerParam}`);
   };
 
+  // Opens cart review dialog; non-staff customers skip straight to place order
+  const handleProceedClick = () => {
+    if (!hasSelection) return;
+    setShowCartReview(true);
+  };
+
+  // Called when user confirms cart review and is staff — opens customer lookup
+  const openCustomerDialog = () => {
+    setShowCartReview(false);
+    setMobileInput("");
+    setSearchMobile("");
+    setStep("mobile");
+    setFoundCustomer(null);
+    newCustomerForm.reset({
+      name: "",
+      mobile: "",
+      gstin: "",
+      address: "",
+      city: "",
+      state: "Maharashtra",
+      pricingTier: "retail",
+    });
+    setShowCustomerDialog(true);
+  };
+
   // New customer form
   const newCustomerForm = useForm({
     defaultValues: {
@@ -255,364 +309,321 @@ export default function Catalog() {
     );
   });
 
-  const openCustomerDialog = () => {
-    setMobileInput("");
-    setSearchMobile("");
-    setStep("mobile");
-    setFoundCustomer(null);
-    newCustomerForm.reset({
-      name: "",
-      mobile: "",
-      gstin: "",
-      address: "",
-      city: "",
-      state: "Maharashtra",
-      pricingTier: "retail",
-    });
-    setShowCustomerDialog(true);
-  };
-
-  // Cart summary data — join cart with product details
-  const cartSummaryRows = cartItems
-    .map(({ productId, qty }) => {
-      const product = products?.find((p) => p.id === productId);
-      if (!product) return null;
-      const rate = showRetailOnly
-        ? Number(product.retailPrice)
-        : Number(product.wholesalePrice);
-      const gstRate = Number(product.gstRate ?? 0);
-      const baseAmount = rate * qty;
-      const gstAmount = (baseAmount * gstRate) / 100;
-      const lineTotal = baseAmount + gstAmount;
-      return { product, qty, rate, gstRate, gstAmount, lineTotal };
-    })
-    .filter(Boolean) as Array<{
-    product: NonNullable<typeof products>[number];
-    qty: number;
-    rate: number;
-    gstRate: number;
-    gstAmount: number;
-    lineTotal: number;
-  }>;
-
-  const grandTotal = cartSummaryRows.reduce((sum, r) => sum + r.lineTotal, 0);
+  const proceedLabel = `Proceed to Order${hasSelection ? ` (${cartCount} Item${cartCount !== 1 ? "s" : ""})` : ""}`;
 
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.20))] gap-4">
-      {/* Left: Products grid */}
-      <div className="flex-1 flex flex-col space-y-4 min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h1 className="text-3xl font-bold tracking-tight">Product Catalog</h1>
-          {isStaff ? (
-            <Button
-              disabled={!hasSelection}
-              onClick={openCustomerDialog}
-              data-testid="button-proceed-order"
-            >
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              Proceed to Order
-            </Button>
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.20))]">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h1 className="text-3xl font-bold tracking-tight">Product Catalog</h1>
+        <Button
+          disabled={!hasSelection || (!isStaff && placeOrder.isPending)}
+          onClick={handleProceedClick}
+          data-testid="button-proceed-order"
+        >
+          {placeOrder.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           ) : (
-            <Button
-              disabled={!hasSelection || placeOrder.isPending}
-              onClick={handlePlaceOrder}
-              data-testid="button-place-order"
-            >
-              {placeOrder.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <ShoppingCart className="w-4 h-4 mr-2" />
-              )}
-              Place Order
-            </Button>
+            <ShoppingCart className="w-4 h-4 mr-2" />
           )}
-        </div>
-
-        <div className="flex items-center gap-3 bg-card p-4 rounded-lg border shadow-sm flex-wrap">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              className="pl-8"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              data-testid="input-search-products"
-            />
-          </div>
-          {showAdvancedFilters && (
-            <>
-              <Select
-                value={group}
-                onValueChange={(v) => setGroup(v === "all" ? "" : v)}
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All Groups" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Groups</SelectItem>
-                  {groups?.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {g}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={brand}
-                onValueChange={(v) => setBrand(v === "all" ? "" : v)}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="All Brands" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Brands</SelectItem>
-                  {brands?.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto pr-1 pb-4">
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => (
-                <Card key={i} className="animate-pulse h-[340px]" />
-              ))}
-            </div>
-          ) : products?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
-              <ShoppingCart className="w-10 h-10 mb-2 opacity-30" />
-              <p>No products found</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products?.map((product) => {
-                const inCart = product.id in cart;
-                const qty = cart[product.id] ?? 0;
-                const outOfStock = product.currentStock <= 0;
-                return (
-                  <Card
-                    key={product.id}
-                    data-testid={`card-product-${product.id}`}
-                    className={`flex flex-col overflow-hidden transition-all ${
-                      outOfStock ? "opacity-60" : ""
-                    } ${
-                      inCart
-                        ? "border-2 border-primary ring-2 ring-primary/30 shadow-md"
-                        : "border-border/50"
-                    }`}
-                  >
-                    <div className="aspect-square bg-muted flex items-center justify-center relative p-1 sm:p-2">
-                      {product.imageUrl ? (
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="object-contain h-full w-full"
-                        />
-                      ) : (
-                        <div className="w-24 h-24 opacity-10 text-foreground">
-                          <ShoppingCart className="w-full h-full" />
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2">
-                        {getStockBadge(product.currentStock)}
-                      </div>
-                      {inCart && (
-                        <div className="absolute top-2 left-2">
-                          <CheckCircle className="w-5 h-5 text-primary fill-background" />
-                        </div>
-                      )}
-                    </div>
-                    <CardContent className="flex-1 p-3 flex flex-col gap-2">
-                      <div className="text-[10px] text-muted-foreground font-mono">
-                        {product.itemCode}
-                      </div>
-                      <h3 className="font-semibold text-sm leading-tight line-clamp-2">
-                        {product.name}
-                      </h3>
-                      {!hidePrices &&
-                        (showRetailOnly ? (
-                          <div className="text-primary font-bold">
-                            ₹{product.retailPrice}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground whitespace-nowrap">
-                            <span>
-                              W:{" "}
-                              <span className="text-foreground font-medium">
-                                ₹{product.wholesalePrice}
-                              </span>
-                            </span>
-                            <span className="text-border">|</span>
-                            <span>
-                              R:{" "}
-                              <span className="text-foreground font-medium">
-                                ₹{product.retailPrice}
-                              </span>
-                            </span>
-                          </div>
-                        ))}
-                      <div className="mt-auto flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min={1}
-                            max={product.currentStock}
-                            value={qty > 0 ? qty : ""}
-                            placeholder="Qty"
-                            className="h-8 w-20 text-sm text-center"
-                            disabled={outOfStock}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10);
-                              if (!isNaN(val) && val > 0) {
-                                setQty(product.id, val, product.currentStock);
-                              }
-                            }}
-                            data-testid={`input-qty-${product.id}`}
-                          />
-                          <div className="flex gap-1">
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8"
-                              onClick={() => decreaseQty(product.id)}
-                              disabled={outOfStock || !inCart}
-                              data-testid={`button-qty-minus-${product.id}`}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8"
-                              onClick={() =>
-                                increaseQty(product.id, product.currentStock)
-                              }
-                              disabled={
-                                outOfStock || qty >= product.currentStock
-                              }
-                              data-testid={`button-qty-plus-${product.id}`}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        <Button
-                          variant={inCart ? "default" : "outline"}
-                          className="w-full h-8 text-xs"
-                          onClick={() => {
-                            if (inCart) {
-                              removeFromCart(product.id);
-                            } else {
-                              addToCart(product.id);
-                            }
-                          }}
-                          disabled={outOfStock}
-                          data-testid={`button-add-to-cart-${product.id}`}
-                        >
-                          {inCart ? "Remove" : "Add to Cart"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
+          {proceedLabel}
+        </Button>
       </div>
 
-      {/* Right: Cart Summary Panel */}
-      <div className="w-80 shrink-0 flex flex-col border rounded-lg bg-card shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/40">
-          <ShoppingCart className="w-4 h-4 text-primary" />
-          <span className="font-semibold text-sm">Cart Summary</span>
-          {cartCount > 0 && (
-            <Badge className="ml-auto text-[10px]">
-              {cartCount} item{cartCount !== 1 ? "s" : ""}
-            </Badge>
-          )}
+      {/* Filters */}
+      <div className="flex items-center gap-3 bg-card p-4 rounded-lg border shadow-sm flex-wrap mb-4">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search products..."
+            className="pl-8"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            data-testid="input-search-products"
+          />
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {cartSummaryRows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
-              <ShoppingCart className="w-8 h-8 opacity-20" />
-              <p>No items in cart</p>
-            </div>
-          ) : (
-            <table className="w-full text-xs">
+        {showAdvancedFilters && (
+          <>
+            <Select
+              value={group}
+              onValueChange={(v) => setGroup(v === "all" ? "" : v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All Groups" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Groups</SelectItem>
+                {groups?.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={brand}
+              onValueChange={(v) => setBrand(v === "all" ? "" : v)}
+            >
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="All Brands" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Brands</SelectItem>
+                {brands?.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {b}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+      </div>
+
+      {/* Product grid — full width */}
+      <div className="flex-1 overflow-y-auto pb-4">
+        {isLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {[...Array(10)].map((_, i) => (
+              <Card key={i} className="animate-pulse h-[320px]" />
+            ))}
+          </div>
+        ) : products?.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+            <ShoppingCart className="w-10 h-10 mb-2 opacity-30" />
+            <p>No products found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {products?.map((product) => {
+              const inCart = product.id in cart;
+              const qty = cart[product.id] ?? 0;
+              const outOfStock = product.currentStock <= 0;
+              return (
+                <Card
+                  key={product.id}
+                  data-testid={`card-product-${product.id}`}
+                  className={`flex flex-col overflow-hidden transition-all ${
+                    outOfStock ? "opacity-60" : ""
+                  } ${
+                    inCart
+                      ? "border-2 border-primary ring-2 ring-primary/30 shadow-md"
+                      : "border-border/50"
+                  }`}
+                >
+                  <div className="aspect-square bg-muted flex items-center justify-center relative p-1 sm:p-2">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="object-contain h-full w-full"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 opacity-10 text-foreground">
+                        <ShoppingCart className="w-full h-full" />
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2">
+                      {getStockBadge(product.currentStock)}
+                    </div>
+                    {inCart && (
+                      <div className="absolute top-2 left-2">
+                        <CheckCircle className="w-5 h-5 text-primary fill-background" />
+                      </div>
+                    )}
+                  </div>
+                  <CardContent className="flex-1 p-3 flex flex-col gap-2">
+                    <div className="text-[10px] text-muted-foreground font-mono">
+                      {product.itemCode}
+                    </div>
+                    <h3 className="font-semibold text-sm leading-tight line-clamp-2">
+                      {product.name}
+                    </h3>
+                    {!hidePrices &&
+                      (showRetailOnly ? (
+                        <div className="text-primary font-bold text-sm">
+                          ₹{product.retailPrice}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground flex-wrap">
+                          <span>
+                            W:{" "}
+                            <span className="text-foreground font-medium">
+                              ₹{product.wholesalePrice}
+                            </span>
+                          </span>
+                          <span className="text-border">|</span>
+                          <span>
+                            R:{" "}
+                            <span className="text-foreground font-medium">
+                              ₹{product.retailPrice}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    <div className="mt-auto flex flex-col gap-2">
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={product.currentStock}
+                          value={qty > 0 ? qty : ""}
+                          placeholder="Qty"
+                          className="h-8 w-16 text-sm text-center px-1"
+                          disabled={outOfStock}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!isNaN(val) && val > 0) {
+                              setQty(product.id, val, product.currentStock);
+                            }
+                          }}
+                          data-testid={`input-qty-${product.id}`}
+                        />
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => decreaseQty(product.id)}
+                          disabled={outOfStock || !inCart}
+                          data-testid={`button-qty-minus-${product.id}`}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() =>
+                            increaseQty(product.id, product.currentStock)
+                          }
+                          disabled={outOfStock || qty >= product.currentStock}
+                          data-testid={`button-qty-plus-${product.id}`}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <Button
+                        variant={inCart ? "default" : "outline"}
+                        className="w-full h-8 text-xs"
+                        onClick={() =>
+                          inCart
+                            ? removeFromCart(product.id)
+                            : addToCart(product.id)
+                        }
+                        disabled={outOfStock}
+                        data-testid={`button-add-to-cart-${product.id}`}
+                      >
+                        {inCart ? "Remove" : "Add to Cart"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Cart Review Dialog ── */}
+      <Dialog open={showCartReview} onOpenChange={setShowCartReview}>
+        <DialogContent className="w-full max-w-lg mx-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5 text-primary" />
+              Order Summary
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-muted/20 text-muted-foreground">
-                  <th className="text-left px-3 py-2">Product</th>
-                  <th className="text-right px-2 py-2">Qty</th>
-                  <th className="text-right px-2 py-2">Rate</th>
-                  <th className="text-right px-2 py-2">GST</th>
-                  <th className="text-right px-3 py-2">Total</th>
+                <tr className="border-b text-muted-foreground text-xs">
+                  <th className="text-left py-2 px-1">Product</th>
+                  <th className="text-right py-2 px-1">Qty</th>
+                  <th className="text-right py-2 px-1">Rate</th>
+                  <th className="text-right py-2 px-1">GST</th>
+                  <th className="text-right py-2 px-1">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {cartSummaryRows.map((row) => (
-                  <tr
-                    key={row.product.id}
-                    className="border-b last:border-0 hover:bg-muted/10"
-                  >
-                    <td className="px-3 py-2 font-medium leading-tight max-w-[100px]">
-                      <div className="truncate" title={row.product.name}>
+                  <tr key={row.product.id} className="border-b last:border-0">
+                    <td className="py-2 px-1">
+                      <div className="font-medium leading-tight line-clamp-2 max-w-[140px]">
                         {row.product.name}
                       </div>
                       <div className="text-[10px] text-muted-foreground font-mono">
                         {row.product.itemCode}
                       </div>
                     </td>
-                    <td className="text-right px-2 py-2">{row.qty}</td>
-                    <td className="text-right px-2 py-2">
+                    <td className="text-right py-2 px-1 tabular-nums">
+                      {row.qty}
+                    </td>
+                    <td className="text-right py-2 px-1 tabular-nums">
                       ₹{row.rate.toFixed(2)}
                     </td>
-                    <td className="text-right px-2 py-2 text-muted-foreground">
+                    <td className="text-right py-2 px-1 tabular-nums text-muted-foreground">
                       {row.gstRate > 0 ? `₹${row.gstAmount.toFixed(2)}` : "—"}
                     </td>
-                    <td className="text-right px-3 py-2 font-semibold text-primary">
+                    <td className="text-right py-2 px-1 tabular-nums font-semibold text-primary">
                       ₹{row.lineTotal.toFixed(2)}
                     </td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t-2">
+                  <td
+                    colSpan={4}
+                    className="pt-3 px-1 font-bold text-right text-sm"
+                  >
+                    Grand Total
+                  </td>
+                  <td className="pt-3 px-1 text-right font-bold text-primary">
+                    ₹{grandTotal.toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
-          )}
-        </div>
-        {cartSummaryRows.length > 0 && (
-          <div className="border-t px-4 py-3 space-y-3 bg-muted/10">
-            <div className="flex items-center justify-between text-sm font-bold">
-              <span>Grand Total</span>
-              <span className="text-primary">₹{grandTotal.toFixed(2)}</span>
-            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
             <Button
-              className="w-full"
-              disabled={
-                !hasSelection || (isStaff ? false : placeOrder.isPending)
-              }
-              onClick={isStaff ? openCustomerDialog : handlePlaceOrder}
-              data-testid="button-proceed-order-summary"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowCartReview(false)}
+              data-testid="button-cart-review-cancel"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => {
+                if (isStaff) {
+                  openCustomerDialog();
+                } else {
+                  setShowCartReview(false);
+                  handlePlaceOrder();
+                }
+              }}
+              disabled={placeOrder.isPending}
+              data-testid="button-cart-review-continue"
             >
               {placeOrder.isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <ShoppingCart className="w-4 h-4 mr-2" />
+                <CheckCircle className="w-4 h-4 mr-2" />
               )}
-              Proceed to Order
+              Continue
             </Button>
           </div>
-        )}
-      </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Customer Lookup Dialog */}
+      {/* ── Customer Lookup Dialog ── */}
       <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-full max-w-md mx-auto">
           {step === "mobile" && (
             <>
               <DialogHeader>

@@ -27,14 +27,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Factory, Loader2, PackageCheck, AlertCircle, CheckCircle2, Package, Search, X,
-  ListChecks, AlertTriangle, Plus, Trash2, Pencil, Truck, Inbox,
+  Factory,
+  Loader2,
+  PackageCheck,
+  AlertCircle,
+  CheckCircle2,
+  Package,
+  Search,
+  X,
+  ListChecks,
+  AlertTriangle,
+  Plus,
+  Trash2,
+  Pencil,
+  Truck,
+  Inbox,
 } from "lucide-react";
 import { BomDialog } from "@/components/bom-dialog";
 
@@ -54,15 +76,22 @@ export default function Manufacturing() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Manufacturing</h1>
         <p className="text-muted-foreground mt-2">
-          Check what needs to be produced and assemble finished products from raw materials.
+          Check what needs to be produced and assemble finished products from
+          raw materials.
         </p>
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="grid w-full max-w-2xl grid-cols-3">
-          <TabsTrigger value="workload" data-testid="tab-workload">Workload</TabsTrigger>
-          <TabsTrigger value="assemble" data-testid="tab-assemble">Assemble Item</TabsTrigger>
-          <TabsTrigger value="dispatch" data-testid="tab-dispatch">Ready For Dispatch</TabsTrigger>
+          <TabsTrigger value="workload" data-testid="tab-workload">
+            Workload
+          </TabsTrigger>
+          <TabsTrigger value="assemble" data-testid="tab-assemble">
+            Assemble Item
+          </TabsTrigger>
+          <TabsTrigger value="dispatch" data-testid="tab-dispatch">
+            Ready For Dispatch
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workload" className="mt-6">
@@ -92,7 +121,11 @@ export default function Manufacturing() {
 //                SERIALIZABLE txn (consume raw, produce finished) so the
 //                item drops off this list automatically once stock is restored.
 
-function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => void }) {
+function WorkloadTab({
+  onStartAssemble,
+}: {
+  onStartAssemble: (bomId: number) => void;
+}) {
   const { data: alerts, isLoading } = useGetLowStockAlerts();
   const { data: boms } = useListBoms();
   const { data: products } = useListProducts();
@@ -159,9 +192,13 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
 
   const refreshLists = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: getListWorkloadCardsQueryKey() }),
+      queryClient.invalidateQueries({
+        queryKey: getListWorkloadCardsQueryKey(),
+      }),
       queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }),
-      queryClient.invalidateQueries({ queryKey: getGetLowStockAlertsQueryKey() }),
+      queryClient.invalidateQueries({
+        queryKey: getGetLowStockAlertsQueryKey(),
+      }),
     ]);
   };
 
@@ -195,13 +232,22 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
       await refreshLists();
       toast({ title: `Marked as ${newStatus}` });
     } catch (err: any) {
-      toast({ title: "Failed to update", description: err?.message ?? "Server error", variant: "destructive" });
+      toast({
+        title: "Failed to update",
+        description: err?.message ?? "Server error",
+        variant: "destructive",
+      });
     } finally {
       setBusyProductId(null);
     }
   };
 
-  const handleOpenDone = (productId: number, productName: string, unit: string, suggestedQty: number) => {
+  const handleOpenDone = (
+    productId: number,
+    productName: string,
+    unit: string,
+    suggestedQty: number,
+  ) => {
     const card = activeCardByProduct.get(productId);
     setDoneDialog({
       productId,
@@ -218,7 +264,8 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
     try {
       // Ensure a card exists with the entered qty as its baseline target —
       // this also covers the "skip processing, go straight to done" path.
-      const cardId = doneDialog.cardId ?? await ensureCard(doneDialog.productId, finalQty);
+      const cardId =
+        doneDialog.cardId ?? (await ensureCard(doneDialog.productId, finalQty));
       await updateCard.mutateAsync({
         id: cardId,
         data: { status: "done", targetQty: finalQty },
@@ -235,13 +282,22 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
         const body = err?.response ? await err.response.json() : null;
         if (body?.error) desc = String(body.error).slice(0, 300);
       } catch {}
-      toast({ title: "Failed to complete", description: desc, variant: "destructive" });
+      toast({
+        title: "Failed to complete",
+        description: desc,
+        variant: "destructive",
+      });
     } finally {
       setBusyProductId(null);
     }
   };
 
-  const handleOpenProduce = (productId: number, productName: string, unit: string, suggestedQty: number) => {
+  const handleOpenProduce = (
+    productId: number,
+    productName: string,
+    unit: string,
+    suggestedQty: number,
+  ) => {
     const card = activeCardByProduct.get(productId);
     setProduceDialog({
       productId,
@@ -257,13 +313,25 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
     if (!produceDialog) return;
     setBusyProductId(produceDialog.productId);
     try {
-      const cardId = produceDialog.cardId ?? await ensureCard(produceDialog.productId, qty);
-      await updateCard.mutateAsync({ id: cardId, data: { status: "processing", targetQty: qty } });
+      const cardId =
+        produceDialog.cardId ??
+        (await ensureCard(produceDialog.productId, qty));
+      await updateCard.mutateAsync({
+        id: cardId,
+        data: { status: "processing", targetQty: qty },
+      });
       await refreshLists();
-      toast({ title: "Production started", description: `${produceDialog.productName} moved to processing.` });
+      toast({
+        title: "Production started",
+        description: `${produceDialog.productName} moved to processing.`,
+      });
       setProduceDialog(null);
     } catch (err: any) {
-      toast({ title: "Failed to start", description: err?.message ?? "Server error", variant: "destructive" });
+      toast({
+        title: "Failed to start",
+        description: err?.message ?? "Server error",
+        variant: "destructive",
+      });
     } finally {
       setBusyProductId(null);
     }
@@ -273,8 +341,13 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
     if (!produceDialog) return;
     setBusyProductId(produceDialog.productId);
     try {
-      const cardId = produceDialog.cardId ?? await ensureCard(produceDialog.productId, finalQty);
-      await updateCard.mutateAsync({ id: cardId, data: { status: "done", targetQty: finalQty } });
+      const cardId =
+        produceDialog.cardId ??
+        (await ensureCard(produceDialog.productId, finalQty));
+      await updateCard.mutateAsync({
+        id: cardId,
+        data: { status: "done", targetQty: finalQty },
+      });
       await refreshLists();
       toast({
         title: "Production complete",
@@ -287,7 +360,11 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
         const body = err?.response ? await err.response.json() : null;
         if (body?.error) desc = String(body.error).slice(0, 300);
       } catch {}
-      toast({ title: "Failed to complete", description: desc, variant: "destructive" });
+      toast({
+        title: "Failed to complete",
+        description: desc,
+        variant: "destructive",
+      });
     } finally {
       setBusyProductId(null);
     }
@@ -307,8 +384,9 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
         <CheckCircle2 className="mx-auto h-12 w-12 text-green-600 opacity-40 mb-4" />
         <h3 className="text-lg font-medium">All stocks healthy</h3>
         <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-          No products are below their minimum stock threshold right now. Items will appear here
-          automatically when stock dips below the threshold set in Inventory.
+          No products are below their minimum stock threshold right now. Items
+          will appear here automatically when stock dips below the threshold set
+          in Inventory.
         </p>
       </div>
     );
@@ -323,7 +401,8 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
             Production Workload
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Products below minimum stock. Move each item Pending → Processing → Done; on Done, confirm produced qty and stock auto-adjusts.
+            Products below minimum stock. Move each item Pending → Processing →
+            Done; on Done, confirm produced qty and stock auto-adjusts.
           </p>
         </div>
         <Badge variant="destructive" data-testid="badge-workload-count">
@@ -355,7 +434,8 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
               : Math.max(0, Number(a.minStockThreshold) - available);
             const shortage = Math.max(0, required - available);
             const critical = available <= 0;
-            const status: "pending" | "processing" = card?.status === "processing" ? "processing" : "pending";
+            const status: "pending" | "processing" =
+              card?.status === "processing" ? "processing" : "pending";
             const isBusy = busyProductId === a.id;
             const hasBom = !!bom;
 
@@ -373,7 +453,8 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                         alt={a.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                          (e.currentTarget as HTMLImageElement).style.display =
+                            "none";
                         }}
                       />
                     ) : (
@@ -382,15 +463,20 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-medium line-clamp-1 flex items-center gap-2">
-                      {critical && <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />}
+                      {critical && (
+                        <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                      )}
                       {a.name}
                     </div>
                     {itemCode && (
-                      <div className="text-[11px] text-muted-foreground font-mono">{itemCode}</div>
+                      <div className="text-[11px] text-muted-foreground font-mono">
+                        {itemCode}
+                      </div>
                     )}
                     {hasBom ? (
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        Recipe ready · {bom.outputQuantity} per batch · {bom.items.length} materials
+                        Recipe ready · {bom.outputQuantity} per batch ·{" "}
+                        {bom.items.length} materials
                       </div>
                     ) : (
                       <div className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
@@ -402,7 +488,9 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                 <div className="col-span-1 text-right tabular-nums font-medium">
                   {required.toLocaleString()} {unit}
                 </div>
-                <div className={`col-span-1 text-right tabular-nums ${critical ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                <div
+                  className={`col-span-1 text-right tabular-nums ${critical ? "text-destructive font-medium" : "text-muted-foreground"}`}
+                >
                   {available.toLocaleString()} {unit}
                 </div>
                 <div className="col-span-2 text-right tabular-nums">
@@ -414,14 +502,24 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                     {shortage.toLocaleString()} {unit}
                   </Badge>
                 </div>
-                <div className="col-span-4 flex justify-center items-center gap-2" data-testid={`status-${a.id}`}>
+                <div
+                  className="col-span-4 flex justify-center items-center gap-2"
+                  data-testid={`status-${a.id}`}
+                >
                   {hasBom && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="shrink-0"
                       disabled={isBusy}
-                      onClick={() => handleOpenProduce(a.id, a.name, unit, shortage || required || 1)}
+                      onClick={() =>
+                        handleOpenProduce(
+                          a.id,
+                          a.name,
+                          unit,
+                          shortage || required || 1,
+                        )
+                      }
                       data-testid={`button-produce-${a.id}`}
                     >
                       <Factory className="h-4 w-4 mr-1.5" />
@@ -436,7 +534,10 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                         if (next === status) return;
                         if (next === "done") {
                           handleOpenDone(a.id, a.name, unit, shortage || 1);
-                        } else if (next === "pending" || next === "processing") {
+                        } else if (
+                          next === "pending" ||
+                          next === "processing"
+                        ) {
                           handleSetStatus(a.id, next, shortage || 1);
                         }
                       }}
@@ -451,7 +552,8 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                       >
                         {isBusy ? (
                           <span className="flex items-center gap-2 text-xs">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating…
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />{" "}
+                            Updating…
                           </span>
                         ) : (
                           <SelectValue />
@@ -496,7 +598,11 @@ function WorkloadTab({ onStartAssemble }: { onStartAssemble: (bomId: number) => 
                       }
                       data-testid={`button-${hasBom ? "edit" : "add"}-bom-${a.id}`}
                     >
-                      {hasBom ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                      {hasBom ? (
+                        <Pencil className="h-4 w-4" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
                     </Button>
                   )}
                 </div>
@@ -563,15 +669,24 @@ function MarkDoneDialog({
   const valid = isFinite(numQty) && numQty > 0;
 
   return (
-    <Dialog open={state != null} onOpenChange={(v) => { if (!v && !submitting) onCancel(); }}>
+    <Dialog
+      open={state != null}
+      onOpenChange={(v) => {
+        if (!v && !submitting) onCancel();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Mark Done — How much produced?</DialogTitle>
           <DialogDescription>
             {state && (
               <>
-                Enter the actual quantity of <span className="font-medium text-foreground">{state.productName}</span> that came off the line.
-                The system will debit raw materials per the recipe and credit this finished stock.
+                Enter the actual quantity of{" "}
+                <span className="font-medium text-foreground">
+                  {state.productName}
+                </span>{" "}
+                that came off the line. The system will debit raw materials per
+                the recipe and credit this finished stock.
               </>
             )}
           </DialogDescription>
@@ -586,7 +701,10 @@ function MarkDoneDialog({
               step="0.001"
               autoFocus
               value={qty}
-              onChange={(e) => { setQty(e.target.value); setTouched(true); }}
+              onChange={(e) => {
+                setQty(e.target.value);
+                setTouched(true);
+              }}
               data-testid="input-done-qty"
               className="pr-16"
             />
@@ -595,7 +713,9 @@ function MarkDoneDialog({
             </span>
           </div>
           {touched && !valid && (
-            <p className="text-xs text-destructive">Enter a quantity greater than zero.</p>
+            <p className="text-xs text-destructive">
+              Enter a quantity greater than zero.
+            </p>
           )}
           {state && (
             <p className="text-xs text-muted-foreground">
@@ -604,7 +724,12 @@ function MarkDoneDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={submitting} data-testid="button-done-cancel">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={submitting}
+            data-testid="button-done-cancel"
+          >
             Cancel
           </Button>
           <Button
@@ -661,7 +786,12 @@ function ProduceDialog({
   const valid = isFinite(numQty) && numQty > 0;
 
   return (
-    <Dialog open={state != null} onOpenChange={(v) => { if (!v && !submitting) onCancel(); }}>
+    <Dialog
+      open={state != null}
+      onOpenChange={(v) => {
+        if (!v && !submitting) onCancel();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -669,8 +799,9 @@ function ProduceDialog({
             Produce {state?.productName}
           </DialogTitle>
           <DialogDescription>
-            Enter the quantity to produce. Start production to move it to processing, or
-            complete production to debit raw materials and credit finished stock.
+            Enter the quantity to produce. Start production to move it to
+            processing, or complete production to debit raw materials and credit
+            finished stock.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-2">
@@ -683,7 +814,10 @@ function ProduceDialog({
               step="0.001"
               autoFocus
               value={qty}
-              onChange={(e) => { setQty(e.target.value); setTouched(true); }}
+              onChange={(e) => {
+                setQty(e.target.value);
+                setTouched(true);
+              }}
               data-testid="input-produce-qty"
               className="pr-16"
             />
@@ -692,7 +826,9 @@ function ProduceDialog({
             </span>
           </div>
           {touched && !valid && (
-            <p className="text-xs text-destructive">Enter a quantity greater than zero.</p>
+            <p className="text-xs text-destructive">
+              Enter a quantity greater than zero.
+            </p>
           )}
           {state && (
             <p className="text-xs text-muted-foreground">
@@ -702,7 +838,12 @@ function ProduceDialog({
           )}
         </div>
         <DialogFooter className="flex-col sm:flex-row sm:justify-end gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={submitting} data-testid="button-produce-cancel">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={submitting}
+            data-testid="button-produce-cancel"
+          >
             Cancel
           </Button>
           {state?.status !== "processing" && (
@@ -753,6 +894,7 @@ function AssembleTab({
   const [batches, setBatches] = useState<string>("1");
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
+  const [showAssembleDialog, setShowAssembleDialog] = useState(false);
 
   // When the Workload tab requests an assembly, accept the pre-selection
   // exactly once and immediately clear it so subsequent navigation back to
@@ -760,7 +902,9 @@ function AssembleTab({
   React.useEffect(() => {
     if (initialBomId) {
       setBomId(initialBomId);
+      setBatches("1");
       setSearch("");
+      setShowAssembleDialog(true);
       onConsumeInitialBomId?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -796,7 +940,9 @@ function AssembleTab({
   }, [boms, search, productById]);
 
   const batchCount = Math.max(0, Number(batches) || 0);
-  const outputUnits = selectedBom ? batchCount * Number(selectedBom.outputQuantity) : 0;
+  const outputUnits = selectedBom
+    ? batchCount * Number(selectedBom.outputQuantity)
+    : 0;
 
   type Requirement = {
     materialProductId: number;
@@ -824,7 +970,7 @@ function AssembleTab({
     });
   }, [selectedBom, batchCount, productById]);
 
-  const anyShortage = requirements.some(r => !r.sufficient);
+  const anyShortage = requirements.some((r) => !r.sufficient);
   const canAssemble =
     !!selectedBom && batchCount > 0 && !anyShortage && !submitting;
 
@@ -846,7 +992,9 @@ function AssembleTab({
       });
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getListWorkloadCardsQueryKey() }),
+        queryClient.invalidateQueries({
+          queryKey: getListWorkloadCardsQueryKey(),
+        }),
         queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }),
       ]);
 
@@ -855,6 +1003,7 @@ function AssembleTab({
         description: `Produced ${outputUnits} of ${selectedBom.finishedProductName}. Raw materials were debited.`,
       });
       setBatches("1");
+      setShowAssembleDialog(false);
     } catch (err: any) {
       let title = "Assembly failed";
       let desc = err?.message ?? "Server error";
@@ -864,7 +1013,10 @@ function AssembleTab({
         if (Array.isArray(body?.shortages) && body.shortages.length > 0) {
           title = "Insufficient raw material";
           desc = body.shortages
-            .map((s: any) => `${s.materialProductName}: need ${s.required} ${s.unit}, have ${s.available}`)
+            .map(
+              (s: any) =>
+                `${s.materialProductName}: need ${s.required} ${s.unit}, have ${s.available}`,
+            )
             .join("; ");
         }
       } catch {}
@@ -888,66 +1040,65 @@ function AssembleTab({
         <Factory className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
         <h3 className="text-lg font-medium">No BOMs available</h3>
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          To assemble items, first define a Bill of Material in the BOM tab so the system knows
-          which raw materials are consumed.
+          To assemble items, first define a Bill of Material in the BOM tab so
+          the system knows which raw materials are consumed.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-      <div className="space-y-6">
-        {/* BOM picker — visual catalog of recipes */}
-        <div>
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-lg font-semibold">Pick a Recipe to Assemble</h2>
-            <span className="text-xs text-muted-foreground">
-              {filteredBoms.length} of {boms.length} recipe{boms.length === 1 ? "" : "s"}
-            </span>
+    <div className="space-y-6">
+      {/* BOM picker — visual catalog of recipes, now full width */}
+      <div>
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-lg font-semibold">Pick a Recipe to Assemble</h2>
+          <span className="text-xs text-muted-foreground">
+            {filteredBoms.length} of {boms.length} recipe
+            {boms.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by product name, item code, brand or group…"
+            className="pl-9 pr-9"
+            data-testid="input-assemble-search"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+              data-testid="button-clear-search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        {filteredBoms.length === 0 ? (
+          <div className="text-center py-10 border border-dashed rounded-lg text-sm text-muted-foreground">
+            No recipes match "{search}".
           </div>
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by product name, item code, brand or group…"
-              className="pl-9 pr-9"
-              data-testid="input-assemble-search"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                aria-label="Clear search"
-                data-testid="button-clear-search"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          {filteredBoms.length === 0 ? (
-            <div className="text-center py-10 border border-dashed rounded-lg text-sm text-muted-foreground">
-              No recipes match "{search}".
-            </div>
-          ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
             {filteredBoms.map((b: any) => {
               const prod = productById.get(b.finishedProductId);
-              const isSelected = String(b.id) === bomId;
               const finishedStock = Number(prod?.currentStock ?? 0);
               return (
                 <button
                   key={b.id}
                   type="button"
-                  onClick={() => setBomId(String(b.id))}
+                  onClick={() => {
+                    setBomId(String(b.id));
+                    setBatches("1");
+                    setShowAssembleDialog(true);
+                  }}
                   data-testid={`card-bom-${b.id}`}
-                  className={`group relative text-left rounded-lg border overflow-hidden flex flex-col transition-all hover:shadow-md ${
-                    isSelected
-                      ? "border-primary ring-2 ring-primary/40 shadow-sm"
-                      : "border-border/50 hover:border-border"
-                  }`}
+                  className="group relative text-left rounded-lg border border-border/50 overflow-hidden flex flex-col transition-all hover:shadow-md hover:border-primary active:scale-[0.98]"
                 >
                   <div className="aspect-square bg-muted flex items-center justify-center relative p-4">
                     {prod?.imageUrl ? (
@@ -959,12 +1110,10 @@ function AssembleTab({
                     ) : (
                       <Package className="w-14 h-14 opacity-10" />
                     )}
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      </div>
-                    )}
-                    <Badge variant="secondary" className="absolute bottom-2 left-2 text-[10px] px-1.5">
+                    <Badge
+                      variant="secondary"
+                      className="absolute bottom-2 left-2 text-[10px] px-1.5"
+                    >
                       Stock: {finishedStock}
                     </Badge>
                   </div>
@@ -985,109 +1134,19 @@ function AssembleTab({
                     </div>
                     <div className="flex items-center justify-between text-xs mt-0.5">
                       <span className="text-muted-foreground">Materials</span>
-                      <span className="font-medium tabular-nums">{b.items.length}</span>
+                      <span className="font-medium tabular-nums">
+                        {b.items.length}
+                      </span>
                     </div>
                   </div>
                 </button>
               );
             })}
           </div>
-          )}
-        </div>
-
-        {/* Assembly panel — appears once a recipe is picked */}
-        {selectedBom ? (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <PackageCheck className="w-5 h-5 text-primary" />
-                Assemble: {selectedBom.finishedProductName}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="space-y-1.5">
-                  <Label>Batches *</Label>
-                  <Input
-                    type="number" min="1" step="1"
-                    value={batches}
-                    onChange={(e) => setBatches(e.target.value)}
-                    data-testid="input-assemble-batches"
-                    className="w-32"
-                  />
-                </div>
-                <div className="rounded-lg border bg-muted/30 px-3 py-2 flex items-center gap-2 text-sm flex-1 min-w-[240px]">
-                  <span className="text-muted-foreground">Will produce</span>
-                  <span className="font-semibold text-foreground tabular-nums" data-testid="text-output-units">
-                    {outputUnits}
-                  </span>
-                  <Badge variant="outline" className="ml-auto">
-                    {batchCount} × {selectedBom.outputQuantity}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-base">Material Consumption Check</Label>
-                <div className="rounded-lg border divide-y">
-                  <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs uppercase text-muted-foreground font-medium bg-muted/50">
-                    <div className="col-span-5">Material</div>
-                    <div className="col-span-3 text-right">Required</div>
-                    <div className="col-span-3 text-right">In Stock</div>
-                    <div className="col-span-1 text-right"></div>
-                  </div>
-                  {requirements.map((r) => (
-                    <div
-                      key={r.materialProductId}
-                      className="grid grid-cols-12 gap-2 px-3 py-2.5 text-sm items-center"
-                      data-testid={`req-row-${r.materialProductId}`}
-                    >
-                      <div className="col-span-5 line-clamp-1">{r.materialProductName}</div>
-                      <div className="col-span-3 text-right tabular-nums">
-                        {r.required.toLocaleString()} {r.unit}
-                      </div>
-                      <div className={`col-span-3 text-right tabular-nums ${r.sufficient ? "" : "text-destructive font-semibold"}`}>
-                        {r.available.toLocaleString()} {r.unit}
-                      </div>
-                      <div className="col-span-1 flex justify-end">
-                        {r.sufficient ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <AlertCircle className="w-4 h-4 text-destructive" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {anyShortage && batchCount > 0 && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    Insufficient raw material for one or more inputs. Reduce batch count or restock.
-                  </p>
-                )}
-              </div>
-
-              <div className="flex justify-end pt-1">
-                <Button
-                  onClick={handleAssemble}
-                  disabled={!canAssemble}
-                  data-testid="button-assemble"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  <PackageCheck className="w-4 h-4 mr-2" />
-                  Assemble Now
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="text-center py-10 border border-dashed rounded-lg text-sm text-muted-foreground">
-            Pick a recipe above to set batches and check material stock.
-          </div>
         )}
       </div>
 
+      {/* Recent Assemblies */}
       <Card className="h-fit">
         <CardHeader>
           <CardTitle className="text-base">Recent Assemblies</CardTitle>
@@ -1100,11 +1159,20 @@ function AssembleTab({
           ) : (
             <ul className="space-y-3">
               {recentAssemblies.map((c: any) => (
-                <li key={c.id} className="text-sm border-b border-border/50 pb-2 last:border-0 last:pb-0">
-                  <div className="font-medium line-clamp-1">{c.productName}</div>
+                <li
+                  key={c.id}
+                  className="text-sm border-b border-border/50 pb-2 last:border-0 last:pb-0"
+                >
+                  <div className="font-medium line-clamp-1">
+                    {c.productName}
+                  </div>
                   <div className="text-xs text-muted-foreground flex justify-between mt-0.5">
                     <span>Qty {c.targetQty}</span>
-                    <span>{c.completedAt ? new Date(c.completedAt).toLocaleString() : ""}</span>
+                    <span>
+                      {c.completedAt
+                        ? new Date(c.completedAt).toLocaleString()
+                        : ""}
+                    </span>
                   </div>
                 </li>
               ))}
@@ -1112,6 +1180,166 @@ function AssembleTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Assembly Dialog — opens when a recipe card is tapped */}
+      <Dialog
+        open={showAssembleDialog && !!selectedBom}
+        onOpenChange={(open) => {
+          if (!open && !submitting) {
+            setShowAssembleDialog(false);
+          }
+        }}
+      >
+        <DialogContent className="w-full max-w-lg mx-auto max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base pr-6">
+              <PackageCheck className="w-5 h-5 text-primary shrink-0" />
+              <span className="line-clamp-2">
+                {selectedBom?.finishedProductName}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedBom &&
+            (() => {
+              const prod = productById.get(selectedBom.finishedProductId);
+              return (
+                <div className="space-y-5 pt-1">
+                  {/* Product image + name */}
+                  {prod?.imageUrl && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 rounded-lg border bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                        <img
+                          src={prod.imageUrl}
+                          alt={selectedBom.finishedProductName}
+                          className="object-contain w-full h-full"
+                        />
+                      </div>
+                      <div>
+                        <div className="font-semibold leading-tight">
+                          {selectedBom.finishedProductName}
+                        </div>
+                        {prod?.itemCode && (
+                          <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                            {prod.itemCode}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          Current stock:{" "}
+                          <span className="font-medium text-foreground">
+                            {Number(prod?.currentStock ?? 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Batch qty input */}
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Batches *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={batches}
+                        onChange={(e) => setBatches(e.target.value)}
+                        data-testid="input-assemble-batches"
+                        className="w-28"
+                      />
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2 flex items-center gap-2 text-sm flex-1 min-w-[160px]">
+                      <span className="text-muted-foreground">
+                        Will produce
+                      </span>
+                      <span
+                        className="font-semibold tabular-nums"
+                        data-testid="text-output-units"
+                      >
+                        {outputUnits}
+                      </span>
+                      <Badge variant="outline" className="ml-auto text-xs">
+                        {batchCount} × {selectedBom.outputQuantity}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Material consumption check */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">
+                      Material Consumption Check
+                    </Label>
+                    <div className="rounded-lg border divide-y overflow-hidden">
+                      <div className="grid grid-cols-12 gap-1 px-3 py-2 text-[11px] uppercase text-muted-foreground font-medium bg-muted/50">
+                        <div className="col-span-5">Material</div>
+                        <div className="col-span-3 text-right">Required</div>
+                        <div className="col-span-3 text-right">In Stock</div>
+                        <div className="col-span-1" />
+                      </div>
+                      {requirements.map((r) => (
+                        <div
+                          key={r.materialProductId}
+                          className="grid grid-cols-12 gap-1 px-3 py-2.5 text-sm items-center"
+                          data-testid={`req-row-${r.materialProductId}`}
+                        >
+                          <div className="col-span-5 line-clamp-2 leading-tight text-xs">
+                            {r.materialProductName}
+                          </div>
+                          <div className="col-span-3 text-right tabular-nums text-xs">
+                            {r.required.toLocaleString()} {r.unit}
+                          </div>
+                          <div
+                            className={`col-span-3 text-right tabular-nums text-xs ${r.sufficient ? "" : "text-destructive font-semibold"}`}
+                          >
+                            {r.available.toLocaleString()} {r.unit}
+                          </div>
+                          <div className="col-span-1 flex justify-end">
+                            {r.sufficient ? (
+                              <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-destructive" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {anyShortage && batchCount > 0 && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Insufficient raw material for one or more inputs. Reduce
+                        batch count or restock.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-1">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowAssembleDialog(false)}
+                      disabled={submitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleAssemble}
+                      disabled={!canAssemble}
+                      data-testid="button-assemble"
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {submitting && (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      )}
+                      <PackageCheck className="w-4 h-4 mr-2" />
+                      Assemble Now
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1129,14 +1357,21 @@ function DispatchTab() {
   const updateStatus = useUpdateCustomerOrderStatus();
 
   const [forms, setForms] = useState<
-    Record<number, { vehicleNumber: string; driverName: string; dispatchDate: string }>
+    Record<
+      number,
+      { vehicleNumber: string; driverName: string; dispatchDate: string }
+    >
   >({});
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const getForm = (id: number) =>
     forms[id] ?? { vehicleNumber: "", driverName: "", dispatchDate: "" };
 
-  const setField = (id: number, field: "vehicleNumber" | "driverName" | "dispatchDate", value: string) => {
+  const setField = (
+    id: number,
+    field: "vehicleNumber" | "driverName" | "dispatchDate",
+    value: string,
+  ) => {
     setForms((prev) => ({
       ...prev,
       [id]: { ...getForm(id), [field]: value },
@@ -1156,10 +1391,19 @@ function DispatchTab() {
           dispatchDate: form.dispatchDate || undefined,
         },
       });
-      await queryClient.invalidateQueries({ queryKey: getListCustomerOrdersQueryKey() });
-      toast({ title: "Order dispatched", description: "Marked as dispatched." });
+      await queryClient.invalidateQueries({
+        queryKey: getListCustomerOrdersQueryKey(),
+      });
+      toast({
+        title: "Order dispatched",
+        description: "Marked as dispatched.",
+      });
     } catch (err: any) {
-      toast({ title: "Dispatch failed", description: err?.message ?? "Server error", variant: "destructive" });
+      toast({
+        title: "Dispatch failed",
+        description: err?.message ?? "Server error",
+        variant: "destructive",
+      });
     } finally {
       setBusyId(null);
     }
@@ -1179,8 +1423,8 @@ function DispatchTab() {
         <Inbox className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
         <h3 className="text-lg font-medium">No orders ready for dispatch</h3>
         <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-          Orders appear here once they are marked ready for dispatch. Enter vehicle and driver
-          details and mark them dispatched.
+          Orders appear here once they are marked ready for dispatch. Enter
+          vehicle and driver details and mark them dispatched.
         </p>
       </div>
     );
@@ -1217,7 +1461,9 @@ function DispatchTab() {
                   </span>
                 </CardTitle>
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{o.totalItems} item{o.totalItems === 1 ? "" : "s"}</span>
+                  <span>
+                    {o.totalItems} item{o.totalItems === 1 ? "" : "s"}
+                  </span>
                   <span className="font-medium text-foreground">
                     ₹{Number(o.totalAmount).toLocaleString("en-IN")}
                   </span>
@@ -1229,7 +1475,9 @@ function DispatchTab() {
                   <Input
                     id={`vehicle-${o.id}`}
                     value={form.vehicleNumber}
-                    onChange={(e) => setField(o.id, "vehicleNumber", e.target.value)}
+                    onChange={(e) =>
+                      setField(o.id, "vehicleNumber", e.target.value)
+                    }
                     placeholder="MH-12-AB-1234"
                     data-testid={`input-vehicle-${o.id}`}
                   />
@@ -1239,7 +1487,9 @@ function DispatchTab() {
                   <Input
                     id={`driver-${o.id}`}
                     value={form.driverName}
-                    onChange={(e) => setField(o.id, "driverName", e.target.value)}
+                    onChange={(e) =>
+                      setField(o.id, "driverName", e.target.value)
+                    }
                     placeholder="Driver name"
                     data-testid={`input-driver-${o.id}`}
                   />
@@ -1250,7 +1500,9 @@ function DispatchTab() {
                     id={`date-${o.id}`}
                     type="date"
                     value={form.dispatchDate}
-                    onChange={(e) => setField(o.id, "dispatchDate", e.target.value)}
+                    onChange={(e) =>
+                      setField(o.id, "dispatchDate", e.target.value)
+                    }
                     data-testid={`input-dispatch-date-${o.id}`}
                   />
                 </div>
