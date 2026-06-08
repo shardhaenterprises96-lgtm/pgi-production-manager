@@ -9,15 +9,17 @@ import {
 const router: IRouter = Router();
 
 const PLAN_MONTHS: Record<string, number> = {
+  trial: 0,
   monthly: 1,
   quarterly: 3,
   half_yearly: 6,
   yearly: 12,
 };
 
-// Re-check DB on every admin call — don't trust the cookie's role/active fields,
-// which could be stale if another admin demoted or deactivated this user.
-async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+// The subscription/company registry is the PLATFORM console — it spans all
+// tenants, so only the cross-company super_admin may touch it. Re-check the DB
+// on every call so a stale cookie role can't grant access.
+async function requireSuperAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const session = (req as any).session;
   if (!session?.userId) {
     res.status(401).json({ error: "Not authenticated" });
@@ -27,16 +29,15 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction): Pr
     .select()
     .from(usersTable)
     .where(eq(usersTable.id, session.userId));
-  if (!current || !current.isActive || current.role !== "admin") {
-    res.clearCookie("session", { path: "/" });
-    res.status(403).json({ error: "Admin only" });
+  if (!current || !current.isActive || current.role !== "super_admin") {
+    res.status(403).json({ error: "Super admin only" });
     return;
   }
   next();
 }
 
-// Every route in this router is admin-only.
-router.use(requireAdmin);
+// Every route in this router is super_admin-only.
+router.use(requireSuperAdmin);
 
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date);

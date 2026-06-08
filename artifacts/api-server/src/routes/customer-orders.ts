@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { pool, db, productsTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { generateSeriesNumber } from "../lib/number-series";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -73,6 +74,8 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Not allowed to place orders" });
     return;
   }
+
+  const companyId = getCompanyId(req);
 
   const body = req.body ?? {};
   const isDraft = body.isDraft === true;
@@ -166,7 +169,7 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     // work-in-progress and don't burn a number until submitted.
     const orderNo = isDraft
       ? `DRAFT-${order.id}`
-      : await generateSeriesNumber(client, "order");
+      : await generateSeriesNumber(client, "order", getCompanyId(req));
     await client.query(`UPDATE customer_orders SET order_no = $1 WHERE id = $2`, [orderNo, order.id]);
     order.order_no = orderNo;
 

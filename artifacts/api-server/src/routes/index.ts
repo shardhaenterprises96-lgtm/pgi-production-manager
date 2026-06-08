@@ -18,11 +18,19 @@ import reportsRouter from "./reports";
 import subscriptionsRouter from "./subscriptions";
 import settingsRouter from "./settings";
 import gstinRouter from "./gstin";
+import { requireAuth } from "../lib/tenant";
 
 const router: IRouter = Router();
 
+// Public routes (no session required).
 router.use(healthRouter);
 router.use(authRouter);
+
+// Everything below requires an authenticated session. This is the single choke
+// point that guarantees no data route can be reached anonymously, and exposes
+// req.companyId / req.isSuperAdmin to downstream handlers.
+router.use(requireAuth);
+
 router.use(usersRouter);
 router.use(productsRouter);
 router.use(entitiesRouter);

@@ -6,6 +6,7 @@ import { entitiesTable } from "./entities";
 
 export const rewardSchemesTable = pgTable("reward_schemes", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
   schemeName: text("scheme_name").notNull().default(""),
   productId: integer("product_id").notNull().references(() => productsTable.id),
   targetLiters: numeric("target_liters", { precision: 12, scale: 3 }).notNull(),
@@ -16,10 +17,13 @@ export const rewardSchemesTable = pgTable("reward_schemes", {
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (t) => [
+  index("reward_schemes_company_idx").on(t.companyId),
+]);
 
 export const rewardProgressTable = pgTable("reward_progress", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
   schemeId: integer("scheme_id").notNull().references(() => rewardSchemesTable.id),
   customerId: integer("customer_id").notNull().references(() => entitiesTable.id),
   litersAchieved: numeric("liters_achieved", { precision: 12, scale: 3 }).notNull().default("0"),
@@ -29,6 +33,7 @@ export const rewardProgressTable = pgTable("reward_progress", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
+  index("reward_progress_company_idx").on(t.companyId),
   index("reward_progress_scheme_customer_idx").on(t.schemeId, t.customerId),
 ]);
 

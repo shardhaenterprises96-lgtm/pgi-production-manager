@@ -15,18 +15,27 @@ import {
   ListRewardProgressQueryParams,
   DisburseRewardParams,
 } from "@workspace/api-zod";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
 // GET /reward-schemes
-router.get("/reward-schemes", async (_req, res): Promise<void> => {
+router.get("/reward-schemes", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const schemes = await db
     .select({
       scheme: rewardSchemesTable,
       productName: productsTable.name,
     })
     .from(rewardSchemesTable)
-    .leftJoin(productsTable, eq(rewardSchemesTable.productId, productsTable.id));
+    .leftJoin(
+      productsTable,
+      and(
+        eq(rewardSchemesTable.productId, productsTable.id),
+        eq(productsTable.companyId, companyId)
+      )
+    )
+    .where(eq(rewardSchemesTable.companyId, companyId));
 
   res.json(schemes.map(({ scheme, productName }) => formatScheme(scheme, productName)));
 });
@@ -39,14 +48,16 @@ router.post("/reward-schemes", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const [scheme] = await db.insert(rewardSchemesTable).values({
     ...parsed.data,
+    companyId,
     startDate: new Date(parsed.data.startDate),
     endDate: new Date(parsed.data.endDate),
     targetLiters: String(parsed.data.targetLiters),
   }).returning();
 
-  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, scheme.productId));
+  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, scheme.productId)));
   res.status(201).json(formatScheme(scheme, product?.name ?? null));
 });
 
@@ -64,6 +75,7 @@ router.patch("/reward-schemes/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const updateData: any = { ...parsed.data };
   if (parsed.data.startDate) updateData.startDate = new Date(parsed.data.startDate);
   if (parsed.data.endDate) updateData.endDate = new Date(parsed.data.endDate);
@@ -71,7 +83,7 @@ router.patch("/reward-schemes/:id", async (req, res): Promise<void> => {
 
   const [scheme] = await db.update(rewardSchemesTable)
     .set(updateData)
-    .where(eq(rewardSchemesTable.id, params.data.id))
+    .where(and(eq(rewardSchemesTable.companyId, companyId), eq(rewardSchemesTable.id, params.data.id)))
     .returning();
 
   if (!scheme) {
@@ -79,7 +91,7 @@ router.patch("/reward-schemes/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, scheme.productId));
+  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, scheme.productId)));
   res.json(formatScheme(scheme, product?.name ?? null));
 });
 
@@ -91,7 +103,8 @@ router.delete("/reward-schemes/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [scheme] = await db.delete(rewardSchemesTable).where(eq(rewardSchemesTable.id, params.data.id)).returning();
+  const companyId = getCompanyId(req);
+  const [scheme] = await db.delete(rewardSchemesTable).where(and(eq(rewardSchemesTable.companyId, companyId), eq(rewardSchemesTable.id, params.data.id))).returning();
   if (!scheme) {
     res.status(404).json({ error: "Scheme not found" });
     return;
@@ -107,33 +120,40 @@ router.get("/reward-progress", async (req, res): Promise<void> => {
     return;
   }
 
-  const conditions: any[] = [];
+  const companyId = getCompanyId(req);
+  const conditions: any[] = [eq(rewardProgressTable.companyId, companyId)];
   if (params.data.customerId) conditions.push(eq(rewardProgressTable.customerId, params.data.customerId));
 
-  const rows = conditions.length > 0
-    ? await db
-        .select({
-          progress: rewardProgressTable,
-          scheme: rewardSchemesTable,
-          customerName: entitiesTable.name,
-          productName: productsTable.name,
-        })
-        .from(rewardProgressTable)
-        .leftJoin(rewardSchemesTable, eq(rewardProgressTable.schemeId, rewardSchemesTable.id))
-        .leftJoin(entitiesTable, eq(rewardProgressTable.customerId, entitiesTable.id))
-        .leftJoin(productsTable, eq(rewardSchemesTable.productId, productsTable.id))
-        .where(and(...conditions))
-    : await db
-        .select({
-          progress: rewardProgressTable,
-          scheme: rewardSchemesTable,
-          customerName: entitiesTable.name,
-          productName: productsTable.name,
-        })
-        .from(rewardProgressTable)
-        .leftJoin(rewardSchemesTable, eq(rewardProgressTable.schemeId, rewardSchemesTable.id))
-        .leftJoin(entitiesTable, eq(rewardProgressTable.customerId, entitiesTable.id))
-        .leftJoin(productsTable, eq(rewardSchemesTable.productId, productsTable.id));
+  const rows = await db
+    .select({
+      progress: rewardProgressTable,
+      scheme: rewardSchemesTable,
+      customerName: entitiesTable.name,
+      productName: productsTable.name,
+    })
+    .from(rewardProgressTable)
+    .leftJoin(
+      rewardSchemesTable,
+      and(
+        eq(rewardProgressTable.schemeId, rewardSchemesTable.id),
+        eq(rewardSchemesTable.companyId, companyId)
+      )
+    )
+    .leftJoin(
+      entitiesTable,
+      and(
+        eq(rewardProgressTable.customerId, entitiesTable.id),
+        eq(entitiesTable.companyId, companyId)
+      )
+    )
+    .leftJoin(
+      productsTable,
+      and(
+        eq(rewardSchemesTable.productId, productsTable.id),
+        eq(productsTable.companyId, companyId)
+      )
+    )
+    .where(and(...conditions));
 
   res.json(rows.map(({ progress, scheme, customerName, productName }) =>
     formatProgress(progress, scheme, customerName, productName)
@@ -148,9 +168,10 @@ router.post("/reward-progress/:id/disburse", async (req, res): Promise<void> => 
     return;
   }
 
+  const companyId = getCompanyId(req);
   const [progress] = await db.update(rewardProgressTable)
     .set({ isDisbursed: true, disbursedAt: new Date() })
-    .where(eq(rewardProgressTable.id, params.data.id))
+    .where(and(eq(rewardProgressTable.companyId, companyId), eq(rewardProgressTable.id, params.data.id)))
     .returning();
 
   if (!progress) {
@@ -158,9 +179,9 @@ router.post("/reward-progress/:id/disburse", async (req, res): Promise<void> => 
     return;
   }
 
-  const [scheme] = await db.select().from(rewardSchemesTable).where(eq(rewardSchemesTable.id, progress.schemeId));
-  const [entity] = await db.select({ name: entitiesTable.name }).from(entitiesTable).where(eq(entitiesTable.id, progress.customerId));
-  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, scheme?.productId ?? 0));
+  const [scheme] = await db.select().from(rewardSchemesTable).where(and(eq(rewardSchemesTable.companyId, companyId), eq(rewardSchemesTable.id, progress.schemeId)));
+  const [entity] = await db.select({ name: entitiesTable.name }).from(entitiesTable).where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, progress.customerId)));
+  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, scheme?.productId ?? 0)));
 
   res.json(formatProgress(progress, scheme, entity?.name ?? null, product?.name ?? null));
 });

@@ -9,6 +9,7 @@ import {
   DeleteExpenseParams,
   ListExpensesQueryParams,
 } from "@workspace/api-zod";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -64,16 +65,18 @@ function formatExpense(e: any, userName?: string | null) {
 // GET /expense-categories
 router.get("/expense-categories", async (req, res): Promise<void> => {
   if (!requireRead(req, res)) return;
+  const companyId = getCompanyId(req);
   const rows = await db
     .select()
     .from(expenseCategoriesTable)
+    .where(eq(expenseCategoriesTable.companyId, companyId))
     .orderBy(sql`${expenseCategoriesTable.isActive} DESC, ${expenseCategoriesTable.name}`);
   // Seed defaults if empty
   if (rows.length === 0) {
     const defaults = ["Rent", "Electricity", "Transport", "Salary", "Office Supplies", "Repair & Maintenance", "Travel", "Misc"];
     const inserted = await db
       .insert(expenseCategoriesTable)
-      .values(defaults.map((name) => ({ name })))
+      .values(defaults.map((name) => ({ name, companyId })))
       .returning();
     res.json(inserted.map(formatCategory));
     return;
@@ -89,10 +92,11 @@ router.post("/expense-categories", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   try {
     const [created] = await db
       .insert(expenseCategoriesTable)
-      .values({ name: parsed.data.name })
+      .values({ name: parsed.data.name, companyId })
       .returning();
     res.status(201).json(formatCategory(created));
   } catch (e: any) {
@@ -112,10 +116,11 @@ router.delete("/expense-categories/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   await db
     .update(expenseCategoriesTable)
     .set({ isActive: false })
-    .where(eq(expenseCategoriesTable.id, params.data.id));
+    .where(and(eq(expenseCategoriesTable.companyId, companyId), eq(expenseCategoriesTable.id, params.data.id)));
   res.sendStatus(204);
 });
 
@@ -127,11 +132,12 @@ router.get("/expenses", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const conds: any[] = [];
+  const companyId = getCompanyId(req);
+  const conds: any[] = [eq(expensesTable.companyId, companyId)];
   if (parsed.data.from) conds.push(gte(expensesTable.date, parsed.data.from));
   if (parsed.data.to) conds.push(lte(expensesTable.date, parsed.data.to));
   if (parsed.data.categoryId) conds.push(eq(expensesTable.categoryId, parsed.data.categoryId));
-  const whereExpr = conds.length > 0 ? and(...conds) : undefined;
+  const whereExpr = and(...conds);
 
   const rows = await db
     .select({
@@ -149,7 +155,7 @@ router.get("/expenses", async (req, res): Promise<void> => {
     })
     .from(expensesTable)
     .leftJoin(usersTable, eq(usersTable.id, expensesTable.createdByUserId))
-    .where(whereExpr as any)
+    .where(whereExpr)
     .orderBy(desc(expensesTable.date), desc(expensesTable.id));
 
   const items = rows.map((r) => formatExpense(r, r.createdByUserName));
@@ -175,8 +181,9 @@ router.post("/expenses", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const session = (req as any).session;
-  const [cat] = await db.select().from(expenseCategoriesTable).where(eq(expenseCategoriesTable.id, parsed.data.categoryId));
+  const [cat] = await db.select().from(expenseCategoriesTable).where(and(eq(expenseCategoriesTable.companyId, companyId), eq(expenseCategoriesTable.id, parsed.data.categoryId)));
   if (!cat) {
     res.status(404).json({ error: "Category not found" });
     return;
@@ -184,6 +191,7 @@ router.post("/expenses", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(expensesTable)
     .values({
+      companyId,
       date: parsed.data.date,
       categoryId: parsed.data.categoryId,
       categoryName: cat.name,
@@ -205,7 +213,8 @@ router.delete("/expenses/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  await db.delete(expensesTable).where(eq(expensesTable.id, params.data.id));
+  const companyId = getCompanyId(req);
+  await db.delete(expensesTable).where(and(eq(expensesTable.companyId, companyId), eq(expensesTable.id, params.data.id)));
   res.sendStatus(204);
 });
 

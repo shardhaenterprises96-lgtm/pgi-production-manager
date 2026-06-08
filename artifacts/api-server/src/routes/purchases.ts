@@ -14,6 +14,7 @@ import {
   GetPurchaseParams,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -33,17 +34,17 @@ function requireSession(req: any, res: any, roles: Set<string>): { userId: numbe
   return { userId: session.userId, role: session.role };
 }
 
-async function generateBillNumber(client: any): Promise<string> {
+async function generateBillNumber(client: any, companyId: number): Promise<string> {
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
   const result = await client.query(
-    `INSERT INTO purchase_sequence (month, year, last_number)
-     VALUES ($1, $2, 1)
-     ON CONFLICT (month, year) DO UPDATE
+    `INSERT INTO purchase_sequence (company_id, month, year, last_number)
+     VALUES ($1, $2, $3, 1)
+     ON CONFLICT (company_id, month, year) DO UPDATE
        SET last_number = purchase_sequence.last_number + 1
      RETURNING last_number`,
-    [month, year],
+    [companyId, month, year],
   );
   const seqNum: number = result.rows[0].last_number;
   return `PUR/${year}/${String(month).padStart(2, "0")}/${seqNum}`;
@@ -99,12 +100,11 @@ router.get("/purchases", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const conditions: any[] = [];
+  const companyId = getCompanyId(req);
+  const conditions: any[] = [eq(purchasesTable.companyId, companyId)];
   if (parsed.data.vendorId) conditions.push(eq(purchasesTable.vendorId, parsed.data.vendorId));
   if (parsed.data.status) conditions.push(eq(purchasesTable.status, parsed.data.status));
-  const rows = conditions.length > 0
-    ? await db.select().from(purchasesTable).where(and(...conditions)).orderBy(sql`${purchasesTable.createdAt} DESC`)
-    : await db.select().from(purchasesTable).orderBy(sql`${purchasesTable.createdAt} DESC`);
+  const rows = await db.select().from(purchasesTable).where(and(...conditions)).orderBy(sql`${purchasesTable.createdAt} DESC`);
   res.json(rows.map((r) => formatPurchase(r, [])));
 });
 
@@ -116,12 +116,13 @@ router.get("/purchases/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [row] = await db.select().from(purchasesTable).where(eq(purchasesTable.id, parsed.data.id));
+  const companyId = getCompanyId(req);
+  const [row] = await db.select().from(purchasesTable).where(and(eq(purchasesTable.companyId, companyId), eq(purchasesTable.id, parsed.data.id)));
   if (!row) {
     res.status(404).json({ error: "Purchase not found" });
     return;
   }
-  const items = await db.select().from(purchaseItemsTable).where(eq(purchaseItemsTable.purchaseId, parsed.data.id));
+  const items = await db.select().from(purchaseItemsTable).where(and(eq(purchaseItemsTable.companyId, companyId), eq(purchaseItemsTable.purchaseId, parsed.data.id)));
   res.json(formatPurchase(row, items));
 });
 
@@ -137,6 +138,7 @@ router.post("/purchases", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const data = parsed.data;
   if (!data.items || data.items.length === 0) {
     res.status(400).json({ error: "At least one line item is required" });
@@ -176,7 +178,7 @@ router.post("/purchases", async (req, res): Promise<void> => {
 
   // Verify the vendor exists and is actually a vendor (defence-in-depth so a
   // caller can't link a purchase to a customer/worker entity).
-  const [vendorRow] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, data.vendorId));
+  const [vendorRow] = await db.select().from(entitiesTable).where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, data.vendorId)));
   if (!vendorRow || vendorRow.type !== "vendor") {
     res.status(400).json({ error: "Selected entity is not a vendor" });
     return;
@@ -186,7 +188,7 @@ router.post("/purchases", async (req, res): Promise<void> => {
   try {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
-    const billNo = await generateBillNumber(client);
+    const billNo = await generateBillNumber(client, companyId);
 
     const isGst = data.billType === "gst";
     const isInterstate = (data.placeOfSupply ?? "Maharashtra") !== "Maharashtra";
@@ -229,12 +231,13 @@ router.post("/purchases", async (req, res): Promise<void> => {
     const balanceDue = grandTotal;
 
     const billRes = await client.query(
-      `INSERT INTO purchases (bill_no, vendor_bill_no, bill_date, due_date, bill_type, vendor_id,
+      `INSERT INTO purchases (company_id, bill_no, vendor_bill_no, bill_date, due_date, bill_type, vendor_id,
          vendor_name, vendor_gstin, place_of_supply, notes, subtotal, total_discount, total_tax,
          cgst, sgst, igst, freight, round_off, grand_total, balance_due, status, created_by_user_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
        RETURNING *`,
       [
+        companyId,
         billNo,
         data.vendorBillNo ?? null,
         data.billDate ?? new Date(),
@@ -263,15 +266,16 @@ router.post("/purchases", async (req, res): Promise<void> => {
 
     for (const item of processed) {
       const prodRes = await client.query(
-        `SELECT name FROM products WHERE id = $1`,
-        [item.productId],
+        `SELECT name FROM products WHERE company_id = $1 AND id = $2`,
+        [companyId, item.productId],
       );
       const prodName = prodRes.rows[0]?.name ?? "Unknown";
       await client.query(
-        `INSERT INTO purchase_items (purchase_id, product_id, product_name, qty, unit, rate,
+        `INSERT INTO purchase_items (company_id, purchase_id, product_id, product_name, qty, unit, rate,
            discount_pct, discount_amt, tax_pct, amount)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
         [
+          companyId,
           billRow.id,
           item.productId,
           prodName,
@@ -287,36 +291,36 @@ router.post("/purchases", async (req, res): Promise<void> => {
 
       // Inward stock movement (goods received) + credit product stock
       await client.query(
-        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-         VALUES ($1, 'inward', $2, 'Purchase received', $3, 'purchase', $4)`,
-        [item.productId, item.qty, billRow.id, auth.userId],
+        `INSERT INTO stock_movements (company_id, product_id, type, quantity, reason, reference_id, reference_type, user_id)
+         VALUES ($1, $2, 'inward', $3, 'Purchase received', $4, 'purchase', $5)`,
+        [companyId, item.productId, item.qty, billRow.id, auth.userId],
       );
       await client.query(
-        `UPDATE products SET current_stock = current_stock + $1 WHERE id = $2`,
-        [item.qty, item.productId],
+        `UPDATE products SET current_stock = current_stock + $1 WHERE company_id = $2 AND id = $3`,
+        [item.qty, companyId, item.productId],
       );
     }
 
     // Vendor payable: increase outstanding (we owe them) + credit-side ledger entry
     await client.query(
-      `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE id = $2`,
-      [grandTotal, data.vendorId],
+      `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE company_id = $2 AND id = $3`,
+      [grandTotal, companyId, data.vendorId],
     );
     const balRes = await client.query(
-      `SELECT outstanding_balance FROM entities WHERE id = $1`,
-      [data.vendorId],
+      `SELECT outstanding_balance FROM entities WHERE company_id = $1 AND id = $2`,
+      [companyId, data.vendorId],
     );
     const newBal = balRes.rows[0].outstanding_balance;
     await client.query(
-      `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
-       VALUES ($1, NOW(), $2, 0, $3, $4, 'purchase', $5, $6)`,
-      [data.vendorId, `Purchase ${billNo}`, grandTotal, newBal, billRow.id, billNo],
+      `INSERT INTO ledger_entries (company_id, entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
+       VALUES ($1, $2, NOW(), $3, 0, $4, $5, 'purchase', $6, $7)`,
+      [companyId, data.vendorId, `Purchase ${billNo}`, grandTotal, newBal, billRow.id, billNo],
     );
 
     await client.query("COMMIT");
 
-    const [full] = await db.select().from(purchasesTable).where(eq(purchasesTable.id, billRow.id));
-    const items = await db.select().from(purchaseItemsTable).where(eq(purchaseItemsTable.purchaseId, billRow.id));
+    const [full] = await db.select().from(purchasesTable).where(and(eq(purchasesTable.companyId, companyId), eq(purchasesTable.id, billRow.id)));
+    const items = await db.select().from(purchaseItemsTable).where(and(eq(purchaseItemsTable.companyId, companyId), eq(purchaseItemsTable.purchaseId, billRow.id)));
     res.status(201).json(formatPurchase(full, items));
   } catch (err) {
     await client.query("ROLLBACK");

@@ -10,6 +10,7 @@ import {
   GetRolePermissionsResponse,
   UpdateRolePermissionsBody,
 } from "@workspace/api-zod";
+import { getCompanyId, handleTenantError } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -50,9 +51,9 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   // Subscription gating: if this user belongs to a tenant company, block login
-  // when that company's subscription is expired or suspended. Admins are exempt
-  // so the system owner can always manage the platform.
-  if (user.role !== "admin" && user.companyId != null) {
+  // when that company's subscription is expired or suspended. The platform
+  // super_admin (companyId NULL) is exempt and never gated.
+  if (user.role !== "super_admin" && user.companyId != null) {
     const subRes = await pool.query(
       `SELECT subscription_status, subscription_end_date
        FROM subscriptions
@@ -75,13 +76,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     }
   }
 
-  // Store session — entityId is critical for salesman attribution & ledger scoping.
+  // Store session — entityId is critical for salesman attribution & ledger
+  // scoping; companyId is the tenant isolation key for every data route.
   (req as any).session = {
     userId: user.id,
     username: user.username,
     role: user.role,
     name: user.name,
     entityId: user.entityId ?? null,
+    companyId: user.companyId ?? null,
   };
 
   res.json({
@@ -90,6 +93,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     role: user.role,
     name: user.name,
     customerId: user.entityId ?? null,
+    companyId: user.companyId ?? null,
   });
 });
 
@@ -124,16 +128,26 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     role: user.role,
     name: user.name,
     customerId: user.entityId ?? null,
+    companyId: user.companyId ?? null,
   });
 });
 
-// GET /auth/permissions
-router.get("/auth/permissions", async (_req, res): Promise<void> => {
-  const perms = await db.select().from(rolePermissionsTable);
-  res.json(GetRolePermissionsResponse.parse(perms));
+// GET /auth/permissions — scoped to the caller's company.
+router.get("/auth/permissions", async (req, res): Promise<void> => {
+  try {
+    const companyId = getCompanyId(req);
+    const perms = await db
+      .select()
+      .from(rolePermissionsTable)
+      .where(eq(rolePermissionsTable.companyId, companyId));
+    res.json(GetRolePermissionsResponse.parse(perms));
+  } catch (err) {
+    if (handleTenantError(err, res)) return;
+    throw err;
+  }
 });
 
-// PUT /auth/permissions
+// PUT /auth/permissions — scoped to the caller's company.
 router.put("/auth/permissions", async (req, res): Promise<void> => {
   const parsed = UpdateRolePermissionsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -141,38 +155,50 @@ router.put("/auth/permissions", async (req, res): Promise<void> => {
     return;
   }
 
-  for (const perm of parsed.data.permissions) {
-    const existing = await db
-      .select()
-      .from(rolePermissionsTable)
-      .where(
-        and(
-          eq(rolePermissionsTable.role, perm.role),
-          eq(rolePermissionsTable.feature, perm.feature)
-        )
-      );
-
-    if (existing.length > 0) {
-      await db
-        .update(rolePermissionsTable)
-        .set({ allowed: perm.allowed })
+  try {
+    const companyId = getCompanyId(req);
+    for (const perm of parsed.data.permissions) {
+      const existing = await db
+        .select()
+        .from(rolePermissionsTable)
         .where(
           and(
+            eq(rolePermissionsTable.companyId, companyId),
             eq(rolePermissionsTable.role, perm.role),
             eq(rolePermissionsTable.feature, perm.feature)
           )
         );
-    } else {
-      await db.insert(rolePermissionsTable).values({
-        role: perm.role,
-        feature: perm.feature,
-        allowed: perm.allowed,
-      });
-    }
-  }
 
-  const updated = await db.select().from(rolePermissionsTable);
-  res.json(updated);
+      if (existing.length > 0) {
+        await db
+          .update(rolePermissionsTable)
+          .set({ allowed: perm.allowed })
+          .where(
+            and(
+              eq(rolePermissionsTable.companyId, companyId),
+              eq(rolePermissionsTable.role, perm.role),
+              eq(rolePermissionsTable.feature, perm.feature)
+            )
+          );
+      } else {
+        await db.insert(rolePermissionsTable).values({
+          companyId,
+          role: perm.role,
+          feature: perm.feature,
+          allowed: perm.allowed,
+        });
+      }
+    }
+
+    const updated = await db
+      .select()
+      .from(rolePermissionsTable)
+      .where(eq(rolePermissionsTable.companyId, companyId));
+    res.json(updated);
+  } catch (err) {
+    if (handleTenantError(err, res)) return;
+    throw err;
+  }
 });
 
 export default router;

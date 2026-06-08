@@ -1,10 +1,11 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, usersTable, entitiesTable } from "@workspace/db";
 import {
   CreateUserBody,
   UpdateUserBody,
 } from "@workspace/api-zod";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -40,9 +41,14 @@ function toPublic(u: typeof usersTable.$inferSelect) {
   };
 }
 
-// GET /users
-router.get("/users", requireAdmin, async (_req, res): Promise<void> => {
-  const users = await db.select().from(usersTable).orderBy(usersTable.id);
+// GET /users — only users within the caller's company.
+router.get("/users", requireAdmin, async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
+  const users = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.companyId, companyId))
+    .orderBy(usersTable.id);
   res.json(users.map(toPublic));
 });
 
@@ -53,6 +59,7 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const { password, name, role, entityId } = parsed.data;
   const username = parsed.data.username.trim();
   if (username.length < 3) {
@@ -60,6 +67,7 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
 
+  // Usernames are globally unique across all tenants (it is the login key).
   const [existing] = await db
     .select({ id: usersTable.id })
     .from(usersTable)
@@ -74,7 +82,7 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
     const [ent] = await db
       .select()
       .from(entitiesTable)
-      .where(eq(entitiesTable.id, entityId));
+      .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, entityId)));
     if (!ent) {
       res.status(400).json({ error: "Linked entity not found" });
       return;
@@ -90,6 +98,7 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
     const [created] = await db
       .insert(usersTable)
       .values({
+        companyId,
         username,
         passwordHash: password, // dev mode — plaintext per replit.md
         name: resolvedName,
@@ -122,7 +131,11 @@ router.patch("/users/:id", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
 
-  const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  const companyId = getCompanyId(req);
+  const [existing] = await db
+    .select()
+    .from(usersTable)
+    .where(and(eq(usersTable.companyId, companyId), eq(usersTable.id, id)));
   if (!existing) {
     res.status(404).json({ error: "User not found" });
     return;
@@ -144,7 +157,7 @@ router.patch("/users/:id", requireAdmin, async (req, res): Promise<void> => {
     const [ent] = await db
       .select({ id: entitiesTable.id })
       .from(entitiesTable)
-      .where(eq(entitiesTable.id, parsed.data.entityId));
+      .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, parsed.data.entityId)));
     if (!ent) {
       res.status(400).json({ error: "Linked entity not found" });
       return;
@@ -163,7 +176,7 @@ router.patch("/users/:id", requireAdmin, async (req, res): Promise<void> => {
   const [updated] = await db
     .update(usersTable)
     .set(patch)
-    .where(eq(usersTable.id, id))
+    .where(and(eq(usersTable.companyId, companyId), eq(usersTable.id, id)))
     .returning();
 
   res.json(toPublic(updated));

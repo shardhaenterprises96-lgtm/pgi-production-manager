@@ -6,6 +6,7 @@ import path from "node:path";
 import fs from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { handleTenantError } from "./lib/tenant";
 
 const SESSION_SECRET = process.env.SESSION_SECRET ?? "shradha-oil-dev-secret";
 
@@ -121,5 +122,18 @@ if (fs.existsSync(INDEX_HTML)) {
     "Frontend build not found next to API server; serving API only",
   );
 }
+
+// Central error handler. Async route handlers in Express 5 forward thrown
+// errors here, so company-scoped routes can simply call getCompanyId(req) and
+// let a missing tenant context surface as a 401/403 instead of a 500.
+app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  if (handleTenantError(err, res)) return;
+  logger.error({ err }, "Unhandled route error");
+  res.status(500).json({ error: "Internal server error" });
+});
 
 export default app;

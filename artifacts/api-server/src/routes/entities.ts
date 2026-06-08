@@ -14,6 +14,7 @@ import {
   CreateLedgerAdjustmentBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -25,10 +26,11 @@ router.get("/entities/lookup", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const [entity] = await db
     .select()
     .from(entitiesTable)
-    .where(eq(entitiesTable.mobile, params.data.mobile));
+    .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.mobile, params.data.mobile)));
 
   if (!entity) {
     res.json({ found: false });
@@ -46,7 +48,8 @@ router.get("/entities", async (req, res): Promise<void> => {
     return;
   }
 
-  const conditions: any[] = [];
+  const companyId = getCompanyId(req);
+  const conditions: any[] = [eq(entitiesTable.companyId, companyId)];
   if (params.data.type) conditions.push(eq(entitiesTable.type, params.data.type));
   if (params.data.mobile) conditions.push(eq(entitiesTable.mobile, params.data.mobile));
   if (params.data.search) {
@@ -59,9 +62,11 @@ router.get("/entities", async (req, res): Promise<void> => {
     );
   }
 
-  const entities = conditions.length > 0
-    ? await db.select().from(entitiesTable).where(and(...conditions)).orderBy(entitiesTable.name)
-    : await db.select().from(entitiesTable).orderBy(entitiesTable.name);
+  const entities = await db
+    .select()
+    .from(entitiesTable)
+    .where(and(...conditions))
+    .orderBy(entitiesTable.name);
 
   res.json(entities.map(formatEntity));
 });
@@ -74,6 +79,7 @@ router.post("/entities", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const pricingTier = parsed.data.pricingTier ?? "retail";
   let name = parsed.data.name?.trim() ?? "";
 
@@ -101,6 +107,7 @@ router.post("/entities", async (req, res): Promise<void> => {
     .insert(entitiesTable)
     .values({
       ...parsed.data,
+      companyId,
       name,
       pricingTier,
     })
@@ -117,10 +124,11 @@ router.get("/entities/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const [entity] = await db
     .select()
     .from(entitiesTable)
-    .where(eq(entitiesTable.id, params.data.id));
+    .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, params.data.id)));
 
   if (!entity) {
     res.status(404).json({ error: "Entity not found" });
@@ -144,10 +152,11 @@ router.patch("/entities/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const [entity] = await db
     .update(entitiesTable)
     .set(parsed.data)
-    .where(eq(entitiesTable.id, params.data.id))
+    .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, params.data.id)))
     .returning();
 
   if (!entity) {
@@ -166,10 +175,11 @@ router.get("/entities/:id/ledger", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const [entity] = await db
     .select()
     .from(entitiesTable)
-    .where(eq(entitiesTable.id, params.data.id));
+    .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, params.data.id)));
 
   if (!entity) {
     res.status(404).json({ error: "Entity not found" });
@@ -179,7 +189,7 @@ router.get("/entities/:id/ledger", async (req, res): Promise<void> => {
   const entries = await db
     .select()
     .from(ledgerEntriesTable)
-    .where(eq(ledgerEntriesTable.entityId, params.data.id))
+    .where(and(eq(ledgerEntriesTable.companyId, companyId), eq(ledgerEntriesTable.entityId, params.data.id)))
     .orderBy(sql`${ledgerEntriesTable.date} DESC`);
 
   res.json({
@@ -234,13 +244,14 @@ router.post("/entities/:id/ledger", async (req, res): Promise<void> => {
     }
   }
 
+  const companyId = getCompanyId(req);
   const client = await pool.connect();
   try {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
     const existing = await client.query(
-      `SELECT id, name FROM entities WHERE id = $1`,
-      [params.data.id],
+      `SELECT id, name FROM entities WHERE company_id = $1 AND id = $2`,
+      [companyId, params.data.id],
     );
     if (existing.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -250,9 +261,9 @@ router.post("/entities/:id/ledger", async (req, res): Promise<void> => {
 
     const delta = direction === "debit" ? amount : -amount;
     const balResult = await client.query(
-      `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE id = $2
+      `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE company_id = $2 AND id = $3
        RETURNING outstanding_balance`,
-      [delta, params.data.id],
+      [delta, companyId, params.data.id],
     );
     const newBal = balResult.rows[0].outstanding_balance;
 
@@ -266,10 +277,11 @@ router.post("/entities/:id/ledger", async (req, res): Promise<void> => {
 
     const inserted = await client.query(
       `INSERT INTO ledger_entries
-         (entity_id, date, description, debit, credit, balance, type, reference_no, attachment_url, created_by_id, created_by_name)
-       VALUES ($1, NOW(), $2, $3, $4, $5, 'adjustment', $6, $7, $8, $9)
+         (company_id, entity_id, date, description, debit, credit, balance, type, reference_no, attachment_url, created_by_id, created_by_name)
+       VALUES ($1, $2, NOW(), $3, $4, $5, $6, 'adjustment', $7, $8, $9, $10)
        RETURNING *`,
       [
+        companyId,
         params.data.id,
         description,
         direction === "debit" ? amount : 0,

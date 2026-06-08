@@ -13,6 +13,7 @@ import {
   UpsertWorkerAttendanceBody,
   CreateWorkerPaymentBody,
 } from "@workspace/api-zod";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -95,11 +96,16 @@ router.get("/workers", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const includeInactive = parsed.data.includeInactive ?? false;
   const rows = await db
     .select()
     .from(workersTable)
-    .where(includeInactive ? sql`TRUE` : eq(workersTable.isActive, true))
+    .where(
+      includeInactive
+        ? eq(workersTable.companyId, companyId)
+        : and(eq(workersTable.companyId, companyId), eq(workersTable.isActive, true))
+    )
     .orderBy(sql`${workersTable.isActive} DESC, ${workersTable.name}`);
   res.json(rows.map(formatWorker));
 });
@@ -112,9 +118,11 @@ router.post("/workers", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const [created] = await db
     .insert(workersTable)
     .values({
+      companyId,
       name: parsed.data.name,
       phone: parsed.data.phone ?? null,
       skill: parsed.data.skill ?? null,
@@ -140,6 +148,7 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const [updated] = await db
     .update(workersTable)
     .set({
@@ -151,7 +160,7 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
       isActive: parsed.data.isActive ?? true,
       notes: parsed.data.notes ?? null,
     })
-    .where(eq(workersTable.id, params.data.id))
+    .where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, params.data.id)))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Worker not found" });

@@ -1,19 +1,25 @@
-import { pgTable, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
-// Generic key/value application settings (e.g. default invoice template).
+// Generic key/value application settings, scoped per tenant company.
 export const appSettingsTable = pgTable("app_settings", {
-  key: text("key").primaryKey(),
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  key: text("key").notNull(),
   value: text("value"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (t) => [
+  uniqueIndex("app_settings_company_key_uq").on(t.companyId, t.key),
+]);
 
-// Configurable document-number series. One row per series type
+// Configurable document-number series, one row per series type per company
 // (invoice / order / quotation). The number is assembled from the
 // enabled tokens joined by `separator`:
 //   [prefix] [year] [month] [paddedSeq]
 export const numberSeriesTable = pgTable("number_series", {
-  seriesType: text("series_type").primaryKey(), // invoice | order | quotation
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  seriesType: text("series_type").notNull(), // invoice | order | quotation
   prefix: text("prefix").notNull().default(""),
   includeYear: boolean("include_year").notNull().default(true),
   includeMonth: boolean("include_month").notNull().default(true),
@@ -25,7 +31,9 @@ export const numberSeriesTable = pgTable("number_series", {
   resetRule: text("reset_rule").notNull().default("monthly"), // never | daily | monthly | yearly | fiscal
   periodKey: text("period_key"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (t) => [
+  uniqueIndex("number_series_company_type_uq").on(t.companyId, t.seriesType),
+]);
 
 export const insertAppSettingSchema = createInsertSchema(appSettingsTable);
 export const insertNumberSeriesSchema = createInsertSchema(numberSeriesTable);

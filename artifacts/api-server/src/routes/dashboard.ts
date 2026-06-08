@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { sql, isNotNull, isNull, and, ilike, or } from "drizzle-orm";
+import { sql, eq, isNotNull, isNull, and, ilike, or } from "drizzle-orm";
 import { pool } from "@workspace/db";
 import {
   invoicesTable,
@@ -7,6 +7,7 @@ import {
   entitiesTable,
 } from "@workspace/db";
 import { db } from "@workspace/db";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -21,7 +22,8 @@ async function queryMany(text: string, params: any[] = []): Promise<any[]> {
 }
 
 // GET /dashboard/summary
-router.get("/dashboard/summary", async (_req, res): Promise<void> => {
+router.get("/dashboard/summary", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
@@ -30,17 +32,18 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     queryOne(
       `SELECT COALESCE(SUM(grand_total), 0) as total, COUNT(*) as count
        FROM invoices
-       WHERE EXTRACT(MONTH FROM invoice_date) = $1
-         AND EXTRACT(YEAR FROM invoice_date) = $2
+       WHERE company_id = $1
+         AND EXTRACT(MONTH FROM invoice_date) = $2
+         AND EXTRACT(YEAR FROM invoice_date) = $3
          AND status = 'saved'`,
-      [month, year]
+      [companyId, month, year]
     ),
-    queryOne(`SELECT COALESCE(SUM(outstanding_balance), 0) as total FROM entities WHERE type = 'customer'`),
-    queryOne(`SELECT COUNT(*) as count FROM products WHERE deleted_at IS NULL AND min_stock_threshold IS NOT NULL AND current_stock < min_stock_threshold`),
-    queryOne(`SELECT COUNT(*) as count FROM payments WHERE status = 'pending'`),
-    queryOne(`SELECT COUNT(*) as count FROM workload_cards WHERE status IN ('pending', 'processing')`),
-    queryOne(`SELECT COUNT(*) as count FROM products WHERE deleted_at IS NULL AND current_stock > 0`),
-    queryOne(`SELECT COUNT(*) as count FROM entities WHERE type = 'customer'`),
+    queryOne(`SELECT COALESCE(SUM(outstanding_balance), 0) as total FROM entities WHERE company_id = $1 AND type = 'customer'`, [companyId]),
+    queryOne(`SELECT COUNT(*) as count FROM products WHERE company_id = $1 AND deleted_at IS NULL AND min_stock_threshold IS NOT NULL AND current_stock < min_stock_threshold`, [companyId]),
+    queryOne(`SELECT COUNT(*) as count FROM payments WHERE company_id = $1 AND status = 'pending'`, [companyId]),
+    queryOne(`SELECT COUNT(*) as count FROM workload_cards WHERE company_id = $1 AND status IN ('pending', 'processing')`, [companyId]),
+    queryOne(`SELECT COUNT(*) as count FROM products WHERE company_id = $1 AND deleted_at IS NULL AND current_stock > 0`, [companyId]),
+    queryOne(`SELECT COUNT(*) as count FROM entities WHERE company_id = $1 AND type = 'customer'`, [companyId]),
   ]);
 
   res.json({
@@ -63,29 +66,36 @@ router.get("/dashboard/capital", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
+
   const [invRow, recvRow, cashRow, payRow, expRow] = await Promise.all([
     queryOne(
       `SELECT COALESCE(SUM(current_stock * purchase_price), 0) AS v
        FROM products
-       WHERE deleted_at IS NULL`
+       WHERE company_id = $1 AND deleted_at IS NULL`,
+      [companyId]
     ),
     queryOne(
       `SELECT COALESCE(SUM(outstanding_balance), 0) AS v
        FROM entities
-       WHERE type = 'customer' AND outstanding_balance > 0`
+       WHERE company_id = $1 AND type = 'customer' AND outstanding_balance > 0`,
+      [companyId]
     ),
     queryOne(
       `SELECT COALESCE(SUM(current_balance), 0) AS v
        FROM accounts
-       WHERE COALESCE(is_active, true) = true`
+       WHERE company_id = $1 AND COALESCE(is_active, true) = true`,
+      [companyId]
     ),
     queryOne(
       `SELECT COALESCE(SUM(outstanding_balance), 0) AS v
        FROM entities
-       WHERE type = 'vendor' AND outstanding_balance > 0`
+       WHERE company_id = $1 AND type = 'vendor' AND outstanding_balance > 0`,
+      [companyId]
     ),
     queryOne(
-      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses`
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE company_id = $1`,
+      [companyId]
     ),
   ]);
 
@@ -102,9 +112,9 @@ router.get("/dashboard/capital", async (req, res): Promise<void> => {
   // Upsert today's snapshot (so growth is computable tomorrow)
   await pool.query(
     `INSERT INTO capital_snapshots
-       (snapshot_date, inventory_value, receivable, cash_in_accounts, payable, expenses, capital, captured_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-     ON CONFLICT (snapshot_date) DO UPDATE SET
+       (company_id, snapshot_date, inventory_value, receivable, cash_in_accounts, payable, expenses, capital, captured_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+     ON CONFLICT (company_id, snapshot_date) DO UPDATE SET
        inventory_value = EXCLUDED.inventory_value,
        receivable = EXCLUDED.receivable,
        cash_in_accounts = EXCLUDED.cash_in_accounts,
@@ -112,17 +122,17 @@ router.get("/dashboard/capital", async (req, res): Promise<void> => {
        expenses = EXCLUDED.expenses,
        capital = EXCLUDED.capital,
        captured_at = NOW()`,
-    [todayStr, inventoryValue, receivable, cashInAccounts, payable, expenses, capital]
+    [companyId, todayStr, inventoryValue, receivable, cashInAccounts, payable, expenses, capital]
   );
 
   // Look up most recent prior snapshot (yesterday preferred, else latest before today)
   const prevRow = await queryOne(
     `SELECT snapshot_date, capital
      FROM capital_snapshots
-     WHERE snapshot_date < $1
+     WHERE company_id = $1 AND snapshot_date < $2
      ORDER BY snapshot_date DESC
      LIMIT 1`,
-    [todayStr]
+    [companyId, todayStr]
   );
 
   const previousCapital = prevRow?.capital != null ? Number(prevRow.capital) : null;
@@ -153,10 +163,12 @@ router.get("/dashboard/capital", async (req, res): Promise<void> => {
 });
 
 // GET /dashboard/recent-invoices
-router.get("/dashboard/recent-invoices", async (_req, res): Promise<void> => {
+router.get("/dashboard/recent-invoices", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const rows = await queryMany(
     `SELECT id, invoice_no, invoice_date, customer_name, grand_total, status
-     FROM invoices WHERE status = 'saved' ORDER BY created_at DESC LIMIT 10`
+     FROM invoices WHERE company_id = $1 AND status = 'saved' ORDER BY created_at DESC LIMIT 10`,
+    [companyId]
   );
 
   res.json(rows.map((r) => ({
@@ -170,12 +182,14 @@ router.get("/dashboard/recent-invoices", async (_req, res): Promise<void> => {
 });
 
 // GET /dashboard/low-stock
-router.get("/dashboard/low-stock", async (_req, res): Promise<void> => {
+router.get("/dashboard/low-stock", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const products = await db
     .select()
     .from(productsTable)
     .where(
       and(
+        eq(productsTable.companyId, companyId),
         isNull(productsTable.deletedAt),
         isNotNull(productsTable.minStockThreshold),
         sql`${productsTable.currentStock} < ${productsTable.minStockThreshold}`
@@ -194,7 +208,8 @@ router.get("/dashboard/low-stock", async (_req, res): Promise<void> => {
 });
 
 // GET /dashboard/top-products
-router.get("/dashboard/top-products", async (_req, res): Promise<void> => {
+router.get("/dashboard/top-products", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const rows = await queryMany(
     `SELECT
        ii.product_id as "productId",
@@ -203,10 +218,11 @@ router.get("/dashboard/top-products", async (_req, res): Promise<void> => {
        SUM(ii.amount) as "totalRevenue"
      FROM invoice_items ii
      JOIN invoices i ON i.id = ii.invoice_id
-     WHERE i.status = 'saved'
+     WHERE i.company_id = $1 AND i.status = 'saved'
      GROUP BY ii.product_id, ii.product_name
      ORDER BY "totalRevenue" DESC
-     LIMIT 10`
+     LIMIT 10`,
+    [companyId]
   );
 
   res.json(rows.map((r) => ({
@@ -218,7 +234,8 @@ router.get("/dashboard/top-products", async (_req, res): Promise<void> => {
 });
 
 // GET /dashboard/sales-trend — last 10 days, daily totals
-router.get("/dashboard/sales-trend", async (_req, res): Promise<void> => {
+router.get("/dashboard/sales-trend", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const rows = await queryMany(
     `WITH days AS (
        SELECT (CURRENT_DATE - (n || ' days')::interval)::date AS d
@@ -233,9 +250,10 @@ router.get("/dashboard/sales-trend", async (_req, res): Promise<void> => {
        COALESCE(COUNT(i.id), 0) AS "invoiceCount"
      FROM days
      LEFT JOIN invoices i
-       ON i.invoice_date::date = days.d AND i.status = 'saved'
+       ON i.invoice_date::date = days.d AND i.status = 'saved' AND i.company_id = $1
      GROUP BY days.d
-     ORDER BY days.d ASC`
+     ORDER BY days.d ASC`,
+    [companyId]
   );
 
   res.json(rows.map((r) => ({
@@ -255,10 +273,11 @@ router.get("/reports/ledger", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
+  const companyId = getCompanyId(req);
   const { entityId, from, to } = req.query as any;
 
-  let text = `SELECT * FROM ledger_entries WHERE 1=1`;
-  const params: any[] = [];
+  let text = `SELECT * FROM ledger_entries WHERE company_id = $1`;
+  const params: any[] = [companyId];
 
   if (entityId) {
     params.push(Number(entityId));

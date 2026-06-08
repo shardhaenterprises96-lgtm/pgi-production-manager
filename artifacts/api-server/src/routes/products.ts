@@ -16,6 +16,7 @@ import {
   CreateStockMovementParams,
   CreateStockMovementBody,
 } from "@workspace/api-zod";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -27,10 +28,13 @@ router.get("/products", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const { search, group, brand, forSale, forManufacturing } = params.data;
 
-  let query = db.select().from(productsTable);
-  const conditions: any[] = [isNull(productsTable.deletedAt)];
+  const conditions: any[] = [
+    eq(productsTable.companyId, companyId),
+    isNull(productsTable.deletedAt),
+  ];
 
   if (search) {
     conditions.push(
@@ -46,7 +50,11 @@ router.get("/products", async (req, res): Promise<void> => {
   if (forSale === true) conditions.push(eq(productsTable.notForSale, false));
   if (forManufacturing === true) conditions.push(eq(productsTable.addForManufacturing, true));
 
-  const products = await query.where(and(...conditions)).orderBy(productsTable.name);
+  const products = await db
+    .select()
+    .from(productsTable)
+    .where(and(...conditions))
+    .orderBy(productsTable.name);
 
   res.json(products.map(formatProduct));
 });
@@ -59,6 +67,7 @@ router.post("/products", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const data = parsed.data;
 
   // Compute prices based on pricing basis
@@ -75,6 +84,7 @@ router.post("/products", async (req, res): Promise<void> => {
     .insert(productsTable)
     .values({
       ...data,
+      companyId,
       retailPrice: String(retailPrice),
       wholesalePrice: String(wholesalePrice),
       currentStock: String(data.openingStock ?? 0),
@@ -84,11 +94,12 @@ router.post("/products", async (req, res): Promise<void> => {
   // Log opening stock movement if any
   if (data.openingStock && Number(data.openingStock) > 0) {
     await db.insert(stockMovementsTable).values({
+      companyId,
       productId: product.id,
       type: "inward",
       quantity: String(data.openingStock),
       reason: "Opening stock",
-      userId: 1,
+      userId: (req as any).session?.userId ?? 1,
     });
   }
 
@@ -96,21 +107,23 @@ router.post("/products", async (req, res): Promise<void> => {
 });
 
 // GET /products/groups
-router.get("/products/groups", async (_req, res): Promise<void> => {
+router.get("/products/groups", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const result = await db
     .selectDistinct({ group: productsTable.group })
     .from(productsTable)
-    .where(isNull(productsTable.deletedAt))
+    .where(and(eq(productsTable.companyId, companyId), isNull(productsTable.deletedAt)))
     .orderBy(productsTable.group);
   res.json(result.map((r) => r.group));
 });
 
 // GET /products/brands
-router.get("/products/brands", async (_req, res): Promise<void> => {
+router.get("/products/brands", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const result = await db
     .selectDistinct({ brand: productsTable.brand })
     .from(productsTable)
-    .where(isNull(productsTable.deletedAt))
+    .where(and(eq(productsTable.companyId, companyId), isNull(productsTable.deletedAt)))
     .orderBy(productsTable.brand);
   res.json(result.map((r) => r.brand));
 });
@@ -123,10 +136,17 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const [product] = await db
     .select()
     .from(productsTable)
-    .where(and(eq(productsTable.id, params.data.id), isNull(productsTable.deletedAt)));
+    .where(
+      and(
+        eq(productsTable.companyId, companyId),
+        eq(productsTable.id, params.data.id),
+        isNull(productsTable.deletedAt)
+      )
+    );
 
   if (!product) {
     res.status(404).json({ error: "Product not found" });
@@ -150,11 +170,15 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const data = parsed.data;
 
   // Recompute prices if fixed margin
   if (data.pricingBasis === "fixed_margin") {
-    const [existing] = await db.select().from(productsTable).where(eq(productsTable.id, params.data.id));
+    const [existing] = await db
+      .select()
+      .from(productsTable)
+      .where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, params.data.id)));
     if (existing) {
       const purchase = Number(data.purchasePrice ?? existing.purchasePrice);
       if (data.wholesaleMargin != null) data.wholesalePrice = purchase + Number(data.wholesaleMargin);
@@ -170,7 +194,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   const [product] = await db
     .update(productsTable)
     .set(updateData)
-    .where(eq(productsTable.id, params.data.id))
+    .where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, params.data.id)))
     .returning();
 
   if (!product) {
@@ -189,6 +213,8 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
+
   // Soft-delete: products are referenced by invoice_items, stock_movements,
   // BOMs, and rewards. A hard DELETE would either violate FK constraints or
   // destroy historical invoice/audit context. Instead we set deleted_at so
@@ -197,7 +223,13 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
   const [product] = await db
     .update(productsTable)
     .set({ deletedAt: new Date() })
-    .where(and(eq(productsTable.id, params.data.id), isNull(productsTable.deletedAt)))
+    .where(
+      and(
+        eq(productsTable.companyId, companyId),
+        eq(productsTable.id, params.data.id),
+        isNull(productsTable.deletedAt)
+      )
+    )
     .returning();
 
   if (!product) {
@@ -218,10 +250,16 @@ router.get("/products/:id/stock-movements", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const movements = await db
     .select()
     .from(stockMovementsTable)
-    .where(eq(stockMovementsTable.productId, params.data.id))
+    .where(
+      and(
+        eq(stockMovementsTable.companyId, companyId),
+        eq(stockMovementsTable.productId, params.data.id)
+      )
+    )
     .orderBy(sql`${stockMovementsTable.createdAt} DESC`);
 
   res.json(movements.map(formatMovement));
@@ -241,10 +279,22 @@ router.post("/products/:id/stock-movements", async (req, res): Promise<void> => 
     return;
   }
 
+  const companyId = getCompanyId(req);
   const session = (req as any).session;
   const userId = session?.userId ?? 1;
 
+  // Ensure the target product belongs to this company before mutating stock.
+  const [owned] = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, params.data.id)));
+  if (!owned) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
   const [movement] = await db.insert(stockMovementsTable).values({
+    companyId,
     productId: params.data.id,
     type: parsed.data.type,
     quantity: String(parsed.data.quantity),
@@ -262,7 +312,7 @@ router.post("/products/:id/stock-movements", async (req, res): Promise<void> => 
   await db
     .update(productsTable)
     .set({ currentStock: sql`${productsTable.currentStock} + ${delta}` })
-    .where(eq(productsTable.id, params.data.id));
+    .where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, params.data.id)));
 
   res.status(201).json(formatMovement(movement));
 });

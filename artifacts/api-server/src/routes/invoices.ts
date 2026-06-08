@@ -22,14 +22,15 @@ import {
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 import { generateSeriesNumber } from "../lib/number-series";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
 // Invoice numbers come from the configurable `invoice` series (see number-series.ts).
 // The series engine seeds itself from the legacy invoice_sequence counter on first
 // use, so the running number is preserved across the cutover.
-async function generateInvoiceNumber(client: any): Promise<string> {
-  return generateSeriesNumber(client, "invoice");
+async function generateInvoiceNumber(client: any, companyId: number): Promise<string> {
+  return generateSeriesNumber(client, "invoice", companyId);
 }
 
 // GET /invoices
@@ -40,8 +41,9 @@ router.get("/invoices", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const session = (req as any).session;
-  const conditions: any[] = [];
+  const conditions: any[] = [eq(invoicesTable.companyId, companyId)];
   if (params.data.customerId) conditions.push(eq(invoicesTable.customerId, params.data.customerId));
 
   // Server-side scoping: a salesman can only ever see invoices linked to their own
@@ -100,6 +102,7 @@ router.post("/invoices", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const session = (req as any).session;
   const data = parsed.data;
   const client = await pool.connect();
@@ -108,7 +111,7 @@ router.post("/invoices", async (req, res): Promise<void> => {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
     // Generate invoice number
-    const invoiceNo = await generateInvoiceNumber(client);
+    const invoiceNo = await generateInvoiceNumber(client, companyId);
 
     // Calculate totals
     let subtotal = 0;
@@ -175,7 +178,7 @@ router.post("/invoices", async (req, res): Promise<void> => {
     // Get salesman name
     let salesmanName: string | null = null;
     if (data.salesmanId) {
-      const [salesman] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, data.salesmanId));
+      const [salesman] = await db.select().from(entitiesTable).where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, data.salesmanId)));
       salesmanName = salesman?.name ?? null;
     } else if (session?.role === "salesman") {
       salesmanName = session.name;
@@ -186,8 +189,8 @@ router.post("/invoices", async (req, res): Promise<void> => {
       `INSERT INTO invoices (invoice_no, invoice_date, due_date, invoice_type, customer_id, customer_name,
         customer_gstin, billing_address, shipping_address, place_of_supply, salesman_id, salesman_name,
         po_number, e_way_bill_no, subtotal, total_discount, total_tax, cgst, sgst, igst, freight,
-        round_off, grand_total, balance_due, status, created_by_user_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+        round_off, grand_total, balance_due, status, created_by_user_id, company_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
        RETURNING *`,
       [
         invoiceNo,
@@ -220,6 +223,7 @@ router.post("/invoices", async (req, res): Promise<void> => {
         String(balanceDue),
         "saved",
         session?.userId ?? 1,
+        companyId,
       ]
     );
     const invRow = invoiceQueryResult.rows[0];

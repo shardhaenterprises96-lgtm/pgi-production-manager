@@ -87,7 +87,7 @@ const DEFAULTS: Record<SeriesType, Omit<SeriesRow, "seriesType" | "nextNumber" |
 // Lazily create a sensible default config row the first time a series is used.
 // For invoices we seed nextNumber from the legacy invoice_sequence table so the
 // running counter is preserved (avoids duplicate invoice_no on cutover).
-async function ensureDefaultSeries(client: any, seriesType: SeriesType): Promise<void> {
+async function ensureDefaultSeries(client: any, seriesType: SeriesType, companyId: number): Promise<void> {
   const now = new Date();
   const d = DEFAULTS[seriesType];
   let nextNumber = d.startNumber;
@@ -95,8 +95,8 @@ async function ensureDefaultSeries(client: any, seriesType: SeriesType): Promise
 
   if (seriesType === "invoice") {
     const r = await client.query(
-      `SELECT last_number FROM invoice_sequence WHERE month = $1 AND year = $2`,
-      [now.getMonth() + 1, now.getFullYear()],
+      `SELECT last_number FROM invoice_sequence WHERE month = $1 AND year = $2 AND company_id = $3`,
+      [now.getMonth() + 1, now.getFullYear(), companyId],
     );
     const last = Number(r.rows[0]?.last_number ?? 0);
     nextNumber = last + 1;
@@ -105,20 +105,20 @@ async function ensureDefaultSeries(client: any, seriesType: SeriesType): Promise
 
   await client.query(
     `INSERT INTO number_series
-       (series_type, prefix, include_year, include_month, year_format, separator, padding, start_number, next_number, reset_rule, period_key)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-     ON CONFLICT (series_type) DO NOTHING`,
-    [seriesType, d.prefix, d.includeYear, d.includeMonth, d.yearFormat, d.separator, d.padding, d.startNumber, nextNumber, d.resetRule, periodKey],
+       (company_id, series_type, prefix, include_year, include_month, year_format, separator, padding, start_number, next_number, reset_rule, period_key)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     ON CONFLICT (company_id, series_type) DO NOTHING`,
+    [companyId, seriesType, d.prefix, d.includeYear, d.includeMonth, d.yearFormat, d.separator, d.padding, d.startNumber, nextNumber, d.resetRule, periodKey],
   );
 }
 
-export async function generateSeriesNumber(client: any, seriesType: SeriesType): Promise<string> {
+export async function generateSeriesNumber(client: any, seriesType: SeriesType, companyId: number): Promise<string> {
   const now = new Date();
 
-  let res = await client.query(`SELECT * FROM number_series WHERE series_type = $1 FOR UPDATE`, [seriesType]);
+  let res = await client.query(`SELECT * FROM number_series WHERE series_type = $1 AND company_id = $2 FOR UPDATE`, [seriesType, companyId]);
   if (res.rows.length === 0) {
-    await ensureDefaultSeries(client, seriesType);
-    res = await client.query(`SELECT * FROM number_series WHERE series_type = $1 FOR UPDATE`, [seriesType]);
+    await ensureDefaultSeries(client, seriesType, companyId);
+    res = await client.query(`SELECT * FROM number_series WHERE series_type = $1 AND company_id = $2 FOR UPDATE`, [seriesType, companyId]);
   }
 
   const row = mapRow(res.rows[0]);
@@ -126,8 +126,8 @@ export async function generateSeriesNumber(client: any, seriesType: SeriesType):
   const seq = row.periodKey !== periodKey ? row.startNumber : row.nextNumber;
 
   await client.query(
-    `UPDATE number_series SET next_number = $1, period_key = $2 WHERE series_type = $3`,
-    [seq + 1, periodKey, seriesType],
+    `UPDATE number_series SET next_number = $1, period_key = $2 WHERE series_type = $3 AND company_id = $4`,
+    [seq + 1, periodKey, seriesType, companyId],
   );
 
   return buildNumber(row, seq, now);

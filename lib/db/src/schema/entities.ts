@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const entitiesTable = pgTable("entities", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
   type: text("type").notNull(), // customer, vendor, worker, salesman
   name: text("name").notNull(),
   mobile: text("mobile").notNull(),
@@ -23,12 +24,14 @@ export const entitiesTable = pgTable("entities", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
+  index("entities_company_idx").on(t.companyId),
   index("entities_mobile_idx").on(t.mobile),
   index("entities_type_idx").on(t.type),
 ]);
 
 export const ledgerEntriesTable = pgTable("ledger_entries", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
   entityId: integer("entity_id").notNull().references(() => entitiesTable.id),
   date: timestamp("date", { withTimezone: true }).notNull().defaultNow(),
   description: text("description").notNull(),
@@ -43,6 +46,7 @@ export const ledgerEntriesTable = pgTable("ledger_entries", {
   createdByName: text("created_by_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
+  index("ledger_company_idx").on(t.companyId),
   index("ledger_entity_idx").on(t.entityId),
 ]);
 

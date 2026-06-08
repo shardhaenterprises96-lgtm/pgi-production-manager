@@ -12,6 +12,7 @@ import {
   ListAccountTransactionsQueryParams,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -56,9 +57,11 @@ function formatAccount(a: any) {
 // GET /accounts
 router.get("/accounts", async (req, res): Promise<void> => {
   if (!requireFinancialRead(req, res)) return;
+  const companyId = getCompanyId(req);
   const rows = await db
     .select()
     .from(accountsTable)
+    .where(eq(accountsTable.companyId, companyId))
     .orderBy(sql`${accountsTable.isActive} DESC, ${accountsTable.type}, ${accountsTable.name}`);
   res.json(rows.map(formatAccount));
 });
@@ -71,10 +74,12 @@ router.post("/accounts", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const opening = parsed.data.openingBalance ?? 0;
   const [created] = await db
     .insert(accountsTable)
     .values({
+      companyId,
       name: parsed.data.name,
       type: parsed.data.type,
       identifier: parsed.data.identifier ?? null,
@@ -100,7 +105,8 @@ router.put("/accounts/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [existing] = await db.select().from(accountsTable).where(eq(accountsTable.id, params.data.id));
+  const companyId = getCompanyId(req);
+  const [existing] = await db.select().from(accountsTable).where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.id, params.data.id)));
   if (!existing) {
     res.status(404).json({ error: "Account not found" });
     return;
@@ -121,7 +127,7 @@ router.put("/accounts/:id", async (req, res): Promise<void> => {
       isActive: parsed.data.isActive ?? existing.isActive,
       notes: parsed.data.notes ?? null,
     })
-    .where(eq(accountsTable.id, params.data.id))
+    .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.id, params.data.id)))
     .returning();
   res.json(formatAccount(updated));
 });
@@ -134,16 +140,18 @@ router.delete("/accounts/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   await db
     .update(accountsTable)
     .set({ isActive: false })
-    .where(eq(accountsTable.id, params.data.id));
+    .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.id, params.data.id)));
   res.sendStatus(204);
 });
 
 // GET /cashbook — per-salesman pending cash + account balances
 router.get("/cashbook", async (req, res): Promise<void> => {
   if (!requireFinancialRead(req, res)) return;
+  const companyId = getCompanyId(req);
   // Approved cash payments not yet collected (accountId IS NULL) grouped by salesman
   const pendingRows = await db
     .select({
@@ -155,6 +163,7 @@ router.get("/cashbook", async (req, res): Promise<void> => {
     .from(paymentsTable)
     .where(
       and(
+        eq(paymentsTable.companyId, companyId),
         eq(paymentsTable.mode, "cash"),
         eq(paymentsTable.status, "approved"),
         isNull(paymentsTable.accountId),
@@ -175,6 +184,7 @@ router.get("/cashbook", async (req, res): Promise<void> => {
   const accounts = await db
     .select()
     .from(accountsTable)
+    .where(eq(accountsTable.companyId, companyId))
     .orderBy(sql`${accountsTable.isActive} DESC, ${accountsTable.type}, ${accountsTable.name}`);
 
   res.json({
@@ -193,6 +203,7 @@ router.post("/cashbook/collect", async (req, res): Promise<void> => {
     return;
   }
   const session = (req as any).session;
+  const companyId = getCompanyId(req);
 
   const { salesmanId, accountId, amount, notes } = parsed.data;
 
@@ -202,8 +213,8 @@ router.post("/cashbook/collect", async (req, res): Promise<void> => {
 
     // Verify account exists and is active
     const acctRes = await client.query(
-      `SELECT id, current_balance FROM accounts WHERE id = $1 AND is_active = true FOR UPDATE`,
-      [accountId],
+      `SELECT id, current_balance FROM accounts WHERE company_id = $1 AND id = $2 AND is_active = true FOR UPDATE`,
+      [companyId, accountId],
     );
     if (acctRes.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -215,9 +226,9 @@ router.post("/cashbook/collect", async (req, res): Promise<void> => {
     // Strategy: mark oldest payments first until cumulative sum reaches `amount`.
     const pendingRes = await client.query(
       `SELECT id, amount FROM payments
-       WHERE salesman_id = $1 AND mode = 'cash' AND status = 'approved' AND account_id IS NULL
+       WHERE company_id = $1 AND salesman_id = $2 AND mode = 'cash' AND status = 'approved' AND account_id IS NULL
        ORDER BY created_at ASC`,
-      [salesmanId],
+      [companyId, salesmanId],
     );
 
     let collected = 0;
@@ -239,13 +250,13 @@ router.post("/cashbook/collect", async (req, res): Promise<void> => {
     await client.query(
       `UPDATE payments
        SET account_id = $1, collected_at = NOW(), collected_by_id = $2
-       WHERE id = ANY($3::int[])`,
-      [accountId, session.userId, idsToMark],
+       WHERE company_id = $3 AND id = ANY($4::int[])`,
+      [accountId, session.userId, companyId, idsToMark],
     );
 
     const updAcct = await client.query(
-      `UPDATE accounts SET current_balance = current_balance + $1 WHERE id = $2 RETURNING *`,
-      [collected, accountId],
+      `UPDATE accounts SET current_balance = current_balance + $1 WHERE company_id = $2 AND id = $3 RETURNING *`,
+      [collected, companyId, accountId],
     );
 
     await client.query("COMMIT");
@@ -271,16 +282,15 @@ router.get("/account-transactions", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const { accountId, direction, from, to } = parsed.data;
 
-  const where: any[] = [];
+  const where: any[] = [sql`t.company_id = ${companyId}`];
   if (accountId) where.push(sql`t.account_id = ${accountId}`);
   if (direction) where.push(sql`t.direction = ${direction}`);
   if (from) where.push(sql`t.created_at >= ${from}::timestamptz`);
   if (to) where.push(sql`t.created_at <= ${to}::timestamptz`);
-  const whereSql = where.length
-    ? sql.join([sql`WHERE`, sql.join(where, sql` AND `)], sql` `)
-    : sql``;
+  const whereSql = sql.join([sql`WHERE`, sql.join(where, sql` AND `)], sql` `);
 
   const rows = await db.execute(sql`
     SELECT t.id, t.receipt_no, t.account_id, t.direction, t.amount, t.mode,
@@ -325,6 +335,7 @@ router.post("/account-transactions", async (req, res): Promise<void> => {
     return;
   }
   const session = (req as any).session;
+  const companyId = getCompanyId(req);
   const { accountId, direction, amount, mode, partyName, partyMobile, partyEntityId, notes } = parsed.data;
 
   const client = await pool.connect();
@@ -332,8 +343,8 @@ router.post("/account-transactions", async (req, res): Promise<void> => {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
     const acctRes = await client.query(
-      `SELECT id, name, current_balance FROM accounts WHERE id = $1 AND is_active = true FOR UPDATE`,
-      [accountId],
+      `SELECT id, name, current_balance FROM accounts WHERE company_id = $1 AND id = $2 AND is_active = true FOR UPDATE`,
+      [companyId, accountId],
     );
     if (acctRes.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -350,10 +361,11 @@ router.post("/account-transactions", async (req, res): Promise<void> => {
 
     const ins = await client.query(
       `INSERT INTO account_transactions
-        (account_id, direction, amount, mode, party_name, party_mobile, party_entity_id, notes, created_by_id, created_by_name, created_by_role)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        (company_id, account_id, direction, amount, mode, party_name, party_mobile, party_entity_id, notes, created_by_id, created_by_name, created_by_role)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [
+        companyId,
         accountId,
         direction,
         amount,
@@ -373,12 +385,12 @@ router.post("/account-transactions", async (req, res): Promise<void> => {
     const d = new Date(txn.created_at);
     const yyyymm = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
     const receiptNo = `RCP-${yyyymm}-${String(txn.id).padStart(5, "0")}`;
-    await client.query(`UPDATE account_transactions SET receipt_no = $1 WHERE id = $2`, [receiptNo, txn.id]);
+    await client.query(`UPDATE account_transactions SET receipt_no = $1 WHERE company_id = $2 AND id = $3`, [receiptNo, companyId, txn.id]);
 
     const delta = direction === "in" ? amount : -amount;
     const updAcct = await client.query(
-      `UPDATE accounts SET current_balance = current_balance + $1 WHERE id = $2 RETURNING current_balance`,
-      [delta, accountId],
+      `UPDATE accounts SET current_balance = current_balance + $1 WHERE company_id = $2 AND id = $3 RETURNING current_balance`,
+      [delta, companyId, accountId],
     );
 
     await client.query("COMMIT");

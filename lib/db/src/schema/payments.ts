@@ -1,11 +1,12 @@
-import { pgTable, text, serial, timestamp, integer, numeric, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, numeric, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { entitiesTable } from "./entities";
 
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
-  receiptId: text("receipt_id").notNull().unique(),
+  companyId: integer("company_id").notNull(),
+  receiptId: text("receipt_id").notNull(),
   customerId: integer("customer_id").notNull().references(() => entitiesTable.id),
   customerName: text("customer_name"),
   salesmanId: integer("salesman_id"),
@@ -22,8 +23,10 @@ export const paymentsTable = pgTable("payments", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
+  index("payments_company_idx").on(t.companyId),
   index("payments_customer_idx").on(t.customerId),
   index("payments_status_idx").on(t.status),
+  unique("payments_company_receipt_unique").on(t.companyId, t.receiptId),
 ]);
 
 export const insertPaymentSchema = createInsertSchema(paymentsTable).omit({ id: true, createdAt: true, updatedAt: true });

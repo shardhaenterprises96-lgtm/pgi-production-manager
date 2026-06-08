@@ -1,0 +1,78 @@
+import type { Request, Response, NextFunction } from "express";
+
+// The authenticated session shape stored in the signed cookie.
+export interface AppSession {
+  userId: number;
+  username: string;
+  role: string;
+  name: string;
+  entityId: number | null;
+  // Tenant company this user belongs to. NULL only for platform `super_admin`,
+  // which operates across all companies and is never scoped to one.
+  companyId: number | null;
+}
+
+// Raised when a request that requires a tenant context has none (e.g. an
+// unauthenticated request, or a super_admin hitting a company-scoped route).
+export class TenantContextError extends Error {
+  status: number;
+  constructor(message: string, status = 403) {
+    super(message);
+    this.name = "TenantContextError";
+    this.status = status;
+  }
+}
+
+export function getSession(req: Request): AppSession | null {
+  return ((req as any).session as AppSession | null) ?? null;
+}
+
+export function isSuperAdmin(req: Request): boolean {
+  return getSession(req)?.role === "super_admin";
+}
+
+// Returns the caller's company id, or throws if there is no tenant context.
+// Use this in every company-scoped route — reads MUST filter by it and writes
+// MUST stamp it, so tenants can never see or touch another tenant's rows.
+export function getCompanyId(req: Request): number {
+  const session = getSession(req);
+  if (!session || !session.userId) {
+    throw new TenantContextError("Not authenticated", 401);
+  }
+  if (session.companyId == null) {
+    throw new TenantContextError("No tenant context for this account", 403);
+  }
+  return session.companyId;
+}
+
+// Express middleware: require a logged-in user before any data route runs and
+// expose convenience flags. This is the single choke point that guarantees no
+// data route can be reached anonymously.
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const session = getSession(req);
+  if (!session || !session.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  (req as any).companyId = session.companyId ?? null;
+  (req as any).isSuperAdmin = session.role === "super_admin";
+  next();
+}
+
+// Express middleware: restrict a route to the platform super_admin.
+export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!isSuperAdmin(req)) {
+    res.status(403).json({ error: "Super admin access required" });
+    return;
+  }
+  next();
+}
+
+// Central error translator so routes can simply `throw` a TenantContextError.
+export function handleTenantError(err: unknown, res: Response): boolean {
+  if (err instanceof TenantContextError) {
+    res.status(err.status).json({ error: err.message });
+    return true;
+  }
+  return false;
+}

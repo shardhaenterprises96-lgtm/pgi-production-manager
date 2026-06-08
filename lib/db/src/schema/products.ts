@@ -1,14 +1,15 @@
-import { pgTable, text, serial, timestamp, integer, boolean, numeric, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, numeric, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
   name: text("name").notNull(),
   printName: text("print_name"),
   group: text("group").notNull(),
   brand: text("brand").notNull(),
-  itemCode: text("item_code").notNull().unique(),
+  itemCode: text("item_code").notNull(),
   unit: text("unit").notNull().default("QTY"),
   purchasePrice: numeric("purchase_price", { precision: 12, scale: 2 }).notNull().default("0"),
   retailPrice: numeric("retail_price", { precision: 12, scale: 2 }).notNull().default("0"),
@@ -34,13 +35,16 @@ export const productsTable = pgTable("products", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
+  index("products_company_idx").on(t.companyId),
   index("products_group_idx").on(t.group),
   index("products_brand_idx").on(t.brand),
   index("products_deleted_at_idx").on(t.deletedAt),
+  uniqueIndex("products_company_item_code_uq").on(t.companyId, t.itemCode),
 ]);
 
 export const stockMovementsTable = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
   productId: integer("product_id").notNull().references(() => productsTable.id),
   type: text("type").notNull(),
   quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull(),
@@ -50,6 +54,7 @@ export const stockMovementsTable = pgTable("stock_movements", {
   userId: integer("user_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
+  index("stock_movements_company_idx").on(t.companyId),
   index("stock_movements_product_idx").on(t.productId),
 ]);
 
