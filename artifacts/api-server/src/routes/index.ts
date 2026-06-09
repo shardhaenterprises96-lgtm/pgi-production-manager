@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
+import systemRouter from "./system";
 import usersRouter from "./users";
 import productsRouter from "./products";
 import entitiesRouter from "./entities";
@@ -24,6 +25,7 @@ const router: IRouter = Router();
 
 // Public routes (no session required).
 router.use(healthRouter);
+router.use(systemRouter);
 router.use(authRouter);
 
 // Everything below requires an authenticated session. This is the single choke

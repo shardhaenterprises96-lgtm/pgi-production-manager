@@ -1,0 +1,141 @@
+```text
+One more important change required in Multi Company SaaS ERP system.
+
+I want company-based permanent login behavior.
+
+========================================
+DEFAULT COMPANY AUTO-SELECTION
+========================================
+
+When I deploy or give this ERP system to a company/customer:
+
+Example:
+- Shraddha Enterprises
+- ABC Traders
+- XYZ Lubricants
+
+Each deployed system should automatically remember its own company.
+
+Meaning:
+
+If this ERP is installed/deployed for:
+"Shraddha Enterprises"
+
+Then login page should:
+- automatically select Shraddha Enterprises
+- hide company dropdown OR prefill it
+- users should directly login into that company only
+
+They should NOT see other companies.
+
+========================================
+HOW IT SHOULD WORK
+========================================
+
+Backend should store:
+DEFAULT_COMPANY_ID
+
+OR
+
+SYSTEM_COMPANY_CODE
+
+inside:
+- environment variable
+OR
+- config table
+OR
+- deployment settings
+
+Example:
+SYSTEM_COMPANY_CODE=shraddha
+
+Then:
+- login page auto loads Shraddha Enterprises
+- all APIs automatically use that company_id
+- users cannot switch companies
+
+========================================
+SUPER ADMIN BEHAVIOR
+========================================
+
+Only Super Admin should:
+- see all companies
+- switch companies
+- manage subscriptions
+
+Normal deployed customer systems:
+- should stay locked to their own company
+
+========================================
+LOGIN PAGE LOGIC
+========================================
+
+IF:
+system has fixed company mode enabled
+
+THEN:
+- auto select company
+- hide dropdown
+- show company logo/name directly
+
+Example:
+
+Shraddha Enterprises
+Vipro ERP System
+
+Username
+Password
+
+[ Sign In ]
+
+========================================
+MULTI MODE SUPPORT
+========================================
+
+Need BOTH modes:
+
+1. SaaS Multi Company Mode
+- dropdown visible
+- multiple companies login
+
+2. Dedicated Company Mode
+- fixed company
+- no dropdown
+- auto selected company
+
+Use config flag:
+
+MULTI_COMPANY_MODE=true/false
+
+========================================
+SECURITY
+========================================
+
+Even if someone changes frontend manually:
+backend must restrict access only to allowed company_id.
+
+Never trust frontend company selection alone.
+
+========================================
+DATABASE
+========================================
+
+All records still use:
+company_id
+
+No changes to isolation logic.
+
+========================================
+IMPORTANT
+========================================
+
+Do not break:
+- current super admin
+- subscriptions
+- inventory
+- accounting
+- reports
+- recycle bin system
+
+Implement safely with proper middleware and backend validation.
+```

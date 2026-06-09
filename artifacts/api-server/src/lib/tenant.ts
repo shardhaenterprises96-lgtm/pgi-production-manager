@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { isAccountAllowedHere } from "./system-config";
 
 // The authenticated session shape stored in the signed cookie.
 export interface AppSession {
@@ -52,6 +53,15 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const session = getSession(req);
   if (!session || !session.userId) {
     res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  // Defense in depth: re-check the dedicated-company lock on EVERY request, not
+  // just at login. Otherwise a session minted before the instance was switched
+  // to dedicated mode (or for a different company) would keep working until the
+  // cookie expired. Fail-closed and clear the stale session so the SPA re-logs in.
+  if (!isAccountAllowedHere(session.role, session.companyId ?? null)) {
+    res.clearCookie("session", { path: "/" });
+    res.status(403).json({ error: "This system is dedicated to another company." });
     return;
   }
   (req as any).companyId = session.companyId ?? null;

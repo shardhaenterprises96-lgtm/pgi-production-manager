@@ -17,6 +17,18 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Get deployment/system config (public)
+ */
+export const GetSystemConfigResponse = zod.object({
+  "multiCompanyMode": zod.boolean(),
+  "company": zod.object({
+  "id": zod.number(),
+  "name": zod.string()
+}).nullable()
+})
+
+
+/**
  * @summary Login
  */
 export const LoginBody = zod.object({
@@ -29,7 +41,8 @@ export const LoginResponse = zod.object({
   "username": zod.string(),
   "role": zod.enum(['super_admin', 'admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "name": zod.string(),
-  "customerId": zod.number().nullish()
+  "customerId": zod.number().nullish(),
+  "companyId": zod.number().nullish()
 })
 
 
@@ -41,7 +54,8 @@ export const GetMeResponse = zod.object({
   "username": zod.string(),
   "role": zod.enum(['super_admin', 'admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "name": zod.string(),
-  "customerId": zod.number().nullish()
+  "customerId": zod.number().nullish(),
+  "companyId": zod.number().nullish()
 })
 
 

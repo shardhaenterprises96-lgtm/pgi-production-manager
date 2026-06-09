@@ -167,6 +167,22 @@ export interface AuthSession {
   name: string;
   /** @nullable */
   customerId?: number | null;
+  /** @nullable */
+  companyId?: number | null;
+}
+
+/**
+ * @nullable
+ */
+export type SystemConfigCompany = {
+  id: number;
+  name: string;
+} | null;
+
+export interface SystemConfig {
+  multiCompanyMode: boolean;
+  /** @nullable */
+  company: SystemConfigCompany;
 }
 
 export type UserAccountRole = typeof UserAccountRole[keyof typeof UserAccountRole];

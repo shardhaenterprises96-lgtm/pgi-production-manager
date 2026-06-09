@@ -187,6 +187,8 @@ export * from './subscriptionDashboard';
 export * from './subscriptionListItem';
 export * from './subscriptionListItemPaymentStatus';
 export * from './subscriptionListItemSubscriptionStatus';
+export * from './systemConfig';
+export * from './systemConfigCompany';
 export * from './taxBucket';
 export * from './taxRateRow';
 export * from './taxReport';

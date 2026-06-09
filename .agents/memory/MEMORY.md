@@ -3,3 +3,4 @@
 - [Order lifecycle authorization](order-lifecycle-authorization.md) — customer_order status PATCH must validate from→to per role (not target-set); guard workload-card creation against terminal states.
 - [Base64 image storage](base64-image-storage.md) — uploaded images stored as base64 data URLs in text columns (no object storage/disk); validate mime+size server-side.
 - [DB bootstrap on startup](db-bootstrap-on-startup.md) — empty prod DBs auto-init from git-tracked production-schema.sql at boot; strip psql meta-commands, use a dedicated client.
+- [Deployment-mode auth lock](deployment-mode-auth-lock.md) — MULTI_COMPANY_MODE/DEFAULT_COMPANY_ID switch SaaS vs dedicated; single fail-closed helper enforced at login AND in requireAuth.

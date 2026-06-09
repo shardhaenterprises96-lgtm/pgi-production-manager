@@ -119,6 +119,7 @@ import type {
   SubscriptionCharts,
   SubscriptionDashboard,
   SubscriptionListItem,
+  SystemConfig,
   TaxReport,
   TopProduct,
   UpdateUserInput,
@@ -212,6 +213,83 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSystemConfigUrl = () => {
+
+
+
+
+  return `/api/system/config`
+}
+
+/**
+ * @summary Get deployment/system config (public)
+ */
+export const getSystemConfig = async ( options?: RequestInit): Promise<SystemConfig> => {
+
+  return customFetch<SystemConfig>(getGetSystemConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSystemConfigQueryKey = () => {
+    return [
+    `/api/system/config`
+    ] as const;
+    }
+
+
+export const getGetSystemConfigQueryOptions = <TData = Awaited<ReturnType<typeof getSystemConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSystemConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemConfig>>> = ({ signal }) => getSystemConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSystemConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSystemConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getSystemConfig>>>
+export type GetSystemConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get deployment/system config (public)
+ */
+
+export function useGetSystemConfig<TData = Awaited<ReturnType<typeof getSystemConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSystemConfigQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -19,6 +19,7 @@ tags:
   - name: reports
   - name: subscriptions
   - name: settings
+  - name: system
 
 paths:
   /healthz:
@@ -33,6 +34,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # SYSTEM
+  /system/config:
+    get:
+      operationId: getSystemConfig
+      tags: [system]
+      summary: Get deployment/system config (public)
+      responses:
+        "200":
+          description: System config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemConfig"
 
   # AUTH
   /auth/login:
@@ -2333,6 +2348,23 @@ components:
           type: string
         customerId:
           type: ["integer", "null"]
+        companyId:
+          type: ["integer", "null"]
+
+    SystemConfig:
+      type: object
+      required: [multiCompanyMode, company]
+      properties:
+        multiCompanyMode:
+          type: boolean
+        company:
+          type: ["object", "null"]
+          required: [id, name]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
 
     UserAccount:
       type: object

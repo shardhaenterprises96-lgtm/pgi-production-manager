@@ -1,7 +1,7 @@
 import React from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/use-auth";
-import { useLogin } from "@workspace/api-client-react";
+import { useLogin, useGetSystemConfig, getGetSystemConfigQueryKey } from "@workspace/api-client-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +24,13 @@ export default function Login() {
   const { toast } = useToast();
   const loginMutation = useLogin();
   const { isAuthenticated, user, isLoading } = useAuth();
+  const { data: systemConfig } = useGetSystemConfig({
+    query: { retry: false, refetchOnWindowFocus: false, queryKey: getGetSystemConfigQueryKey() },
+  });
+
+  // In dedicated single-company mode the backend returns the fixed company, so
+  // the login screen shows that company's name instead of generic branding.
+  const companyName = systemConfig?.company?.name ?? "Shradha Enterprises";
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -80,7 +87,7 @@ export default function Login() {
           <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center text-primary-foreground mb-6 shadow-lg shadow-primary/20">
             <Factory className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-sidebar-foreground">Shradha Enterprises</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-sidebar-foreground">{companyName}</h1>
           <p className="text-sidebar-foreground/60 mt-2">Vipro ERP System</p>
         </div>
 

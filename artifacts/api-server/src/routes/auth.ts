@@ -11,6 +11,7 @@ import {
   UpdateRolePermissionsBody,
 } from "@workspace/api-zod";
 import { getCompanyId, handleTenantError } from "../lib/tenant";
+import { isAccountAllowedHere } from "../lib/system-config";
 
 const router: IRouter = Router();
 
@@ -47,6 +48,18 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 
   if (!user || !checkPassword(password, user.passwordHash)) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  // Dedicated single-company deployment lock: when MULTI_COMPANY_MODE=false only
+  // users of the configured DEFAULT_COMPANY_ID (and the platform super_admin) may
+  // sign in here. Enforced server-side via the shared, fail-closed helper, so a
+  // tampered client cannot bypass it and a misconfigured install denies access
+  // rather than falling open.
+  if (!isAccountAllowedHere(user.role, user.companyId ?? null)) {
+    res.status(403).json({
+      error: "This system is dedicated to another company. You cannot sign in here.",
+    });
     return;
   }
 
