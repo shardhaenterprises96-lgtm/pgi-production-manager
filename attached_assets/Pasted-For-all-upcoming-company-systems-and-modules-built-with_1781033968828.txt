@@ -1,0 +1,77 @@
+For all upcoming company systems and modules built within our architecture, including existing company management workflows, implement the following automatic order workflow as a standard requirement.
+
+# Automatic Order Workflow
+
+## Requirements
+
+### 1. Order Creation
+
+Whenever an order is created by a:
+
+* Customer
+* Salesman
+* Admin
+* Company
+
+The system must automatically check available inventory for all products included in the order.
+
+### 2. Stock Available
+
+If sufficient stock is available for all ordered products:
+
+* Set Order Status = **Ready For Dispatch**
+* Automatically send the order to the **Dispatch Queue**
+* Display the order on the **Dispatch Page**
+* Allow the Dispatch Team to create an **Invoice** directly from the order
+
+### 3. Stock Not Available
+
+If sufficient stock is not available:
+
+* Set Order Status = **Processing**
+* Automatically send the order to the **Manufacturing Workload**
+* Auto-create manufacturing requirements based on the shortage quantity
+* Display the order on the **Manufacturing Page**
+
+### 4. Partial Stock Logic
+
+If part of the required quantity is available and part is unavailable:
+
+* Set Order Status = **Processing**
+* Create manufacturing requirements only for the shortage quantity
+* Use available stock as applicable while manufacturing covers the remaining quantity
+
+### 5. Existing Modules Must Remain Unchanged
+
+Do not modify the following:
+
+* Existing Invoice System
+* Existing Catalog
+* Existing Customer Module
+* Existing Order Creation UI
+* Existing Company Module and Core Company Management Functions
+
+### 6. Reuse Existing Architecture
+
+Implementation must:
+
+* Reuse existing database tables wherever possible
+* Reuse existing APIs
+* Reuse existing components and services
+* Follow current architectural standards
+
+### 7. Development Guidelines
+
+* Apply only the minimum required code changes
+* Avoid unnecessary refactoring
+* Maintain backward compatibility with existing workflows
+
+## Deliverables
+
+Provide the following before implementation:
+
+* Architecture Plan
+* List of Files to Modify
+* Exact Order Status Flow
+* Impact Assessment for Company Workflows
+* No Code Yet
