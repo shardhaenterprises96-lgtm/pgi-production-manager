@@ -60,6 +60,12 @@ export function getCompanyId(req: Request): number {
   return session.companyId;
 }
 
+// Convenience accessor used by the login flow and middleware to read the active
+// tenant company for the current request. Thin wrapper over getCompanyId.
+export function getCurrentCompanyId(req: Request): number {
+  return getCompanyId(req);
+}
+
 // Express middleware: require a logged-in user before any data route runs and
 // expose convenience flags. This is the single choke point that guarantees no
 // data route can be reached anonymously.

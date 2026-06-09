@@ -11,7 +11,7 @@ import {
   UpdateRolePermissionsBody,
 } from "@workspace/api-zod";
 import { getCompanyId, handleTenantError } from "../lib/tenant";
-import { isAccountAllowedHere } from "../lib/system-config";
+import { isAccountAllowedHere, getDefaultCompanyId } from "../lib/system-config";
 
 const router: IRouter = Router();
 
@@ -89,6 +89,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     }
   }
 
+  // Tenant isolation: lock the session's company. In dedicated mode
+  // (DEFAULT_COMPANY_ID set) every signed-in user is forced onto that company;
+  // in shared mode it falls back to the user's own company. The platform
+  // super_admin is never scoped to a company (it switches in explicitly).
+  const sessionCompanyId =
+    user.role === "super_admin"
+      ? null
+      : getDefaultCompanyId() ?? user.companyId ?? null;
+
   // Store session — entityId is critical for salesman attribution & ledger
   // scoping; companyId is the tenant isolation key for every data route.
   (req as any).session = {
@@ -97,7 +106,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     role: user.role,
     name: user.name,
     entityId: user.entityId ?? null,
-    companyId: user.companyId ?? null,
+    companyId: sessionCompanyId,
   };
 
   res.json({
@@ -106,7 +115,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     role: user.role,
     name: user.name,
     customerId: user.entityId ?? null,
-    companyId: user.companyId ?? null,
+    companyId: sessionCompanyId,
   });
 });
 
