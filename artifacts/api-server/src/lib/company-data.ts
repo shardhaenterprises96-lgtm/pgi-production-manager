@@ -55,3 +55,15 @@ export const COMPANY_TABLES = [
 ] as const;
 
 export type CompanyTable = (typeof COMPANY_TABLES)[number];
+
+// Tables deliberately PRESERVED by a "Reset" (wipe-to-start-fresh). We keep the
+// account usable after a reset: the logins (users), the feature-permission matrix
+// (role_permissions) and the company configuration (app_settings, print_settings).
+// Everything else in COMPANY_TABLES — products, parties, all transactions, the
+// per-company number sequences and the audit history — is cleared.
+export const RESET_PRESERVE: readonly CompanyTable[] = [
+  "users",
+  "role_permissions",
+  "app_settings",
+  "print_settings",
+] as const;

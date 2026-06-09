@@ -7,3 +7,4 @@
 - [Express router guard ordering](express-router-guard-ordering.md) — path-less role guards (subscriptions) reject every later-mounted router; mount readable routes (print-settings) first.
 - [Deployment-mode auth lock](deployment-mode-auth-lock.md) — MULTI_COMPANY_MODE/DEFAULT_COMPANY_ID switch SaaS vs dedicated; single fail-closed helper enforced at login AND in requireAuth.
 - [Tenant isolation in raw SQL](tenant-isolation-raw-sql.md) — every raw client.query in SERIALIZABLE txns must carry company_id, not just ORM reads; foreign ids else corrupt other tenants.
+- [Backup restore SQL safety](backup-restore-injection.md) — restore must allow-list insert columns from information_schema (not uploaded keys) and strictly require companyId === current tenant.

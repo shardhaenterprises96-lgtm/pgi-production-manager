@@ -362,6 +362,38 @@ export const ListBackupsResponse = zod.array(ListBackupsResponseItem)
 
 
 /**
+ * @summary Restore company data from an uploaded backup package (admin only, destructive)
+ */
+export const RestoreBackupBody = zod.object({
+  "format": zod.string(),
+  "version": zod.number().optional(),
+  "companyId": zod.number().optional(),
+  "companyName": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "counts": zod.record(zod.string(), zod.unknown()).optional(),
+  "tables": zod.record(zod.string(), zod.unknown())
+})
+
+export const RestoreBackupResponse = zod.object({
+  "message": zod.string(),
+  "restored": zod.record(zod.string(), zod.number())
+})
+
+
+/**
+ * @summary Wipe all company business data to start fresh (admin only, destructive)
+ */
+export const ResetCompanyDataBody = zod.object({
+  "confirm": zod.string()
+})
+
+export const ResetCompanyDataResponse = zod.object({
+  "message": zod.string(),
+  "cleared": zod.record(zod.string(), zod.number())
+})
+
+
+/**
  * @summary Fetch business details for a GSTIN (optional external provider)
  */
 export const LookupGstinQueryParams = zod.object({

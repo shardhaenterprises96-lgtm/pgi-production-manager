@@ -111,6 +111,10 @@ import type {
   ProductionReport,
   ProfitLossReport,
   Purchase,
+  ResetDataInput,
+  ResetResult,
+  RestoreBackupInput,
+  RestoreResult,
   RewardProgress,
   RewardScheme,
   RewardSchemeInput,
@@ -1570,6 +1574,148 @@ export function useListBackups<TData = Awaited<ReturnType<typeof listBackups>>, 
 
 
 
+
+export const getRestoreBackupUrl = () => {
+
+
+
+
+  return `/api/system/restore`
+}
+
+/**
+ * @summary Restore company data from an uploaded backup package (admin only, destructive)
+ */
+export const restoreBackup = async (restoreBackupInput: RestoreBackupInput, options?: RequestInit): Promise<RestoreResult> => {
+
+  return customFetch<RestoreResult>(getRestoreBackupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      restoreBackupInput,)
+  }
+);}
+
+
+
+
+export const getRestoreBackupMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<RestoreBackupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<RestoreBackupInput>}, TContext> => {
+
+const mutationKey = ['restoreBackup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreBackup>>, {data: BodyType<RestoreBackupInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  restoreBackup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreBackupMutationResult = NonNullable<Awaited<ReturnType<typeof restoreBackup>>>
+    export type RestoreBackupMutationBody = BodyType<RestoreBackupInput>
+    export type RestoreBackupMutationError = ErrorType<void>
+
+    /**
+ * @summary Restore company data from an uploaded backup package (admin only, destructive)
+ */
+export const useRestoreBackup = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<RestoreBackupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreBackup>>,
+        TError,
+        {data: BodyType<RestoreBackupInput>},
+        TContext
+      > => {
+      return useMutation(getRestoreBackupMutationOptions(options));
+    }
+
+export const getResetCompanyDataUrl = () => {
+
+
+
+
+  return `/api/system/reset`
+}
+
+/**
+ * @summary Wipe all company business data to start fresh (admin only, destructive)
+ */
+export const resetCompanyData = async (resetDataInput: ResetDataInput, options?: RequestInit): Promise<ResetResult> => {
+
+  return customFetch<ResetResult>(getResetCompanyDataUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      resetDataInput,)
+  }
+);}
+
+
+
+
+export const getResetCompanyDataMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetCompanyData>>, TError,{data: BodyType<ResetDataInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetCompanyData>>, TError,{data: BodyType<ResetDataInput>}, TContext> => {
+
+const mutationKey = ['resetCompanyData'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetCompanyData>>, {data: BodyType<ResetDataInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  resetCompanyData(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetCompanyDataMutationResult = NonNullable<Awaited<ReturnType<typeof resetCompanyData>>>
+    export type ResetCompanyDataMutationBody = BodyType<ResetDataInput>
+    export type ResetCompanyDataMutationError = ErrorType<void>
+
+    /**
+ * @summary Wipe all company business data to start fresh (admin only, destructive)
+ */
+export const useResetCompanyData = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetCompanyData>>, TError,{data: BodyType<ResetDataInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetCompanyData>>,
+        TError,
+        {data: BodyType<ResetDataInput>},
+        TContext
+      > => {
+      return useMutation(getResetCompanyDataMutationOptions(options));
+    }
 
 export const getLookupGstinUrl = (params: LookupGstinParams,) => {
   const normalizedParams = new URLSearchParams();

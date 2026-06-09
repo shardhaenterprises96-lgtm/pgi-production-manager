@@ -344,6 +344,52 @@ paths:
         "403":
           description: Admin access required
 
+  /system/restore:
+    post:
+      operationId: restoreBackup
+      tags: [system]
+      summary: Restore company data from an uploaded backup package (admin only, destructive)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreBackupInput"
+      responses:
+        "200":
+          description: Restore completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreResult"
+        "400":
+          description: Invalid or mismatched backup package
+        "403":
+          description: Admin access required
+
+  /system/reset:
+    post:
+      operationId: resetCompanyData
+      tags: [system]
+      summary: Wipe all company business data to start fresh (admin only, destructive)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetDataInput"
+      responses:
+        "200":
+          description: Reset completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetResult"
+        "400":
+          description: Confirmation token missing or incorrect
+        "403":
+          description: Admin access required
+
   /gstin-lookup:
     get:
       operationId: lookupGstin
@@ -2662,6 +2708,60 @@ components:
         defaultInvoiceTemplate:
           type: string
 
+    RestoreBackupInput:
+      type: object
+      required:
+        - format
+        - tables
+      properties:
+        format:
+          type: string
+        version:
+          type: integer
+        companyId:
+          type: integer
+        companyName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        counts:
+          type: object
+          additionalProperties: true
+        tables:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+    RestoreResult:
+      type: object
+      required:
+        - message
+        - restored
+      properties:
+        message:
+          type: string
+        restored:
+          type: object
+          additionalProperties:
+            type: integer
+    ResetDataInput:
+      type: object
+      required:
+        - confirm
+      properties:
+        confirm:
+          type: string
+    ResetResult:
+      type: object
+      required:
+        - message
+        - cleared
+      properties:
+        message:
+          type: string
+        cleared:
+          type: object
+          additionalProperties:
+            type: integer
     BackupSettings:
       type: object
       required:

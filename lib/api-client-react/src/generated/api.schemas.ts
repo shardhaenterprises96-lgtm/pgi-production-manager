@@ -339,6 +339,40 @@ export interface AppSettingsUpdate {
   defaultInvoiceTemplate?: string;
 }
 
+export type RestoreBackupInputCounts = { [key: string]: unknown };
+
+export type RestoreBackupInputTables = { [key: string]: unknown };
+
+export interface RestoreBackupInput {
+  format: string;
+  version?: number;
+  companyId?: number;
+  /** @nullable */
+  companyName?: string | null;
+  createdAt?: string;
+  counts?: RestoreBackupInputCounts;
+  tables: RestoreBackupInputTables;
+  [key: string]: unknown;
+ }
+
+export type RestoreResultRestored = {[key: string]: number};
+
+export interface RestoreResult {
+  message: string;
+  restored: RestoreResultRestored;
+}
+
+export interface ResetDataInput {
+  confirm: string;
+}
+
+export type ResetResultCleared = {[key: string]: number};
+
+export interface ResetResult {
+  message: string;
+  cleared: ResetResultCleared;
+}
+
 export interface BackupSettings {
   dailyEnabled: boolean;
   weeklyEnabled: boolean;
