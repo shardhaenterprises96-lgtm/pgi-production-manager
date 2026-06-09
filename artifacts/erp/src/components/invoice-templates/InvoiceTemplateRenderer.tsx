@@ -1,43 +1,36 @@
-// src/components/invoice-templates/InvoiceTemplateRenderer.tsx
-// Phase 1: Always renders A5CompactTemplate (current default)
-// No state, no config, no side effects
+// Renders an invoice using whichever template id is requested, injecting that
+// template's @page print CSS and isolating the sheet so only it prints.
 
-import { A5CompactTemplate } from "./A5CompactTemplate";
-import { ProductMaps } from "./types";
+import { useMemo } from "react";
+import { getTemplate } from "./registry";
+import { computeTotals, getPrintCss } from "./helpers";
+import type { ProductMaps, PrintSettings } from "./types";
 
 interface InvoiceTemplateRendererProps {
   invoice: any;
   maps: ProductMaps;
-  // Pre-calculated values from invoice-detail.tsx
-  totalQty: number;
-  totalLtr: number;
-  totalBox: number;
-  hasAnyDisc: boolean;
-  roundOff: number;
+  settings: PrintSettings;
+  templateId?: string | null;
   className?: string;
 }
 
 export function InvoiceTemplateRenderer({
   invoice,
   maps,
-  totalQty,
-  totalLtr,
-  totalBox,
-  hasAnyDisc,
-  roundOff,
+  settings,
+  templateId,
   className = "",
 }: InvoiceTemplateRendererProps) {
+  const meta = getTemplate(templateId ?? settings.defaultTemplate);
+  const Template = meta.component;
+  const computed = useMemo(() => computeTotals(invoice, maps), [invoice, maps]);
+
   return (
-    <div className={`invoice-template-renderer ${className}`}>
-      <A5CompactTemplate
-        invoice={invoice}
-        maps={maps}
-        totalQty={totalQty}
-        totalLtr={totalLtr}
-        totalBox={totalBox}
-        hasAnyDisc={hasAnyDisc}
-        roundOff={roundOff}
-      />
-    </div>
+    <>
+      <style>{getPrintCss(meta)}</style>
+      <div className={`invoice-print-area ${className}`}>
+        <Template invoice={invoice} maps={maps} settings={settings} computed={computed} />
+      </div>
+    </>
   );
 }

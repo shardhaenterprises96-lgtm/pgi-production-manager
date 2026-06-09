@@ -155,6 +155,110 @@ export const UpdateAppSettingsResponse = zod.object({
 
 
 /**
+ * @summary Get per-company invoice print settings (merged with defaults)
+ */
+export const GetPrintSettingsResponse = zod.object({
+  "defaultTemplate": zod.string(),
+  "copies": zod.number(),
+  "copyLabels": zod.boolean(),
+  "colorMode": zod.enum(['color', 'bw']),
+  "showLogo": zod.boolean(),
+  "showQr": zod.boolean(),
+  "showBankDetails": zod.boolean(),
+  "showSignature": zod.boolean(),
+  "showAmountInWords": zod.boolean(),
+  "showHsn": zod.boolean(),
+  "showLtrColumn": zod.boolean(),
+  "showBoxColumn": zod.boolean(),
+  "showTerms": zod.boolean(),
+  "fillerRows": zod.boolean(),
+  "companyName": zod.string(),
+  "addressLine": zod.string(),
+  "contact": zod.string(),
+  "email": zod.string(),
+  "gstin": zod.string(),
+  "footerNote": zod.string(),
+  "terms": zod.array(zod.string()),
+  "bankName": zod.string(),
+  "bankAccount": zod.string(),
+  "bankIfsc": zod.string(),
+  "bankBranch": zod.string(),
+  "upiId": zod.string(),
+  "printerA4": zod.string(),
+  "printerA5": zod.string(),
+  "thermalWidth": zod.enum(['58mm', '72mm'])
+})
+
+
+/**
+ * @summary Update per-company invoice print settings (admin only)
+ */
+export const UpdatePrintSettingsBody = zod.object({
+  "defaultTemplate": zod.string().optional(),
+  "copies": zod.number().optional(),
+  "copyLabels": zod.boolean().optional(),
+  "colorMode": zod.enum(['color', 'bw']).optional(),
+  "showLogo": zod.boolean().optional(),
+  "showQr": zod.boolean().optional(),
+  "showBankDetails": zod.boolean().optional(),
+  "showSignature": zod.boolean().optional(),
+  "showAmountInWords": zod.boolean().optional(),
+  "showHsn": zod.boolean().optional(),
+  "showLtrColumn": zod.boolean().optional(),
+  "showBoxColumn": zod.boolean().optional(),
+  "showTerms": zod.boolean().optional(),
+  "fillerRows": zod.boolean().optional(),
+  "companyName": zod.string().optional(),
+  "addressLine": zod.string().optional(),
+  "contact": zod.string().optional(),
+  "email": zod.string().optional(),
+  "gstin": zod.string().optional(),
+  "footerNote": zod.string().optional(),
+  "terms": zod.array(zod.string()).optional(),
+  "bankName": zod.string().optional(),
+  "bankAccount": zod.string().optional(),
+  "bankIfsc": zod.string().optional(),
+  "bankBranch": zod.string().optional(),
+  "upiId": zod.string().optional(),
+  "printerA4": zod.string().optional(),
+  "printerA5": zod.string().optional(),
+  "thermalWidth": zod.enum(['58mm', '72mm']).optional()
+})
+
+export const UpdatePrintSettingsResponse = zod.object({
+  "defaultTemplate": zod.string(),
+  "copies": zod.number(),
+  "copyLabels": zod.boolean(),
+  "colorMode": zod.enum(['color', 'bw']),
+  "showLogo": zod.boolean(),
+  "showQr": zod.boolean(),
+  "showBankDetails": zod.boolean(),
+  "showSignature": zod.boolean(),
+  "showAmountInWords": zod.boolean(),
+  "showHsn": zod.boolean(),
+  "showLtrColumn": zod.boolean(),
+  "showBoxColumn": zod.boolean(),
+  "showTerms": zod.boolean(),
+  "fillerRows": zod.boolean(),
+  "companyName": zod.string(),
+  "addressLine": zod.string(),
+  "contact": zod.string(),
+  "email": zod.string(),
+  "gstin": zod.string(),
+  "footerNote": zod.string(),
+  "terms": zod.array(zod.string()),
+  "bankName": zod.string(),
+  "bankAccount": zod.string(),
+  "bankIfsc": zod.string(),
+  "bankBranch": zod.string(),
+  "upiId": zod.string(),
+  "printerA4": zod.string(),
+  "printerA5": zod.string(),
+  "thermalWidth": zod.enum(['58mm', '72mm'])
+})
+
+
+/**
  * @summary List document number series configs (invoice / order / quotation)
  */
 export const ListNumberSeriesResponseItem = zod.object({

@@ -329,6 +329,102 @@ export interface AppSettingsUpdate {
   defaultInvoiceTemplate?: string;
 }
 
+export type PrintSettingsColorMode = typeof PrintSettingsColorMode[keyof typeof PrintSettingsColorMode];
+
+
+export const PrintSettingsColorMode = {
+  color: 'color',
+  bw: 'bw',
+} as const;
+
+export type PrintSettingsThermalWidth = typeof PrintSettingsThermalWidth[keyof typeof PrintSettingsThermalWidth];
+
+
+export const PrintSettingsThermalWidth = {
+  '58mm': '58mm',
+  '72mm': '72mm',
+} as const;
+
+export interface PrintSettings {
+  defaultTemplate: string;
+  copies: number;
+  copyLabels: boolean;
+  colorMode: PrintSettingsColorMode;
+  showLogo: boolean;
+  showQr: boolean;
+  showBankDetails: boolean;
+  showSignature: boolean;
+  showAmountInWords: boolean;
+  showHsn: boolean;
+  showLtrColumn: boolean;
+  showBoxColumn: boolean;
+  showTerms: boolean;
+  fillerRows: boolean;
+  companyName: string;
+  addressLine: string;
+  contact: string;
+  email: string;
+  gstin: string;
+  footerNote: string;
+  terms: string[];
+  bankName: string;
+  bankAccount: string;
+  bankIfsc: string;
+  bankBranch: string;
+  upiId: string;
+  printerA4: string;
+  printerA5: string;
+  thermalWidth: PrintSettingsThermalWidth;
+}
+
+export type PrintSettingsUpdateColorMode = typeof PrintSettingsUpdateColorMode[keyof typeof PrintSettingsUpdateColorMode];
+
+
+export const PrintSettingsUpdateColorMode = {
+  color: 'color',
+  bw: 'bw',
+} as const;
+
+export type PrintSettingsUpdateThermalWidth = typeof PrintSettingsUpdateThermalWidth[keyof typeof PrintSettingsUpdateThermalWidth];
+
+
+export const PrintSettingsUpdateThermalWidth = {
+  '58mm': '58mm',
+  '72mm': '72mm',
+} as const;
+
+export interface PrintSettingsUpdate {
+  defaultTemplate?: string;
+  copies?: number;
+  copyLabels?: boolean;
+  colorMode?: PrintSettingsUpdateColorMode;
+  showLogo?: boolean;
+  showQr?: boolean;
+  showBankDetails?: boolean;
+  showSignature?: boolean;
+  showAmountInWords?: boolean;
+  showHsn?: boolean;
+  showLtrColumn?: boolean;
+  showBoxColumn?: boolean;
+  showTerms?: boolean;
+  fillerRows?: boolean;
+  companyName?: string;
+  addressLine?: string;
+  contact?: string;
+  email?: string;
+  gstin?: string;
+  footerNote?: string;
+  terms?: string[];
+  bankName?: string;
+  bankAccount?: string;
+  bankIfsc?: string;
+  bankBranch?: string;
+  upiId?: string;
+  printerA4?: string;
+  printerA5?: string;
+  thermalWidth?: PrintSettingsUpdateThermalWidth;
+}
+
 export type NumberSeriesSeriesType = typeof NumberSeriesSeriesType[keyof typeof NumberSeriesSeriesType];
 
 

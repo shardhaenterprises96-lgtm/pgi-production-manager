@@ -15,3 +15,4 @@ export * from "./capital-snapshots";
 export * from "./customer-orders";
 export * from "./subscriptions";
 export * from "./settings";
+export * from "./print-settings";

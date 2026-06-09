@@ -100,6 +100,8 @@ import type {
   NumberSeriesUpdate,
   Payment,
   PaymentInput,
+  PrintSettings,
+  PrintSettingsUpdate,
   Product,
   ProductInput,
   ProductUpdate,
@@ -1042,6 +1044,154 @@ export const useUpdateAppSettings = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateAppSettingsMutationOptions(options));
+    }
+
+export const getGetPrintSettingsUrl = () => {
+
+
+
+
+  return `/api/print-settings`
+}
+
+/**
+ * @summary Get per-company invoice print settings (merged with defaults)
+ */
+export const getPrintSettings = async ( options?: RequestInit): Promise<PrintSettings> => {
+
+  return customFetch<PrintSettings>(getGetPrintSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPrintSettingsQueryKey = () => {
+    return [
+    `/api/print-settings`
+    ] as const;
+    }
+
+
+export const getGetPrintSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getPrintSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPrintSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPrintSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPrintSettings>>> = ({ signal }) => getPrintSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPrintSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPrintSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getPrintSettings>>>
+export type GetPrintSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get per-company invoice print settings (merged with defaults)
+ */
+
+export function useGetPrintSettings<TData = Awaited<ReturnType<typeof getPrintSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPrintSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPrintSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdatePrintSettingsUrl = () => {
+
+
+
+
+  return `/api/print-settings`
+}
+
+/**
+ * @summary Update per-company invoice print settings (admin only)
+ */
+export const updatePrintSettings = async (printSettingsUpdate: PrintSettingsUpdate, options?: RequestInit): Promise<PrintSettings> => {
+
+  return customFetch<PrintSettings>(getUpdatePrintSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      printSettingsUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdatePrintSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePrintSettings>>, TError,{data: BodyType<PrintSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePrintSettings>>, TError,{data: BodyType<PrintSettingsUpdate>}, TContext> => {
+
+const mutationKey = ['updatePrintSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePrintSettings>>, {data: BodyType<PrintSettingsUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updatePrintSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePrintSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updatePrintSettings>>>
+    export type UpdatePrintSettingsMutationBody = BodyType<PrintSettingsUpdate>
+    export type UpdatePrintSettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Update per-company invoice print settings (admin only)
+ */
+export const useUpdatePrintSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePrintSettings>>, TError,{data: BodyType<PrintSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePrintSettings>>,
+        TError,
+        {data: BodyType<PrintSettingsUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdatePrintSettingsMutationOptions(options));
     }
 
 export const getListNumberSeriesUrl = () => {

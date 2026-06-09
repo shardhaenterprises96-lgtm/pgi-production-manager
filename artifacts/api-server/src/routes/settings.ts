@@ -5,6 +5,7 @@ import {
   UpdateAppSettingsBody,
   UpdateNumberSeriesParams,
   UpdateNumberSeriesBody,
+  UpdatePrintSettingsBody,
 } from "@workspace/api-zod";
 import { previewSeriesFromRow, type SeriesType } from "../lib/number-series";
 import { getCompanyId } from "../lib/tenant";
@@ -13,6 +14,50 @@ const router: IRouter = Router();
 
 const SERIES_TYPES: SeriesType[] = ["invoice", "order", "quotation"];
 const DEFAULT_TEMPLATE_KEY = "default_invoice_template";
+
+// Complete default print configuration. A company with no saved row (or a row
+// missing some keys) still resolves to a full, typed PrintSettings object.
+const DEFAULT_PRINT_SETTINGS = {
+  defaultTemplate: "a5-compact",
+  copies: 1,
+  copyLabels: true,
+  colorMode: "color",
+  showLogo: true,
+  showQr: true,
+  showBankDetails: false,
+  showSignature: true,
+  showAmountInWords: true,
+  showHsn: true,
+  showLtrColumn: true,
+  showBoxColumn: true,
+  showTerms: true,
+  fillerRows: true,
+  companyName: "",
+  addressLine: "",
+  contact: "",
+  email: "",
+  gstin: "",
+  footerNote: "",
+  terms: [
+    "Goods once sold will not be taken back.",
+    "Interest @ 24% p.a. on overdue bills.",
+    "Subject to Solapur jurisdiction.",
+  ],
+  bankName: "",
+  bankAccount: "",
+  bankIfsc: "",
+  bankBranch: "",
+  upiId: "",
+  printerA4: "",
+  printerA5: "",
+  thermalWidth: "72mm",
+} as const;
+
+async function resolvePrintSettings(companyId: number): Promise<Record<string, unknown>> {
+  const r = await pool.query(`SELECT config FROM print_settings WHERE company_id = $1`, [companyId]);
+  const stored = (r.rows[0]?.config ?? {}) as Record<string, unknown>;
+  return { ...DEFAULT_PRINT_SETTINGS, ...stored };
+}
 
 async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const session = (req as any).session;
@@ -93,6 +138,57 @@ router.put("/settings", requireAdmin, async (req, res): Promise<void> => {
   }
   const r = await pool.query(`SELECT value FROM app_settings WHERE key = $1 AND company_id = $2`, [DEFAULT_TEMPLATE_KEY, companyId]);
   res.json({ defaultInvoiceTemplate: r.rows[0]?.value ?? null });
+});
+
+// GET /print-settings — per-company invoice print config (merged with defaults).
+// Available to any logged-in user so the frontend can render the chosen template.
+router.get("/print-settings", async (req, res): Promise<void> => {
+  const session = (req as any).session;
+  if (!session?.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const companyId = getCompanyId(req);
+  res.json(await resolvePrintSettings(companyId));
+});
+
+// PUT /print-settings — update per-company print config (admin only).
+router.put("/print-settings", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = UpdatePrintSettingsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    return;
+  }
+  const session = (req as any).session;
+  const companyId = getCompanyId(req);
+
+  // Merge the incoming partial over whatever is already stored, then persist the
+  // full config object so future default changes never clobber saved values.
+  const current = await pool.query(`SELECT config FROM print_settings WHERE company_id = $1`, [companyId]);
+  const merged = {
+    ...DEFAULT_PRINT_SETTINGS,
+    ...((current.rows[0]?.config ?? {}) as Record<string, unknown>),
+    ...parsed.data,
+  };
+
+  await pool.query(
+    `INSERT INTO print_settings (company_id, config) VALUES ($1, $2)
+     ON CONFLICT (company_id) DO UPDATE SET config = EXCLUDED.config, updated_at = NOW()`,
+    [companyId, JSON.stringify(merged)],
+  );
+  await pool.query(
+    `INSERT INTO audit_log (action, description, user_id, user_name, metadata, company_id)
+     VALUES ('print_settings_updated', $1, $2, $3, $4, $5)`,
+    [
+      "Invoice print settings updated",
+      session?.userId ?? 1,
+      session?.name ?? "Unknown",
+      JSON.stringify(parsed.data),
+      companyId,
+    ],
+  );
+
+  res.json(merged);
 });
 
 // GET /number-series — list all configured document series (admin only).

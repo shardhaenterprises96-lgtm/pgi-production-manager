@@ -2182,3 +2182,11 @@ CREATE TABLE IF NOT EXISTS public.number_series (
 INSERT INTO public.users (username, password_hash, role, name, is_active)
 VALUES ('admin', 'admin123', 'admin', 'Administrator', true)
 ON CONFLICT (username) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.print_settings (
+    id serial PRIMARY KEY,
+    company_id integer NOT NULL,
+    config jsonb DEFAULT '{}'::jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS print_settings_company_uq ON public.print_settings (company_id);

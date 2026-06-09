@@ -218,6 +218,38 @@ paths:
         "403":
           description: Admin access required
 
+  /print-settings:
+    get:
+      operationId: getPrintSettings
+      tags: [settings]
+      summary: Get per-company invoice print settings (merged with defaults)
+      responses:
+        "200":
+          description: Print settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrintSettings"
+    put:
+      operationId: updatePrintSettings
+      tags: [settings]
+      summary: Update per-company invoice print settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrintSettingsUpdate"
+      responses:
+        "200":
+          description: Updated print settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrintSettings"
+        "403":
+          description: Admin access required
+
   /number-series:
     get:
       operationId: listNumberSeries
@@ -2569,6 +2601,168 @@ components:
       properties:
         defaultInvoiceTemplate:
           type: string
+
+    PrintSettings:
+      type: object
+      required:
+        - defaultTemplate
+        - copies
+        - copyLabels
+        - colorMode
+        - showLogo
+        - showQr
+        - showBankDetails
+        - showSignature
+        - showAmountInWords
+        - showHsn
+        - showLtrColumn
+        - showBoxColumn
+        - showTerms
+        - fillerRows
+        - companyName
+        - addressLine
+        - contact
+        - email
+        - gstin
+        - footerNote
+        - terms
+        - bankName
+        - bankAccount
+        - bankIfsc
+        - bankBranch
+        - upiId
+        - printerA4
+        - printerA5
+        - thermalWidth
+      properties:
+        defaultTemplate:
+          type: string
+        copies:
+          type: integer
+        copyLabels:
+          type: boolean
+        colorMode:
+          type: string
+          enum: [color, bw]
+        showLogo:
+          type: boolean
+        showQr:
+          type: boolean
+        showBankDetails:
+          type: boolean
+        showSignature:
+          type: boolean
+        showAmountInWords:
+          type: boolean
+        showHsn:
+          type: boolean
+        showLtrColumn:
+          type: boolean
+        showBoxColumn:
+          type: boolean
+        showTerms:
+          type: boolean
+        fillerRows:
+          type: boolean
+        companyName:
+          type: string
+        addressLine:
+          type: string
+        contact:
+          type: string
+        email:
+          type: string
+        gstin:
+          type: string
+        footerNote:
+          type: string
+        terms:
+          type: array
+          items:
+            type: string
+        bankName:
+          type: string
+        bankAccount:
+          type: string
+        bankIfsc:
+          type: string
+        bankBranch:
+          type: string
+        upiId:
+          type: string
+        printerA4:
+          type: string
+        printerA5:
+          type: string
+        thermalWidth:
+          type: string
+          enum: ["58mm", "72mm"]
+
+    PrintSettingsUpdate:
+      type: object
+      properties:
+        defaultTemplate:
+          type: string
+        copies:
+          type: integer
+        copyLabels:
+          type: boolean
+        colorMode:
+          type: string
+          enum: [color, bw]
+        showLogo:
+          type: boolean
+        showQr:
+          type: boolean
+        showBankDetails:
+          type: boolean
+        showSignature:
+          type: boolean
+        showAmountInWords:
+          type: boolean
+        showHsn:
+          type: boolean
+        showLtrColumn:
+          type: boolean
+        showBoxColumn:
+          type: boolean
+        showTerms:
+          type: boolean
+        fillerRows:
+          type: boolean
+        companyName:
+          type: string
+        addressLine:
+          type: string
+        contact:
+          type: string
+        email:
+          type: string
+        gstin:
+          type: string
+        footerNote:
+          type: string
+        terms:
+          type: array
+          items:
+            type: string
+        bankName:
+          type: string
+        bankAccount:
+          type: string
+        bankIfsc:
+          type: string
+        bankBranch:
+          type: string
+        upiId:
+          type: string
+        printerA4:
+          type: string
+        printerA5:
+          type: string
+        thermalWidth:
+          type: string
+          enum: ["58mm", "72mm"]
 
     NumberSeries:
       type: object

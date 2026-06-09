@@ -47,8 +47,12 @@ router.use(workersRouter);
 router.use(expensesRouter);
 router.use(customerOrdersRouter);
 router.use(reportsRouter);
-router.use(subscriptionsRouter);
+// settings + gstin are mounted BEFORE subscriptions: the subscriptions router
+// installs a path-less super_admin guard, so anything mounted after it would be
+// 403'd for company-scoped users. Print/app settings must be readable by every
+// authenticated role (e.g. salesmen printing invoices).
 router.use(settingsRouter);
 router.use(gstinRouter);
+router.use(subscriptionsRouter);
 
 export default router;
