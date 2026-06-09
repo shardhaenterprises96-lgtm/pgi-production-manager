@@ -29,8 +29,9 @@ export default function Login() {
   });
 
   // In dedicated single-company mode the backend returns the fixed company, so
-  // the login screen shows that company's name instead of generic branding.
+  // the login screen shows that company's name + logo instead of generic branding.
   const companyName = systemConfig?.company?.name ?? "Shradha Enterprises";
+  const companyLogo = systemConfig?.company?.logo ?? null;
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -84,9 +85,15 @@ export default function Login() {
     <div className="min-h-screen w-full flex items-center justify-center bg-sidebar p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center justify-center text-center">
-          <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center text-primary-foreground mb-6 shadow-lg shadow-primary/20">
-            <Factory className="w-8 h-8" />
-          </div>
+          {companyLogo ? (
+            <div className="w-16 h-16 rounded-xl bg-card flex items-center justify-center overflow-hidden mb-6 shadow-lg shadow-primary/20 border border-sidebar-border">
+              <img src={companyLogo} alt={`${companyName} logo`} className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center text-primary-foreground mb-6 shadow-lg shadow-primary/20">
+              <Factory className="w-8 h-8" />
+            </div>
+          )}
           <h1 className="text-3xl font-bold tracking-tight text-sidebar-foreground">{companyName}</h1>
           <p className="text-sidebar-foreground/60 mt-2">Vipro ERP System</p>
         </div>

@@ -23,7 +23,8 @@ export const GetSystemConfigResponse = zod.object({
   "multiCompanyMode": zod.boolean(),
   "company": zod.object({
   "id": zod.number(),
-  "name": zod.string()
+  "name": zod.string(),
+  "logo": zod.string().nullish()
 }).nullable()
 })
 

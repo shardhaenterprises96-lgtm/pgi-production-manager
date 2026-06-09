@@ -177,6 +177,8 @@ export interface AuthSession {
 export type SystemConfigCompany = {
   id: number;
   name: string;
+  /** @nullable */
+  logo?: string | null;
 } | null;
 
 export interface SystemConfig {

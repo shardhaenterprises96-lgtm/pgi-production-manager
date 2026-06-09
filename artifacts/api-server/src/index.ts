@@ -2,6 +2,8 @@ import app from "./app";
 import { ensureDatabaseReady } from "./lib/bootstrap";
 import { logger } from "./lib/logger";
 import { startSubscriptionScheduler } from "./lib/subscription-scheduler";
+import { isMultiCompanyMode, getDefaultCompanyId } from "./lib/system-config";
+import { getCurrentCompany } from "./lib/company";
 
 const rawPort = process.env["PORT"];
 
@@ -19,6 +21,16 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function start(): Promise<void> {
   await ensureDatabaseReady();
+
+  // Announce the deployment mode at boot so operators can confirm a dedicated
+  // install is locked to the intended company.
+  if (!isMultiCompanyMode()) {
+    const company = await getCurrentCompany(getDefaultCompanyId());
+    const companyName = company?.name ?? `id ${getDefaultCompanyId() ?? "(unset/invalid)"}`;
+    logger.info(`Dedicated Company Mode Enabled for: ${companyName}`);
+  } else {
+    logger.info("Multi-Company Mode Enabled (shared SaaS)");
+  }
 
   startSubscriptionScheduler();
 

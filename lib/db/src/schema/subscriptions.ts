@@ -9,6 +9,9 @@ export const companiesTable = pgTable("companies", {
   ownerName: text("owner_name"),
   mobile: text("mobile"),
   email: text("email"),
+  // Optional brand logo shown on the login screen in dedicated-company mode.
+  // Stored as a base64 data URL (same convention as other uploaded images).
+  logo: text("logo"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

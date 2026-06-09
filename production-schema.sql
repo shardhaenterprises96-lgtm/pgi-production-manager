@@ -2122,6 +2122,7 @@ CREATE TABLE IF NOT EXISTS public.companies (
     owner_name text,
     mobile text,
     email text,
+    logo text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
