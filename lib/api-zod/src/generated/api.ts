@@ -27,7 +27,7 @@ export const LoginBody = zod.object({
 export const LoginResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
-  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
+  "role": zod.enum(['super_admin', 'admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "name": zod.string(),
   "customerId": zod.number().nullish()
 })
@@ -39,7 +39,7 @@ export const LoginResponse = zod.object({
 export const GetMeResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
-  "role": zod.enum(['admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
+  "role": zod.enum(['super_admin', 'admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "name": zod.string(),
   "customerId": zod.number().nullish()
 })

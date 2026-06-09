@@ -10,6 +10,7 @@ export type AuthSessionRole = typeof AuthSessionRole[keyof typeof AuthSessionRol
 
 
 export const AuthSessionRole = {
+  super_admin: 'super_admin',
   admin: 'admin',
   salesman: 'salesman',
   store: 'store',

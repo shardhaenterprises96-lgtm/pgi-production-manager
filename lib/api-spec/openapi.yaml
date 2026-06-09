@@ -2328,7 +2328,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, salesman, store, manufacturing, accountant, customer]
+          enum: [super_admin, admin, salesman, store, manufacturing, accountant, customer]
         name:
           type: string
         customerId:

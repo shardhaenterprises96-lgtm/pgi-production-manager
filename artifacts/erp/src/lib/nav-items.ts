@@ -22,7 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type Role = "admin" | "salesman" | "store" | "manufacturing" | "accountant" | "customer";
+export type Role = "super_admin" | "admin" | "salesman" | "store" | "manufacturing" | "accountant" | "customer";
 
 export interface NavItem {
   name: string;
@@ -34,6 +34,7 @@ export interface NavItem {
 
 // Top-level items always shown in the sidebar.
 export const topNavItems: NavItem[] = [
+  { name: "Platform Console", href: "/subscriptions", icon: BadgeIndianRupee, roles: ["super_admin"] },
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "accountant"] },
   { name: "Menu", href: "/menu", icon: LayoutGrid, roles: ["admin", "salesman", "store", "manufacturing", "accountant", "customer"] },
   { name: "Catalog", href: "/catalog", icon: ShoppingCart, roles: ["admin", "salesman", "store", "manufacturing", "customer"] },
@@ -59,7 +60,7 @@ export const moduleNavItems: NavItem[] = [
   { name: "Workers", href: "/workers", icon: HardHat, roles: ["admin", "accountant"], description: "Worker attendance" },
   { name: "Expenses", href: "/expenses", icon: Receipt, roles: ["admin", "accountant"], description: "Business expenses" },
   { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"], description: "Sales, tax, P&L reports" },
-  { name: "Subscriptions", href: "/subscriptions", icon: BadgeIndianRupee, roles: ["admin"], description: "Tenant subscriptions" },
+  { name: "Subscriptions", href: "/subscriptions", icon: BadgeIndianRupee, roles: ["super_admin"], description: "Tenant subscriptions" },
   { name: "User Accounts", href: "/users", icon: KeyRound, roles: ["admin"], description: "Manage logins" },
   { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"], description: "Role permissions and config" },
 ];

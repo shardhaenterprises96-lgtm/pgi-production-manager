@@ -35,7 +35,9 @@ export default function Login() {
 
   React.useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "admin" || user.role === "accountant") {
+      if (user.role === "super_admin") {
+        setLocation("/subscriptions");
+      } else if (user.role === "admin" || user.role === "accountant") {
         setLocation("/");
       } else {
         setLocation("/catalog");
@@ -52,7 +54,9 @@ export default function Login() {
       { data: values },
       {
         onSuccess: (data) => {
-          if (data.role === "admin" || data.role === "accountant") {
+          if (data.role === "super_admin") {
+            window.location.href = "/subscriptions";
+          } else if (data.role === "admin" || data.role === "accountant") {
             window.location.href = "/";
           } else {
             window.location.href = "/catalog";
