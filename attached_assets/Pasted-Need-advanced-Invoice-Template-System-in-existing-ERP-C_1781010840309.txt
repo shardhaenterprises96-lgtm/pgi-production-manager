@@ -1,0 +1,212 @@
+Need advanced Invoice Template System in existing ERP.
+
+Current printing system is basic.
+
+I want professional invoice template selection system like modern billing software.
+
+Use attached reference images for:
+
+* template selector popup
+* printing settings layout
+* A4/A5 template preview style
+
+IMPORTANT:
+Do NOT break current billing/printing system.
+Extend existing printing architecture only.
+
+========================================
+REQUIREMENT
+===========
+
+Add professional invoice templates:
+
+---
+
+## A4 TEMPLATES (Minimum 4)
+
+1. A4 Classic
+2. A4 Modern
+3. A4 Professional
+4. A4 Compact
+
+---
+
+## A5 TEMPLATES (Minimum 4)
+
+1. A5 Classic
+2. A5 Modern
+3. A5 Professional
+4. A5 Compact
+
+========================================
+OPTIONAL EXTRA
+==============
+
+If possible also add:
+
+* Thermal 58mm
+* Thermal 72mm
+
+========================================
+TEMPLATE FEATURES
+=================
+
+Templates should support:
+
+* company logo
+* GST number
+* invoice number
+* customer details
+* item table
+* HSN/SAC
+* qty
+* rate
+* tax
+* totals
+* signature
+* QR code
+* bank details
+* terms & conditions
+
+========================================
+PRINT SETTINGS PAGE
+===================
+
+Create proper:
+Settings → Printing
+
+Inside add tabs:
+
+1. General Configuration
+2. Document Configuration
+3. Header & Terms
+4. Default Printers
+
+========================================
+GENERAL CONFIGURATION
+=====================
+
+Options:
+
+* Select default invoice template
+* Print preview toggle
+* Watermark text
+* Authorized signatory
+* Invoice print count
+* QR code toggle
+* Barcode engine
+* Multi-language print
+* Payment receipt print
+
+========================================
+DOCUMENT CONFIGURATION
+======================
+
+Options:
+
+* Show customer balance
+* Show amount paid
+* Show MRP column
+* Show mobile number
+* Show staff name
+* Show due date
+* Show item description
+* Show discount
+* Show delivery price
+
+========================================
+TEMPLATE SELECTOR POPUP
+=======================
+
+Need popup like reference image.
+
+Left side:
+
+* template list
+
+Right side:
+
+* live preview image
+
+Bottom:
+
+* "Select This Template" button
+
+Tabs:
+
+* A4 Templates
+* A5 Templates
+* Thermal 58mm
+* Thermal 72mm
+
+========================================
+LIVE TEMPLATE PREVIEW
+=====================
+
+When clicking template:
+
+* preview updates instantly
+* show realistic invoice sample
+
+========================================
+DATABASE
+========
+
+Store settings per company.
+
+Create table if needed:
+
+print_settings
+
+Fields:
+
+* company_id
+* default_template
+* print_preview
+* watermark
+* show_balance
+* show_due_date
+* show_mrp
+* etc
+
+========================================
+ARCHITECTURE
+============
+
+Create reusable template engine.
+
+Suggested structure:
+
+/invoice-templates
+/a4
+/a5
+/thermal
+
+Each template should be modular component.
+
+========================================
+IMPORTANT
+=========
+
+Do NOT:
+
+* break current invoice printing
+* rewrite billing logic
+* modify inventory/accounting
+
+Need professional UI and scalable template system only.
+
+========================================
+UI STYLE
+========
+
+Professional desktop ERP style.
+
+Use:
+
+* clean tabs
+* settings cards
+* template thumbnails
+* print preview modal
+
+Like reference images attached.
