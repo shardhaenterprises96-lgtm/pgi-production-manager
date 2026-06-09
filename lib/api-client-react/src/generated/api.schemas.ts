@@ -121,6 +121,16 @@ export interface CreateSubscriptionInput {
   subscriptionAmount: number;
   subscriptionStartDate: string;
   paymentStatus?: CreateSubscriptionInputPaymentStatus;
+  /**
+     * Optional login username for the new company's admin account. When provided together with adminPassword, an active admin user scoped to the new company is created so the company can log in immediately.
+     * @nullable
+     */
+  adminUsername?: string | null;
+  /**
+     * Login password for the new company's admin account.
+     * @nullable
+     */
+  adminPassword?: string | null;
 }
 
 export type ChangePlanInputPlanName = typeof ChangePlanInputPlanName[keyof typeof ChangePlanInputPlanName];

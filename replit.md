@@ -57,7 +57,8 @@ A production-ready hybrid ERP and B2B E-Commerce web application for Shradha Ent
 - **Dashboard**: KPI cards, sales trend chart, low stock alerts, recent invoices, top products
 - **Reports**: Ledger report, system audit log
 - **Role permissions**: Admin-controlled feature permission matrix per role
-- **SaaS Subscription Management (admin-only)**: Tenant companies + plans (monthly/quarterly/half_yearly/yearly), dashboard widgets (active/expired/suspended/expiring, MRR/ARR), recharts analytics, color-coded expiry table (green >30d, orange ≤30d, red expired), renew/upgrade/downgrade/suspend/activate, automated daily alerts (30/15/7/3/0 days), PDF/Excel/CSV export. Expired/suspended tenant client users are blocked at login (admin exempt).
+- **SaaS Subscription Management (super_admin-only)**: Tenant companies + plans (monthly/quarterly/half_yearly/yearly), dashboard widgets (active/expired/suspended/expiring, MRR/ARR), recharts analytics, color-coded expiry table (green >30d, orange ≤30d, red expired), renew/upgrade/downgrade/suspend/activate, automated daily alerts (30/15/7/3/0 days), PDF/Excel/CSV export. Expired/suspended tenant client users are blocked at login (admin exempt). Registering a new company can optionally create its admin login (username + password) in the same SERIALIZABLE transaction, scoped to the new company_id, so the tenant can sign in immediately.
+- **Backup & Restore (admin-only)**: Manual backup download (.zip/.json) of all company-scoped data, automatic-backup cadence preferences (daily/weekly/monthly — persisted only; scheduled execution deferred), and backup history. Backup export is strictly company-scoped via the COMPANY_TABLES allow-list.
 
 ## Seed / Test Credentials
 

@@ -2444,6 +2444,15 @@ components:
         paymentStatus:
           type: string
           enum: [paid, pending, overdue]
+        adminUsername:
+          type: ["string", "null"]
+          description: >-
+            Optional login username for the new company's admin account. When
+            provided together with adminPassword, an active admin user scoped to
+            the new company is created so the company can log in immediately.
+        adminPassword:
+          type: ["string", "null"]
+          description: Login password for the new company's admin account.
 
     ChangePlanInput:
       type: object

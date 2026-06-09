@@ -169,6 +169,7 @@ const emptyForm = {
   companyName: "", ownerName: "", mobile: "", email: "",
   planName: "monthly", subscriptionAmount: "", subscriptionStartDate: new Date().toISOString().slice(0, 10),
   paymentStatus: "pending",
+  adminUsername: "", adminPassword: "",
 };
 
 export default function Subscriptions() {
@@ -232,6 +233,8 @@ export default function Subscriptions() {
         subscriptionAmount: amount,
         subscriptionStartDate: new Date(form.subscriptionStartDate).toISOString(),
         paymentStatus: form.paymentStatus as "paid" | "pending" | "overdue",
+        adminUsername: form.adminUsername.trim() || null,
+        adminPassword: form.adminPassword.trim() || null,
       },
     }, { onSuccess: () => { setCreateOpen(false); setForm(emptyForm); } });
   };
@@ -309,6 +312,18 @@ export default function Subscriptions() {
                     <SelectItem value="overdue">Overdue</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5 col-span-2 border-t pt-3 mt-1">
+                <Label className="text-sm font-semibold">Company Admin Login</Label>
+                <p className="text-xs text-muted-foreground">Set the username and password this company will use to log in. Leave blank to skip.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Admin Username</Label>
+                <Input value={form.adminUsername} autoComplete="off" onChange={(e) => setForm({ ...form, adminUsername: e.target.value })} placeholder="e.g. sunrise_admin" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Admin Password</Label>
+                <Input type="text" value={form.adminPassword} autoComplete="off" onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} placeholder="Set a password" />
               </div>
             </div>
             <DialogFooter>

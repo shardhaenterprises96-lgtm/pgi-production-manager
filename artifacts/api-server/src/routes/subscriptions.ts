@@ -254,9 +254,30 @@ router.post("/subscriptions/create", async (req, res): Promise<void> => {
   const paymentStatus = body.paymentStatus ?? "pending";
   const lastPayment = paymentStatus === "paid" ? new Date() : null;
 
+  // Optional: create an admin login for the new company in the same transaction
+  // so it can sign in immediately. Both fields must be present together.
+  const adminUsername = body.adminUsername?.trim() || null;
+  const adminPassword = body.adminPassword?.trim() || null;
+  if ((adminUsername && !adminPassword) || (!adminUsername && adminPassword)) {
+    res.status(400).json({ error: "Both admin username and password are required to create a login" });
+    return;
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    if (adminUsername) {
+      const dup = await client.query(
+        `SELECT 1 FROM users WHERE username = $1 LIMIT 1`,
+        [adminUsername]
+      );
+      if (dup.rows.length > 0) {
+        await client.query("ROLLBACK");
+        res.status(409).json({ error: "Username already taken" });
+        return;
+      }
+    }
 
     const companyRes = await client.query(
       `INSERT INTO companies (name, owner_name, mobile, email)
@@ -264,6 +285,14 @@ router.post("/subscriptions/create", async (req, res): Promise<void> => {
       [body.companyName, body.ownerName ?? null, body.mobile ?? null, body.email ?? null]
     );
     const companyId = companyRes.rows[0].id;
+
+    if (adminUsername && adminPassword) {
+      await client.query(
+        `INSERT INTO users (username, password_hash, role, name, is_active, company_id)
+         VALUES ($1, $2, 'admin', $3, true, $4)`,
+        [adminUsername, adminPassword, body.ownerName?.trim() || `${body.companyName} Admin`, companyId]
+      );
+    }
 
     const subRes = await client.query(
       `INSERT INTO subscriptions
@@ -280,6 +309,12 @@ router.post("/subscriptions/create", async (req, res): Promise<void> => {
     res.status(201).json(mapRow(rows[0]));
   } catch (err) {
     await client.query("ROLLBACK");
+    // Unique-violation on username (race between the duplicate check and insert)
+    // → return a clean 409 instead of a generic 500.
+    if ((err as { code?: string }).code === "23505") {
+      res.status(409).json({ error: "Username already taken" });
+      return;
+    }
     throw err;
   } finally {
     client.release();
