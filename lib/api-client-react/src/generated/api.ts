@@ -31,6 +31,9 @@ import type {
   AssembleItemInput,
   AuditEntry,
   AuthSession,
+  BackupHistoryItem,
+  BackupSettings,
+  BackupSettingsUpdate,
   Bom,
   BomInput,
   BomUpdate,
@@ -1342,6 +1345,231 @@ export const useUpdateNumberSeries = <TError = ErrorType<void>,
       > => {
       return useMutation(getUpdateNumberSeriesMutationOptions(options));
     }
+
+export const getGetBackupSettingsUrl = () => {
+
+
+
+
+  return `/api/system/backup-settings`
+}
+
+/**
+ * @summary Get automatic-backup cadence preferences (admin only)
+ */
+export const getBackupSettings = async ( options?: RequestInit): Promise<BackupSettings> => {
+
+  return customFetch<BackupSettings>(getGetBackupSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBackupSettingsQueryKey = () => {
+    return [
+    `/api/system/backup-settings`
+    ] as const;
+    }
+
+
+export const getGetBackupSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getBackupSettings>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBackupSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBackupSettings>>> = ({ signal }) => getBackupSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBackupSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBackupSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getBackupSettings>>>
+export type GetBackupSettingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get automatic-backup cadence preferences (admin only)
+ */
+
+export function useGetBackupSettings<TData = Awaited<ReturnType<typeof getBackupSettings>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBackupSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateBackupSettingsUrl = () => {
+
+
+
+
+  return `/api/system/backup-settings`
+}
+
+/**
+ * @summary Update automatic-backup cadence preferences (admin only)
+ */
+export const updateBackupSettings = async (backupSettingsUpdate: BackupSettingsUpdate, options?: RequestInit): Promise<BackupSettings> => {
+
+  return customFetch<BackupSettings>(getUpdateBackupSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      backupSettingsUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateBackupSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBackupSettings>>, TError,{data: BodyType<BackupSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBackupSettings>>, TError,{data: BodyType<BackupSettingsUpdate>}, TContext> => {
+
+const mutationKey = ['updateBackupSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBackupSettings>>, {data: BodyType<BackupSettingsUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateBackupSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBackupSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateBackupSettings>>>
+    export type UpdateBackupSettingsMutationBody = BodyType<BackupSettingsUpdate>
+    export type UpdateBackupSettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Update automatic-backup cadence preferences (admin only)
+ */
+export const useUpdateBackupSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBackupSettings>>, TError,{data: BodyType<BackupSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBackupSettings>>,
+        TError,
+        {data: BodyType<BackupSettingsUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateBackupSettingsMutationOptions(options));
+    }
+
+export const getListBackupsUrl = () => {
+
+
+
+
+  return `/api/system/backups`
+}
+
+/**
+ * @summary List backup history (admin only)
+ */
+export const listBackups = async ( options?: RequestInit): Promise<BackupHistoryItem[]> => {
+
+  return customFetch<BackupHistoryItem[]>(getListBackupsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBackupsQueryKey = () => {
+    return [
+    `/api/system/backups`
+    ] as const;
+    }
+
+
+export const getListBackupsQueryOptions = <TData = Awaited<ReturnType<typeof listBackups>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBackups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBackupsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBackups>>> = ({ signal }) => listBackups({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBackups>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBackupsQueryResult = NonNullable<Awaited<ReturnType<typeof listBackups>>>
+export type ListBackupsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List backup history (admin only)
+ */
+
+export function useListBackups<TData = Awaited<ReturnType<typeof listBackups>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBackups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBackupsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getLookupGstinUrl = (params: LookupGstinParams,) => {
   const normalizedParams = new URLSearchParams();

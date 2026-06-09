@@ -2806,3 +2806,77 @@ ALTER TABLE ONLY public.workload_cards
 
 \unrestrict Bj3OfosX12qBer5YTf1v0vlzSz5g5fP926wRz1OKKr5jUhXX6KMZ4lT0p0FU0nS
 
+
+
+--
+-- Name: backup_settings; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.backup_settings (
+    id integer NOT NULL,
+    company_id integer NOT NULL,
+    daily_enabled boolean DEFAULT false NOT NULL,
+    weekly_enabled boolean DEFAULT false NOT NULL,
+    monthly_enabled boolean DEFAULT false NOT NULL,
+    last_daily_at timestamp with time zone,
+    last_weekly_at timestamp with time zone,
+    last_monthly_at timestamp with time zone,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.backup_settings OWNER TO postgres;
+
+CREATE SEQUENCE public.backup_settings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.backup_settings_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.backup_settings_id_seq OWNED BY public.backup_settings.id;
+ALTER TABLE ONLY public.backup_settings ALTER COLUMN id SET DEFAULT nextval('public.backup_settings_id_seq'::regclass);
+ALTER TABLE ONLY public.backup_settings
+    ADD CONSTRAINT backup_settings_pkey PRIMARY KEY (id);
+CREATE UNIQUE INDEX backup_settings_company_uq ON public.backup_settings USING btree (company_id);
+
+
+--
+-- Name: backups; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.backups (
+    id integer NOT NULL,
+    company_id integer NOT NULL,
+    file_name text NOT NULL,
+    storage_key text,
+    size_bytes integer DEFAULT 0 NOT NULL,
+    type text NOT NULL,
+    table_counts jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_by integer NOT NULL,
+    created_by_name text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.backups OWNER TO postgres;
+
+CREATE SEQUENCE public.backups_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.backups_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.backups_id_seq OWNED BY public.backups.id;
+ALTER TABLE ONLY public.backups ALTER COLUMN id SET DEFAULT nextval('public.backups_id_seq'::regclass);
+ALTER TABLE ONLY public.backups
+    ADD CONSTRAINT backups_pkey PRIMARY KEY (id);
+CREATE INDEX backups_company_idx ON public.backups USING btree (company_id);
+CREATE INDEX backups_created_at_idx ON public.backups USING btree (created_at);

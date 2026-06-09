@@ -19,6 +19,7 @@ import {
   Inbox,
   BadgeIndianRupee,
   LayoutGrid,
+  DatabaseBackup,
   type LucideIcon,
 } from "lucide-react";
 
@@ -63,4 +64,5 @@ export const moduleNavItems: NavItem[] = [
   { name: "Subscriptions", href: "/subscriptions", icon: BadgeIndianRupee, roles: ["super_admin"], description: "Tenant subscriptions" },
   { name: "User Accounts", href: "/users", icon: KeyRound, roles: ["admin"], description: "Manage logins" },
   { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"], description: "Role permissions and config" },
+  { name: "Backup & Restore", href: "/backup-restore", icon: DatabaseBackup, roles: ["admin"], description: "Backup, restore and reset data" },
 ];

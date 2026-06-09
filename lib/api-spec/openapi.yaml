@@ -293,6 +293,57 @@ paths:
         "403":
           description: Admin access required
 
+  /system/backup-settings:
+    get:
+      operationId: getBackupSettings
+      tags: [system]
+      summary: Get automatic-backup cadence preferences (admin only)
+      responses:
+        "200":
+          description: Backup settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSettings"
+        "403":
+          description: Admin access required
+    put:
+      operationId: updateBackupSettings
+      tags: [system]
+      summary: Update automatic-backup cadence preferences (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupSettingsUpdate"
+      responses:
+        "200":
+          description: Updated backup settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSettings"
+        "403":
+          description: Admin access required
+
+  /system/backups:
+    get:
+      operationId: listBackups
+      tags: [system]
+      summary: List backup history (admin only)
+      responses:
+        "200":
+          description: Backup history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BackupHistoryItem"
+        "403":
+          description: Admin access required
+
   /gstin-lookup:
     get:
       operationId: lookupGstin
@@ -2602,6 +2653,72 @@ components:
         defaultInvoiceTemplate:
           type: string
 
+    BackupSettings:
+      type: object
+      required:
+        - dailyEnabled
+        - weeklyEnabled
+        - monthlyEnabled
+        - lastDailyAt
+        - lastWeeklyAt
+        - lastMonthlyAt
+      properties:
+        dailyEnabled:
+          type: boolean
+        weeklyEnabled:
+          type: boolean
+        monthlyEnabled:
+          type: boolean
+        lastDailyAt:
+          type: ["string", "null"]
+          format: date-time
+        lastWeeklyAt:
+          type: ["string", "null"]
+          format: date-time
+        lastMonthlyAt:
+          type: ["string", "null"]
+          format: date-time
+    BackupSettingsUpdate:
+      type: object
+      properties:
+        dailyEnabled:
+          type: boolean
+        weeklyEnabled:
+          type: boolean
+        monthlyEnabled:
+          type: boolean
+    BackupHistoryItem:
+      type: object
+      required:
+        - id
+        - fileName
+        - sizeBytes
+        - type
+        - tableCounts
+        - createdBy
+        - createdByName
+        - createdAt
+      properties:
+        id:
+          type: integer
+        fileName:
+          type: string
+        sizeBytes:
+          type: integer
+        type:
+          type: string
+          enum: [manual, daily, weekly, monthly]
+        tableCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        createdBy:
+          type: integer
+        createdByName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
     PrintSettings:
       type: object
       required:

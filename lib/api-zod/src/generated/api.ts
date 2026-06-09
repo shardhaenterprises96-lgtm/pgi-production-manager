@@ -314,6 +314,54 @@ export const UpdateNumberSeriesResponse = zod.object({
 
 
 /**
+ * @summary Get automatic-backup cadence preferences (admin only)
+ */
+export const GetBackupSettingsResponse = zod.object({
+  "dailyEnabled": zod.boolean(),
+  "weeklyEnabled": zod.boolean(),
+  "monthlyEnabled": zod.boolean(),
+  "lastDailyAt": zod.coerce.date().nullable(),
+  "lastWeeklyAt": zod.coerce.date().nullable(),
+  "lastMonthlyAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Update automatic-backup cadence preferences (admin only)
+ */
+export const UpdateBackupSettingsBody = zod.object({
+  "dailyEnabled": zod.boolean().optional(),
+  "weeklyEnabled": zod.boolean().optional(),
+  "monthlyEnabled": zod.boolean().optional()
+})
+
+export const UpdateBackupSettingsResponse = zod.object({
+  "dailyEnabled": zod.boolean(),
+  "weeklyEnabled": zod.boolean(),
+  "monthlyEnabled": zod.boolean(),
+  "lastDailyAt": zod.coerce.date().nullable(),
+  "lastWeeklyAt": zod.coerce.date().nullable(),
+  "lastMonthlyAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary List backup history (admin only)
+ */
+export const ListBackupsResponseItem = zod.object({
+  "id": zod.number(),
+  "fileName": zod.string(),
+  "sizeBytes": zod.number(),
+  "type": zod.enum(['manual', 'daily', 'weekly', 'monthly']),
+  "tableCounts": zod.record(zod.string(), zod.number()),
+  "createdBy": zod.number(),
+  "createdByName": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListBackupsResponse = zod.array(ListBackupsResponseItem)
+
+
+/**
  * @summary Fetch business details for a GSTIN (optional external provider)
  */
 export const LookupGstinQueryParams = zod.object({

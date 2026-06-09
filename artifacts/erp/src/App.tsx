@@ -33,6 +33,7 @@ import Subscriptions from "@/pages/subscriptions";
 import Menu from "@/pages/menu";
 import SalesmanOrders from "@/pages/salesman-orders";
 import Commission from "@/pages/commission";
+import BackupRestore from "@/pages/backup-restore";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ function ProtectedRoutes() {
         <Route path="/workers" component={Workers} />
         <Route path="/expenses" component={Expenses} />
         <Route path="/settings" component={Settings} />
+        <Route path="/backup-restore" component={BackupRestore} />
         <Route path="/users" component={Users} />
         <Route path="/my-orders" component={MyOrders} />
         <Route path="/customer-orders" component={CustomerOrdersAdmin} />

@@ -329,6 +329,48 @@ export interface AppSettingsUpdate {
   defaultInvoiceTemplate?: string;
 }
 
+export interface BackupSettings {
+  dailyEnabled: boolean;
+  weeklyEnabled: boolean;
+  monthlyEnabled: boolean;
+  /** @nullable */
+  lastDailyAt: string | null;
+  /** @nullable */
+  lastWeeklyAt: string | null;
+  /** @nullable */
+  lastMonthlyAt: string | null;
+}
+
+export interface BackupSettingsUpdate {
+  dailyEnabled?: boolean;
+  weeklyEnabled?: boolean;
+  monthlyEnabled?: boolean;
+}
+
+export type BackupHistoryItemType = typeof BackupHistoryItemType[keyof typeof BackupHistoryItemType];
+
+
+export const BackupHistoryItemType = {
+  manual: 'manual',
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export type BackupHistoryItemTableCounts = {[key: string]: number};
+
+export interface BackupHistoryItem {
+  id: number;
+  fileName: string;
+  sizeBytes: number;
+  type: BackupHistoryItemType;
+  tableCounts: BackupHistoryItemTableCounts;
+  createdBy: number;
+  /** @nullable */
+  createdByName: string | null;
+  createdAt: string;
+}
+
 export type PrintSettingsColorMode = typeof PrintSettingsColorMode[keyof typeof PrintSettingsColorMode];
 
 

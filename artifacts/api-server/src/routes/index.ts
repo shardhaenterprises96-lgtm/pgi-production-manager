@@ -19,6 +19,7 @@ import reportsRouter from "./reports";
 import subscriptionsRouter from "./subscriptions";
 import settingsRouter from "./settings";
 import gstinRouter from "./gstin";
+import systemAdminRouter from "./system-admin";
 import { requireAuth } from "../lib/tenant";
 
 const router: IRouter = Router();
@@ -53,6 +54,10 @@ router.use(reportsRouter);
 // authenticated role (e.g. salesmen printing invoices).
 router.use(settingsRouter);
 router.use(gstinRouter);
+// Mounted before subscriptions: the subscriptions router installs a path-less
+// super_admin guard, so anything after it is 403'd for company admins. These
+// backup routes are company-admin-only and must stay reachable.
+router.use(systemAdminRouter);
 router.use(subscriptionsRouter);
 
 export default router;
