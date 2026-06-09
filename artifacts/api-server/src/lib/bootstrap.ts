@@ -4,6 +4,7 @@ import pg from "pg";
 import { logger } from "./logger";
 
 const SCHEMA_FILE_NAME = "production-schema.sql";
+const SEED_FILE_NAME = "production-seed-data.sql";
 
 const DEFAULT_ADMIN = {
   username: "admin",
@@ -13,16 +14,11 @@ const DEFAULT_ADMIN = {
 } as const;
 
 /**
- * Walk up from each start directory looking for the schema file. Returns the
+ * Walk up from each start directory looking for a repo-root file. Returns the
  * first match. This makes the lookup robust across the local dev cwd
  * (artifacts/api-server) and the production container cwd (/app).
  */
-function locateSchemaFile(): string | null {
-  const override = process.env.PRODUCTION_SCHEMA_PATH;
-  if (override) {
-    return existsSync(override) ? path.resolve(override) : null;
-  }
-
+function locateRepoFile(fileName: string): string | null {
   const startDirs = new Set<string>([process.cwd()]);
   try {
     if (typeof __dirname === "string") startDirs.add(__dirname);
@@ -34,7 +30,7 @@ function locateSchemaFile(): string | null {
     let dir = path.resolve(start);
     // Walk up to the filesystem root.
     for (;;) {
-      const candidate = path.join(dir, SCHEMA_FILE_NAME);
+      const candidate = path.join(dir, fileName);
       if (existsSync(candidate)) return candidate;
       const parent = path.dirname(dir);
       if (parent === dir) break;
@@ -43,6 +39,14 @@ function locateSchemaFile(): string | null {
   }
 
   return null;
+}
+
+function locateSchemaFile(): string | null {
+  const override = process.env.PRODUCTION_SCHEMA_PATH;
+  if (override) {
+    return existsSync(override) ? path.resolve(override) : null;
+  }
+  return locateRepoFile(SCHEMA_FILE_NAME);
 }
 
 /**
@@ -77,6 +81,58 @@ async function applySchema(client: pg.Client): Promise<void> {
   const sql = stripPsqlMetaCommands(rawSql);
   await client.query(sql);
   logger.info("Database schema applied successfully");
+}
+
+/**
+ * One-time business-data seed. Loads production-seed-data.sql (the development
+ * company-8 dataset) ONLY when the products table is empty, so a freshly
+ * provisioned production database comes up populated with real data instead of
+ * a blank slate. Every statement in the file is conflict-safe (ON CONFLICT DO
+ * NOTHING / user upserts) and the whole load runs inside a single transaction,
+ * so it is safe to ship and a no-op once data exists.
+ */
+async function seedBusinessDataIfEmpty(client: pg.Client): Promise<void> {
+  const productsReg = await client.query<{ reg: string | null }>(
+    "SELECT to_regclass('public.products') AS reg;",
+  );
+  if (productsReg.rows[0]?.reg == null) {
+    logger.info("products table missing; skipping data seed");
+    return;
+  }
+
+  const countResult = await client.query<{ count: string }>(
+    "SELECT count(*)::text AS count FROM public.products;",
+  );
+  const productCount = Number(countResult.rows[0]?.count ?? "0");
+  if (productCount > 0) {
+    logger.info(
+      { productCount },
+      "Business data already present; skipping data seed",
+    );
+    return;
+  }
+
+  const seedPath = locateRepoFile(SEED_FILE_NAME);
+  if (!seedPath) {
+    logger.warn(
+      { seedFile: SEED_FILE_NAME },
+      "Seed file not found; leaving database empty",
+    );
+    return;
+  }
+
+  logger.info({ seedPath }, "Products table empty; loading business data seed");
+  const rawSql = readFileSync(seedPath, "utf8");
+  const sql = stripPsqlMetaCommands(rawSql);
+  await client.query("BEGIN;");
+  try {
+    await client.query(sql);
+    await client.query("COMMIT;");
+    logger.info("Business data seed loaded successfully");
+  } catch (err) {
+    await client.query("ROLLBACK;");
+    throw err;
+  }
 }
 
 async function ensureDefaultAdmin(client: pg.Client): Promise<void> {
@@ -132,6 +188,7 @@ export async function ensureDatabaseReady(): Promise<void> {
       await applySchema(client);
     }
 
+    await seedBusinessDataIfEmpty(client);
     await ensureDefaultAdmin(client);
   } catch (err) {
     logger.error({ err }, "Database bootstrap failed");

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 2P7W0ZsnQ0vcLzRhLbTMvcDGEkeDiz5ElEbeJwrLW1bMBxlLAylc2WaeMA9p2NX
+\restrict Bj3OfosX12qBer5YTf1v0vlzSz5g5fP926wRz1OKKr5jUhXX6KMZ4lT0p0FU0nS
 
 -- Dumped from database version 16.10
 -- Dumped by pg_dump version 16.10
@@ -23,7 +23,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: account_transactions; Type: TABLE; Schema: public; Owner: -
+-- Name: account_transactions; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.account_transactions (
@@ -40,12 +40,15 @@ CREATE TABLE public.account_transactions (
     created_by_role text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     party_mobile text,
-    party_entity_id integer
+    party_entity_id integer,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.account_transactions OWNER TO postgres;
+
 --
--- Name: account_transactions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: account_transactions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.account_transactions_id_seq
@@ -57,15 +60,17 @@ CREATE SEQUENCE public.account_transactions_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.account_transactions_id_seq OWNER TO postgres;
+
 --
--- Name: account_transactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: account_transactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.account_transactions_id_seq OWNED BY public.account_transactions.id;
 
 
 --
--- Name: accounts; Type: TABLE; Schema: public; Owner: -
+-- Name: accounts; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.accounts (
@@ -78,12 +83,15 @@ CREATE TABLE public.accounts (
     is_active boolean DEFAULT true NOT NULL,
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.accounts OWNER TO postgres;
+
 --
--- Name: accounts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: accounts_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.accounts_id_seq
@@ -95,15 +103,54 @@ CREATE SEQUENCE public.accounts_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.accounts_id_seq OWNER TO postgres;
+
 --
--- Name: accounts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: accounts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.accounts_id_seq OWNED BY public.accounts.id;
 
 
 --
--- Name: audit_log; Type: TABLE; Schema: public; Owner: -
+-- Name: app_settings; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.app_settings (
+    key text NOT NULL,
+    value text,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    id integer NOT NULL,
+    company_id integer NOT NULL
+);
+
+
+ALTER TABLE public.app_settings OWNER TO postgres;
+
+--
+-- Name: app_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.app_settings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.app_settings_id_seq OWNER TO postgres;
+
+--
+-- Name: app_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.app_settings_id_seq OWNED BY public.app_settings.id;
+
+
+--
+-- Name: audit_log; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.audit_log (
@@ -113,12 +160,15 @@ CREATE TABLE public.audit_log (
     user_id integer NOT NULL,
     user_name text,
     metadata text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.audit_log OWNER TO postgres;
+
 --
--- Name: audit_log_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: audit_log_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.audit_log_id_seq
@@ -130,15 +180,17 @@ CREATE SEQUENCE public.audit_log_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.audit_log_id_seq OWNER TO postgres;
+
 --
--- Name: audit_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: audit_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.audit_log_id_seq OWNED BY public.audit_log.id;
 
 
 --
--- Name: bom_items; Type: TABLE; Schema: public; Owner: -
+-- Name: bom_items; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.bom_items (
@@ -147,12 +199,15 @@ CREATE TABLE public.bom_items (
     material_product_id integer NOT NULL,
     quantity numeric(12,3) NOT NULL,
     unit text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.bom_items OWNER TO postgres;
+
 --
--- Name: bom_items_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: bom_items_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.bom_items_id_seq
@@ -164,15 +219,17 @@ CREATE SEQUENCE public.bom_items_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.bom_items_id_seq OWNER TO postgres;
+
 --
--- Name: bom_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: bom_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.bom_items_id_seq OWNED BY public.bom_items.id;
 
 
 --
--- Name: boms; Type: TABLE; Schema: public; Owner: -
+-- Name: boms; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.boms (
@@ -180,12 +237,15 @@ CREATE TABLE public.boms (
     finished_product_id integer NOT NULL,
     output_quantity numeric(12,3) DEFAULT '1'::numeric NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.boms OWNER TO postgres;
+
 --
--- Name: boms_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: boms_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.boms_id_seq
@@ -197,15 +257,17 @@ CREATE SEQUENCE public.boms_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.boms_id_seq OWNER TO postgres;
+
 --
--- Name: boms_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: boms_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.boms_id_seq OWNED BY public.boms.id;
 
 
 --
--- Name: capital_snapshots; Type: TABLE; Schema: public; Owner: -
+-- Name: capital_snapshots; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.capital_snapshots (
@@ -217,12 +279,15 @@ CREATE TABLE public.capital_snapshots (
     payable numeric(16,2) DEFAULT '0'::numeric NOT NULL,
     capital numeric(16,2) DEFAULT '0'::numeric NOT NULL,
     captured_at timestamp with time zone DEFAULT now() NOT NULL,
-    expenses numeric(16,2) DEFAULT '0'::numeric NOT NULL
+    expenses numeric(16,2) DEFAULT '0'::numeric NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.capital_snapshots OWNER TO postgres;
+
 --
--- Name: capital_snapshots_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: capital_snapshots_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.capital_snapshots_id_seq
@@ -234,15 +299,57 @@ CREATE SEQUENCE public.capital_snapshots_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.capital_snapshots_id_seq OWNER TO postgres;
+
 --
--- Name: capital_snapshots_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: capital_snapshots_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.capital_snapshots_id_seq OWNED BY public.capital_snapshots.id;
 
 
 --
--- Name: customer_order_items; Type: TABLE; Schema: public; Owner: -
+-- Name: companies; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.companies (
+    id integer NOT NULL,
+    name text NOT NULL,
+    owner_name text,
+    mobile text,
+    email text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    logo text
+);
+
+
+ALTER TABLE public.companies OWNER TO postgres;
+
+--
+-- Name: companies_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.companies_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.companies_id_seq OWNER TO postgres;
+
+--
+-- Name: companies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.companies_id_seq OWNED BY public.companies.id;
+
+
+--
+-- Name: customer_order_items; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.customer_order_items (
@@ -254,12 +361,15 @@ CREATE TABLE public.customer_order_items (
     qty numeric(12,3) NOT NULL,
     unit_price numeric(12,2) DEFAULT '0'::numeric NOT NULL,
     line_total numeric(14,2) DEFAULT '0'::numeric NOT NULL,
-    workload_card_id integer
+    workload_card_id integer,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.customer_order_items OWNER TO postgres;
+
 --
--- Name: customer_order_items_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: customer_order_items_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.customer_order_items_id_seq
@@ -271,15 +381,17 @@ CREATE SEQUENCE public.customer_order_items_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.customer_order_items_id_seq OWNER TO postgres;
+
 --
--- Name: customer_order_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: customer_order_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.customer_order_items_id_seq OWNED BY public.customer_order_items.id;
 
 
 --
--- Name: customer_orders; Type: TABLE; Schema: public; Owner: -
+-- Name: customer_orders; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.customer_orders (
@@ -290,22 +402,25 @@ CREATE TABLE public.customer_orders (
     customer_name text NOT NULL,
     customer_mobile text,
     status text DEFAULT 'pending'::text NOT NULL,
-    is_draft boolean DEFAULT false NOT NULL,
     total_items integer DEFAULT 0 NOT NULL,
     total_amount numeric(14,2) DEFAULT '0'::numeric NOT NULL,
     notes text,
     admin_remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_draft boolean DEFAULT false NOT NULL,
     vehicle_number text,
     driver_name text,
     dispatch_date timestamp with time zone,
     dispatch_status text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.customer_orders OWNER TO postgres;
+
 --
--- Name: customer_orders_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: customer_orders_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.customer_orders_id_seq
@@ -317,15 +432,17 @@ CREATE SEQUENCE public.customer_orders_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.customer_orders_id_seq OWNER TO postgres;
+
 --
--- Name: customer_orders_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: customer_orders_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.customer_orders_id_seq OWNED BY public.customer_orders.id;
 
 
 --
--- Name: entities; Type: TABLE; Schema: public; Owner: -
+-- Name: entities; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.entities (
@@ -337,22 +454,25 @@ CREATE TABLE public.entities (
     address text,
     city text,
     state text,
-    district text,
-    area text,
-    pin_code text,
-    gps_location text,
     pricing_tier text DEFAULT 'retail'::text,
     outstanding_balance numeric(12,2) DEFAULT '0'::numeric NOT NULL,
     credit_limit numeric(12,2),
     user_id integer,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    district text,
+    area text,
+    pin_code text,
+    gps_location text,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.entities OWNER TO postgres;
+
 --
--- Name: entities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: entities_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.entities_id_seq
@@ -364,27 +484,32 @@ CREATE SEQUENCE public.entities_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.entities_id_seq OWNER TO postgres;
+
 --
--- Name: entities_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: entities_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.entities_id_seq OWNED BY public.entities.id;
 
 
 --
--- Name: expense_categories; Type: TABLE; Schema: public; Owner: -
+-- Name: expense_categories; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.expense_categories (
     id integer NOT NULL,
     name text NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.expense_categories OWNER TO postgres;
+
 --
--- Name: expense_categories_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: expense_categories_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.expense_categories_id_seq
@@ -396,15 +521,17 @@ CREATE SEQUENCE public.expense_categories_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.expense_categories_id_seq OWNER TO postgres;
+
 --
--- Name: expense_categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: expense_categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.expense_categories_id_seq OWNED BY public.expense_categories.id;
 
 
 --
--- Name: expenses; Type: TABLE; Schema: public; Owner: -
+-- Name: expenses; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.expenses (
@@ -417,12 +544,15 @@ CREATE TABLE public.expenses (
     paid_to text,
     notes text,
     created_by_user_id integer,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.expenses OWNER TO postgres;
+
 --
--- Name: expenses_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: expenses_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.expenses_id_seq
@@ -434,15 +564,17 @@ CREATE SEQUENCE public.expenses_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.expenses_id_seq OWNER TO postgres;
+
 --
--- Name: expenses_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: expenses_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.expenses_id_seq OWNED BY public.expenses.id;
 
 
 --
--- Name: invoice_items; Type: TABLE; Schema: public; Owner: -
+-- Name: invoice_items; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.invoice_items (
@@ -463,12 +595,15 @@ CREATE TABLE public.invoice_items (
     cess_pct numeric(5,2) DEFAULT '0'::numeric NOT NULL,
     net_price numeric(12,2) DEFAULT '0'::numeric NOT NULL,
     amount numeric(12,2) NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.invoice_items OWNER TO postgres;
+
 --
--- Name: invoice_items_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: invoice_items_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.invoice_items_id_seq
@@ -480,27 +615,32 @@ CREATE SEQUENCE public.invoice_items_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.invoice_items_id_seq OWNER TO postgres;
+
 --
--- Name: invoice_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: invoice_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.invoice_items_id_seq OWNED BY public.invoice_items.id;
 
 
 --
--- Name: invoice_sequence; Type: TABLE; Schema: public; Owner: -
+-- Name: invoice_sequence; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.invoice_sequence (
     id integer NOT NULL,
     month integer NOT NULL,
     year integer NOT NULL,
-    last_number integer DEFAULT 0 NOT NULL
+    last_number integer DEFAULT 0 NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.invoice_sequence OWNER TO postgres;
+
 --
--- Name: invoice_sequence_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: invoice_sequence_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.invoice_sequence_id_seq
@@ -512,15 +652,17 @@ CREATE SEQUENCE public.invoice_sequence_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.invoice_sequence_id_seq OWNER TO postgres;
+
 --
--- Name: invoice_sequence_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: invoice_sequence_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.invoice_sequence_id_seq OWNED BY public.invoice_sequence.id;
 
 
 --
--- Name: invoices; Type: TABLE; Schema: public; Owner: -
+-- Name: invoices; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.invoices (
@@ -553,12 +695,15 @@ CREATE TABLE public.invoices (
     status text DEFAULT 'saved'::text NOT NULL,
     created_by_user_id integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.invoices OWNER TO postgres;
+
 --
--- Name: invoices_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: invoices_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.invoices_id_seq
@@ -570,15 +715,17 @@ CREATE SEQUENCE public.invoices_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.invoices_id_seq OWNER TO postgres;
+
 --
--- Name: invoices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: invoices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.invoices_id_seq OWNED BY public.invoices.id;
 
 
 --
--- Name: ledger_entries; Type: TABLE; Schema: public; Owner: -
+-- Name: ledger_entries; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.ledger_entries (
@@ -592,12 +739,18 @@ CREATE TABLE public.ledger_entries (
     type text NOT NULL,
     reference_id integer,
     reference_no text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    attachment_url text,
+    created_by_id integer,
+    created_by_name text,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.ledger_entries OWNER TO postgres;
+
 --
--- Name: ledger_entries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: ledger_entries_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.ledger_entries_id_seq
@@ -609,15 +762,63 @@ CREATE SEQUENCE public.ledger_entries_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.ledger_entries_id_seq OWNER TO postgres;
+
 --
--- Name: ledger_entries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: ledger_entries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.ledger_entries_id_seq OWNED BY public.ledger_entries.id;
 
 
 --
--- Name: payments; Type: TABLE; Schema: public; Owner: -
+-- Name: number_series; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.number_series (
+    series_type text NOT NULL,
+    prefix text DEFAULT ''::text NOT NULL,
+    include_year boolean DEFAULT true NOT NULL,
+    include_month boolean DEFAULT true NOT NULL,
+    year_format text DEFAULT 'calendar'::text NOT NULL,
+    separator text DEFAULT '/'::text NOT NULL,
+    padding integer DEFAULT 0 NOT NULL,
+    start_number integer DEFAULT 1 NOT NULL,
+    next_number integer DEFAULT 1 NOT NULL,
+    reset_rule text DEFAULT 'monthly'::text NOT NULL,
+    period_key text,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    id integer NOT NULL,
+    company_id integer NOT NULL
+);
+
+
+ALTER TABLE public.number_series OWNER TO postgres;
+
+--
+-- Name: number_series_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.number_series_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.number_series_id_seq OWNER TO postgres;
+
+--
+-- Name: number_series_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.number_series_id_seq OWNED BY public.number_series.id;
+
+
+--
+-- Name: payments; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.payments (
@@ -637,12 +838,15 @@ CREATE TABLE public.payments (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     account_id integer,
     collected_at timestamp with time zone,
-    collected_by_id integer
+    collected_by_id integer,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.payments OWNER TO postgres;
+
 --
--- Name: payments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: payments_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.payments_id_seq
@@ -654,15 +858,53 @@ CREATE SEQUENCE public.payments_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.payments_id_seq OWNER TO postgres;
+
 --
--- Name: payments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: payments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.payments_id_seq OWNED BY public.payments.id;
 
 
 --
--- Name: products; Type: TABLE; Schema: public; Owner: -
+-- Name: print_settings; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.print_settings (
+    id integer NOT NULL,
+    company_id integer NOT NULL,
+    config jsonb DEFAULT '{}'::jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.print_settings OWNER TO postgres;
+
+--
+-- Name: print_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.print_settings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.print_settings_id_seq OWNER TO postgres;
+
+--
+-- Name: print_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.print_settings_id_seq OWNED BY public.print_settings.id;
+
+
+--
+-- Name: products; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.products (
@@ -686,7 +928,6 @@ CREATE TABLE public.products (
     retail_margin numeric(10,2),
     hsn_code text,
     tax_rate numeric(5,2) DEFAULT '18'::numeric,
-    commission_per_liter numeric(12,2) DEFAULT '0'::numeric NOT NULL,
     liters_per_box numeric(10,3),
     not_for_sale boolean DEFAULT false NOT NULL,
     add_for_manufacturing boolean DEFAULT false NOT NULL,
@@ -695,12 +936,16 @@ CREATE TABLE public.products (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
-    units_per_box numeric(10,3)
+    units_per_box numeric(10,3),
+    commission_per_liter numeric(12,2) DEFAULT '0'::numeric NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.products OWNER TO postgres;
+
 --
--- Name: products_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: products_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.products_id_seq
@@ -712,15 +957,17 @@ CREATE SEQUENCE public.products_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.products_id_seq OWNER TO postgres;
+
 --
--- Name: products_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: products_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.products_id_seq OWNED BY public.products.id;
 
 
 --
--- Name: purchase_items; Type: TABLE; Schema: public; Owner: -
+-- Name: purchase_items; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.purchase_items (
@@ -736,12 +983,15 @@ CREATE TABLE public.purchase_items (
     discount_amt numeric(12,2) DEFAULT '0'::numeric NOT NULL,
     tax_pct numeric(5,2) DEFAULT '0'::numeric NOT NULL,
     amount numeric(12,2) NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.purchase_items OWNER TO postgres;
+
 --
--- Name: purchase_items_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: purchase_items_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.purchase_items_id_seq
@@ -753,27 +1003,32 @@ CREATE SEQUENCE public.purchase_items_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.purchase_items_id_seq OWNER TO postgres;
+
 --
--- Name: purchase_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: purchase_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.purchase_items_id_seq OWNED BY public.purchase_items.id;
 
 
 --
--- Name: purchase_sequence; Type: TABLE; Schema: public; Owner: -
+-- Name: purchase_sequence; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.purchase_sequence (
     id integer NOT NULL,
     month integer NOT NULL,
     year integer NOT NULL,
-    last_number integer DEFAULT 0 NOT NULL
+    last_number integer DEFAULT 0 NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.purchase_sequence OWNER TO postgres;
+
 --
--- Name: purchase_sequence_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: purchase_sequence_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.purchase_sequence_id_seq
@@ -785,15 +1040,17 @@ CREATE SEQUENCE public.purchase_sequence_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.purchase_sequence_id_seq OWNER TO postgres;
+
 --
--- Name: purchase_sequence_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: purchase_sequence_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.purchase_sequence_id_seq OWNED BY public.purchase_sequence.id;
 
 
 --
--- Name: purchases; Type: TABLE; Schema: public; Owner: -
+-- Name: purchases; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.purchases (
@@ -822,12 +1079,15 @@ CREATE TABLE public.purchases (
     status text DEFAULT 'saved'::text NOT NULL,
     created_by_user_id integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.purchases OWNER TO postgres;
+
 --
--- Name: purchases_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: purchases_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.purchases_id_seq
@@ -839,15 +1099,17 @@ CREATE SEQUENCE public.purchases_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.purchases_id_seq OWNER TO postgres;
+
 --
--- Name: purchases_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: purchases_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.purchases_id_seq OWNED BY public.purchases.id;
 
 
 --
--- Name: reward_progress; Type: TABLE; Schema: public; Owner: -
+-- Name: reward_progress; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.reward_progress (
@@ -859,12 +1121,15 @@ CREATE TABLE public.reward_progress (
     is_disbursed boolean DEFAULT false NOT NULL,
     disbursed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.reward_progress OWNER TO postgres;
+
 --
--- Name: reward_progress_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: reward_progress_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.reward_progress_id_seq
@@ -876,20 +1141,21 @@ CREATE SEQUENCE public.reward_progress_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.reward_progress_id_seq OWNER TO postgres;
+
 --
--- Name: reward_progress_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: reward_progress_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.reward_progress_id_seq OWNED BY public.reward_progress.id;
 
 
 --
--- Name: reward_schemes; Type: TABLE; Schema: public; Owner: -
+-- Name: reward_schemes; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.reward_schemes (
     id integer NOT NULL,
-    scheme_name text DEFAULT ''::text NOT NULL,
     product_id integer NOT NULL,
     target_liters numeric(12,3) NOT NULL,
     reward_type text NOT NULL,
@@ -898,12 +1164,16 @@ CREATE TABLE public.reward_schemes (
     end_date timestamp with time zone NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    scheme_name text DEFAULT ''::text NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.reward_schemes OWNER TO postgres;
+
 --
--- Name: reward_schemes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: reward_schemes_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.reward_schemes_id_seq
@@ -915,15 +1185,17 @@ CREATE SEQUENCE public.reward_schemes_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.reward_schemes_id_seq OWNER TO postgres;
+
 --
--- Name: reward_schemes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: reward_schemes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.reward_schemes_id_seq OWNED BY public.reward_schemes.id;
 
 
 --
--- Name: role_permissions; Type: TABLE; Schema: public; Owner: -
+-- Name: role_permissions; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.role_permissions (
@@ -931,12 +1203,15 @@ CREATE TABLE public.role_permissions (
     role text NOT NULL,
     feature text NOT NULL,
     allowed boolean DEFAULT true NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.role_permissions OWNER TO postgres;
+
 --
--- Name: role_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: role_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.role_permissions_id_seq
@@ -948,15 +1223,17 @@ CREATE SEQUENCE public.role_permissions_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.role_permissions_id_seq OWNER TO postgres;
+
 --
--- Name: role_permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: role_permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.role_permissions_id_seq OWNED BY public.role_permissions.id;
 
 
 --
--- Name: stock_movements; Type: TABLE; Schema: public; Owner: -
+-- Name: stock_movements; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.stock_movements (
@@ -968,12 +1245,15 @@ CREATE TABLE public.stock_movements (
     reference_id integer,
     reference_type text,
     user_id integer NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.stock_movements OWNER TO postgres;
+
 --
--- Name: stock_movements_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: stock_movements_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.stock_movements_id_seq
@@ -985,15 +1265,101 @@ CREATE SEQUENCE public.stock_movements_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.stock_movements_id_seq OWNER TO postgres;
+
 --
--- Name: stock_movements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: stock_movements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.stock_movements_id_seq OWNED BY public.stock_movements.id;
 
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: -
+-- Name: subscription_alerts; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.subscription_alerts (
+    id integer NOT NULL,
+    company_id integer NOT NULL,
+    subscription_id integer NOT NULL,
+    alert_type text NOT NULL,
+    message text NOT NULL,
+    days_remaining integer DEFAULT 0 NOT NULL,
+    is_read boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.subscription_alerts OWNER TO postgres;
+
+--
+-- Name: subscription_alerts_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.subscription_alerts_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.subscription_alerts_id_seq OWNER TO postgres;
+
+--
+-- Name: subscription_alerts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.subscription_alerts_id_seq OWNED BY public.subscription_alerts.id;
+
+
+--
+-- Name: subscriptions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.subscriptions (
+    id integer NOT NULL,
+    company_id integer NOT NULL,
+    plan_name text NOT NULL,
+    subscription_start_date timestamp with time zone NOT NULL,
+    subscription_end_date timestamp with time zone NOT NULL,
+    subscription_amount numeric(12,2) DEFAULT '0'::numeric NOT NULL,
+    payment_status text DEFAULT 'pending'::text NOT NULL,
+    subscription_status text DEFAULT 'active'::text NOT NULL,
+    last_payment_date timestamp with time zone,
+    next_due_date timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.subscriptions OWNER TO postgres;
+
+--
+-- Name: subscriptions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.subscriptions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.subscriptions_id_seq OWNER TO postgres;
+
+--
+-- Name: subscriptions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.subscriptions_id_seq OWNED BY public.subscriptions.id;
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.users (
@@ -1003,15 +1369,17 @@ CREATE TABLE public.users (
     role text DEFAULT 'salesman'::text NOT NULL,
     name text NOT NULL,
     entity_id integer,
-    company_id integer,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer
 );
 
 
+ALTER TABLE public.users OWNER TO postgres;
+
 --
--- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.users_id_seq
@@ -1023,15 +1391,17 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
+
 --
--- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: worker_attendance; Type: TABLE; Schema: public; Owner: -
+-- Name: worker_attendance; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.worker_attendance (
@@ -1041,12 +1411,15 @@ CREATE TABLE public.worker_attendance (
     status text NOT NULL,
     wage_amount numeric(12,2) DEFAULT '0'::numeric NOT NULL,
     notes text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.worker_attendance OWNER TO postgres;
+
 --
--- Name: worker_attendance_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: worker_attendance_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.worker_attendance_id_seq
@@ -1058,15 +1431,17 @@ CREATE SEQUENCE public.worker_attendance_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.worker_attendance_id_seq OWNER TO postgres;
+
 --
--- Name: worker_attendance_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: worker_attendance_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.worker_attendance_id_seq OWNED BY public.worker_attendance.id;
 
 
 --
--- Name: worker_payments; Type: TABLE; Schema: public; Owner: -
+-- Name: worker_payments; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.worker_payments (
@@ -1076,12 +1451,15 @@ CREATE TABLE public.worker_payments (
     paid_on date NOT NULL,
     payment_mode text NOT NULL,
     notes text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.worker_payments OWNER TO postgres;
+
 --
--- Name: worker_payments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: worker_payments_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.worker_payments_id_seq
@@ -1093,15 +1471,17 @@ CREATE SEQUENCE public.worker_payments_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.worker_payments_id_seq OWNER TO postgres;
+
 --
--- Name: worker_payments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: worker_payments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.worker_payments_id_seq OWNED BY public.worker_payments.id;
 
 
 --
--- Name: workers; Type: TABLE; Schema: public; Owner: -
+-- Name: workers; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.workers (
@@ -1114,12 +1494,15 @@ CREATE TABLE public.workers (
     is_active boolean DEFAULT true NOT NULL,
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.workers OWNER TO postgres;
+
 --
--- Name: workers_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: workers_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.workers_id_seq
@@ -1131,15 +1514,17 @@ CREATE SEQUENCE public.workers_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.workers_id_seq OWNER TO postgres;
+
 --
--- Name: workers_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: workers_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.workers_id_seq OWNED BY public.workers.id;
 
 
 --
--- Name: workload_cards; Type: TABLE; Schema: public; Owner: -
+-- Name: workload_cards; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.workload_cards (
@@ -1154,12 +1539,15 @@ CREATE TABLE public.workload_cards (
     started_at timestamp with time zone,
     completed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    company_id integer NOT NULL
 );
 
 
+ALTER TABLE public.workload_cards OWNER TO postgres;
+
 --
--- Name: workload_cards_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: workload_cards_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.workload_cards_id_seq
@@ -1171,218 +1559,262 @@ CREATE SEQUENCE public.workload_cards_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.workload_cards_id_seq OWNER TO postgres;
+
 --
--- Name: workload_cards_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: workload_cards_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.workload_cards_id_seq OWNED BY public.workload_cards.id;
 
 
 --
--- Name: account_transactions id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: account_transactions id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.account_transactions ALTER COLUMN id SET DEFAULT nextval('public.account_transactions_id_seq'::regclass);
 
 
 --
--- Name: accounts id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: accounts id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.accounts ALTER COLUMN id SET DEFAULT nextval('public.accounts_id_seq'::regclass);
 
 
 --
--- Name: audit_log id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: app_settings id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.app_settings ALTER COLUMN id SET DEFAULT nextval('public.app_settings_id_seq'::regclass);
+
+
+--
+-- Name: audit_log id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.audit_log ALTER COLUMN id SET DEFAULT nextval('public.audit_log_id_seq'::regclass);
 
 
 --
--- Name: bom_items id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: bom_items id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.bom_items ALTER COLUMN id SET DEFAULT nextval('public.bom_items_id_seq'::regclass);
 
 
 --
--- Name: boms id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: boms id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.boms ALTER COLUMN id SET DEFAULT nextval('public.boms_id_seq'::regclass);
 
 
 --
--- Name: capital_snapshots id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: capital_snapshots id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.capital_snapshots ALTER COLUMN id SET DEFAULT nextval('public.capital_snapshots_id_seq'::regclass);
 
 
 --
--- Name: customer_order_items id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: companies id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.companies ALTER COLUMN id SET DEFAULT nextval('public.companies_id_seq'::regclass);
+
+
+--
+-- Name: customer_order_items id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.customer_order_items ALTER COLUMN id SET DEFAULT nextval('public.customer_order_items_id_seq'::regclass);
 
 
 --
--- Name: customer_orders id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: customer_orders id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.customer_orders ALTER COLUMN id SET DEFAULT nextval('public.customer_orders_id_seq'::regclass);
 
 
 --
--- Name: entities id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: entities id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.entities ALTER COLUMN id SET DEFAULT nextval('public.entities_id_seq'::regclass);
 
 
 --
--- Name: expense_categories id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: expense_categories id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.expense_categories ALTER COLUMN id SET DEFAULT nextval('public.expense_categories_id_seq'::regclass);
 
 
 --
--- Name: expenses id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: expenses id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.expenses ALTER COLUMN id SET DEFAULT nextval('public.expenses_id_seq'::regclass);
 
 
 --
--- Name: invoice_items id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: invoice_items id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoice_items ALTER COLUMN id SET DEFAULT nextval('public.invoice_items_id_seq'::regclass);
 
 
 --
--- Name: invoice_sequence id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: invoice_sequence id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoice_sequence ALTER COLUMN id SET DEFAULT nextval('public.invoice_sequence_id_seq'::regclass);
 
 
 --
--- Name: invoices id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: invoices id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoices ALTER COLUMN id SET DEFAULT nextval('public.invoices_id_seq'::regclass);
 
 
 --
--- Name: ledger_entries id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: ledger_entries id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.ledger_entries ALTER COLUMN id SET DEFAULT nextval('public.ledger_entries_id_seq'::regclass);
 
 
 --
--- Name: payments id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: number_series id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.number_series ALTER COLUMN id SET DEFAULT nextval('public.number_series_id_seq'::regclass);
+
+
+--
+-- Name: payments id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payments ALTER COLUMN id SET DEFAULT nextval('public.payments_id_seq'::regclass);
 
 
 --
--- Name: products id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: print_settings id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.print_settings ALTER COLUMN id SET DEFAULT nextval('public.print_settings_id_seq'::regclass);
+
+
+--
+-- Name: products id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products ALTER COLUMN id SET DEFAULT nextval('public.products_id_seq'::regclass);
 
 
 --
--- Name: purchase_items id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: purchase_items id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_items ALTER COLUMN id SET DEFAULT nextval('public.purchase_items_id_seq'::regclass);
 
 
 --
--- Name: purchase_sequence id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: purchase_sequence id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_sequence ALTER COLUMN id SET DEFAULT nextval('public.purchase_sequence_id_seq'::regclass);
 
 
 --
--- Name: purchases id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: purchases id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchases ALTER COLUMN id SET DEFAULT nextval('public.purchases_id_seq'::regclass);
 
 
 --
--- Name: reward_progress id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: reward_progress id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.reward_progress ALTER COLUMN id SET DEFAULT nextval('public.reward_progress_id_seq'::regclass);
 
 
 --
--- Name: reward_schemes id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: reward_schemes id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.reward_schemes ALTER COLUMN id SET DEFAULT nextval('public.reward_schemes_id_seq'::regclass);
 
 
 --
--- Name: role_permissions id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: role_permissions id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.role_permissions ALTER COLUMN id SET DEFAULT nextval('public.role_permissions_id_seq'::regclass);
 
 
 --
--- Name: stock_movements id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: stock_movements id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.stock_movements ALTER COLUMN id SET DEFAULT nextval('public.stock_movements_id_seq'::regclass);
 
 
 --
--- Name: users id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: subscription_alerts id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subscription_alerts ALTER COLUMN id SET DEFAULT nextval('public.subscription_alerts_id_seq'::regclass);
+
+
+--
+-- Name: subscriptions id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subscriptions ALTER COLUMN id SET DEFAULT nextval('public.subscriptions_id_seq'::regclass);
+
+
+--
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
--- Name: worker_attendance id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: worker_attendance id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.worker_attendance ALTER COLUMN id SET DEFAULT nextval('public.worker_attendance_id_seq'::regclass);
 
 
 --
--- Name: worker_payments id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: worker_payments id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.worker_payments ALTER COLUMN id SET DEFAULT nextval('public.worker_payments_id_seq'::regclass);
 
 
 --
--- Name: workers id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: workers id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.workers ALTER COLUMN id SET DEFAULT nextval('public.workers_id_seq'::regclass);
 
 
 --
--- Name: workload_cards id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: workload_cards id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.workload_cards ALTER COLUMN id SET DEFAULT nextval('public.workload_cards_id_seq'::regclass);
 
 
 --
--- Name: account_transactions account_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: account_transactions account_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.account_transactions
@@ -1390,15 +1822,7 @@ ALTER TABLE ONLY public.account_transactions
 
 
 --
--- Name: account_transactions account_transactions_receipt_no_unique; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.account_transactions
-    ADD CONSTRAINT account_transactions_receipt_no_unique UNIQUE (receipt_no);
-
-
---
--- Name: accounts accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: accounts accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.accounts
@@ -1406,7 +1830,23 @@ ALTER TABLE ONLY public.accounts
 
 
 --
--- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: account_transactions acct_txn_company_receipt_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.account_transactions
+    ADD CONSTRAINT acct_txn_company_receipt_unique UNIQUE (company_id, receipt_no);
+
+
+--
+-- Name: app_settings app_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.app_settings
+    ADD CONSTRAINT app_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.audit_log
@@ -1414,7 +1854,7 @@ ALTER TABLE ONLY public.audit_log
 
 
 --
--- Name: bom_items bom_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: bom_items bom_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.bom_items
@@ -1422,7 +1862,7 @@ ALTER TABLE ONLY public.bom_items
 
 
 --
--- Name: boms boms_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: boms boms_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.boms
@@ -1430,7 +1870,7 @@ ALTER TABLE ONLY public.boms
 
 
 --
--- Name: capital_snapshots capital_snapshots_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: capital_snapshots capital_snapshots_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.capital_snapshots
@@ -1438,15 +1878,15 @@ ALTER TABLE ONLY public.capital_snapshots
 
 
 --
--- Name: capital_snapshots capital_snapshots_snapshot_date_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: companies companies_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public.capital_snapshots
-    ADD CONSTRAINT capital_snapshots_snapshot_date_unique UNIQUE (snapshot_date);
+ALTER TABLE ONLY public.companies
+    ADD CONSTRAINT companies_pkey PRIMARY KEY (id);
 
 
 --
--- Name: customer_order_items customer_order_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: customer_order_items customer_order_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.customer_order_items
@@ -1454,7 +1894,7 @@ ALTER TABLE ONLY public.customer_order_items
 
 
 --
--- Name: customer_orders customer_orders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: customer_orders customer_orders_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.customer_orders
@@ -1462,7 +1902,7 @@ ALTER TABLE ONLY public.customer_orders
 
 
 --
--- Name: entities entities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: entities entities_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.entities
@@ -1470,7 +1910,7 @@ ALTER TABLE ONLY public.entities
 
 
 --
--- Name: expense_categories expense_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: expense_categories expense_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.expense_categories
@@ -1478,7 +1918,7 @@ ALTER TABLE ONLY public.expense_categories
 
 
 --
--- Name: expenses expenses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: expenses expenses_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.expenses
@@ -1486,7 +1926,7 @@ ALTER TABLE ONLY public.expenses
 
 
 --
--- Name: invoice_items invoice_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: invoice_items invoice_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoice_items
@@ -1494,15 +1934,15 @@ ALTER TABLE ONLY public.invoice_items
 
 
 --
--- Name: invoice_sequence invoice_sequence_month_year_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: invoice_sequence invoice_sequence_company_month_year_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoice_sequence
-    ADD CONSTRAINT invoice_sequence_month_year_unique UNIQUE (month, year);
+    ADD CONSTRAINT invoice_sequence_company_month_year_unique UNIQUE (company_id, month, year);
 
 
 --
--- Name: invoice_sequence invoice_sequence_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: invoice_sequence invoice_sequence_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoice_sequence
@@ -1510,15 +1950,15 @@ ALTER TABLE ONLY public.invoice_sequence
 
 
 --
--- Name: invoices invoices_invoice_no_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: invoices invoices_company_invoice_no_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoices
-    ADD CONSTRAINT invoices_invoice_no_unique UNIQUE (invoice_no);
+    ADD CONSTRAINT invoices_company_invoice_no_unique UNIQUE (company_id, invoice_no);
 
 
 --
--- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoices
@@ -1526,7 +1966,7 @@ ALTER TABLE ONLY public.invoices
 
 
 --
--- Name: ledger_entries ledger_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ledger_entries ledger_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.ledger_entries
@@ -1534,7 +1974,23 @@ ALTER TABLE ONLY public.ledger_entries
 
 
 --
--- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: number_series number_series_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.number_series
+    ADD CONSTRAINT number_series_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: payments payments_company_receipt_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payments
+    ADD CONSTRAINT payments_company_receipt_unique UNIQUE (company_id, receipt_id);
+
+
+--
+-- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payments
@@ -1542,23 +1998,15 @@ ALTER TABLE ONLY public.payments
 
 
 --
--- Name: payments payments_receipt_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: print_settings print_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public.payments
-    ADD CONSTRAINT payments_receipt_id_unique UNIQUE (receipt_id);
-
-
---
--- Name: products products_item_code_unique; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.products
-    ADD CONSTRAINT products_item_code_unique UNIQUE (item_code);
+ALTER TABLE ONLY public.print_settings
+    ADD CONSTRAINT print_settings_pkey PRIMARY KEY (id);
 
 
 --
--- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products
@@ -1566,7 +2014,7 @@ ALTER TABLE ONLY public.products
 
 
 --
--- Name: purchase_items purchase_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: purchase_items purchase_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_items
@@ -1574,15 +2022,15 @@ ALTER TABLE ONLY public.purchase_items
 
 
 --
--- Name: purchase_sequence purchase_sequence_month_year_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: purchase_sequence purchase_sequence_company_month_year_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_sequence
-    ADD CONSTRAINT purchase_sequence_month_year_unique UNIQUE (month, year);
+    ADD CONSTRAINT purchase_sequence_company_month_year_unique UNIQUE (company_id, month, year);
 
 
 --
--- Name: purchase_sequence purchase_sequence_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: purchase_sequence purchase_sequence_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_sequence
@@ -1590,15 +2038,15 @@ ALTER TABLE ONLY public.purchase_sequence
 
 
 --
--- Name: purchases purchases_bill_no_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: purchases purchases_company_bill_no_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchases
-    ADD CONSTRAINT purchases_bill_no_unique UNIQUE (bill_no);
+    ADD CONSTRAINT purchases_company_bill_no_unique UNIQUE (company_id, bill_no);
 
 
 --
--- Name: purchases purchases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: purchases purchases_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchases
@@ -1606,7 +2054,7 @@ ALTER TABLE ONLY public.purchases
 
 
 --
--- Name: reward_progress reward_progress_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: reward_progress reward_progress_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.reward_progress
@@ -1614,7 +2062,7 @@ ALTER TABLE ONLY public.reward_progress
 
 
 --
--- Name: reward_schemes reward_schemes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: reward_schemes reward_schemes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.reward_schemes
@@ -1622,7 +2070,7 @@ ALTER TABLE ONLY public.reward_schemes
 
 
 --
--- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.role_permissions
@@ -1630,7 +2078,7 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- Name: stock_movements stock_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: stock_movements stock_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.stock_movements
@@ -1638,7 +2086,23 @@ ALTER TABLE ONLY public.stock_movements
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: subscription_alerts subscription_alerts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subscription_alerts
+    ADD CONSTRAINT subscription_alerts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: subscriptions subscriptions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subscriptions
+    ADD CONSTRAINT subscriptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
@@ -1646,7 +2110,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_username_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: users users_username_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
@@ -1654,7 +2118,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: worker_attendance worker_attendance_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: worker_attendance worker_attendance_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.worker_attendance
@@ -1662,7 +2126,7 @@ ALTER TABLE ONLY public.worker_attendance
 
 
 --
--- Name: worker_payments worker_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: worker_payments worker_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.worker_payments
@@ -1670,7 +2134,7 @@ ALTER TABLE ONLY public.worker_payments
 
 
 --
--- Name: workers workers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: workers workers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.workers
@@ -1678,7 +2142,7 @@ ALTER TABLE ONLY public.workers
 
 
 --
--- Name: workload_cards workload_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: workload_cards workload_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.workload_cards
@@ -1686,259 +2150,490 @@ ALTER TABLE ONLY public.workload_cards
 
 
 --
--- Name: accounts_type_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: accounts_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX accounts_company_idx ON public.accounts USING btree (company_id);
+
+
+--
+-- Name: accounts_type_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX accounts_type_idx ON public.accounts USING btree (type);
 
 
 --
--- Name: acct_txn_account_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: acct_txn_account_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX acct_txn_account_idx ON public.account_transactions USING btree (account_id);
 
 
 --
--- Name: acct_txn_created_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: acct_txn_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX acct_txn_company_idx ON public.account_transactions USING btree (company_id);
+
+
+--
+-- Name: acct_txn_created_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX acct_txn_created_idx ON public.account_transactions USING btree (created_at);
 
 
 --
--- Name: acct_txn_direction_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: acct_txn_direction_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX acct_txn_direction_idx ON public.account_transactions USING btree (direction);
 
 
 --
--- Name: audit_log_action_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: app_settings_company_key_uq; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX app_settings_company_key_uq ON public.app_settings USING btree (company_id, key);
+
+
+--
+-- Name: audit_log_action_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX audit_log_action_idx ON public.audit_log USING btree (action);
 
 
 --
--- Name: audit_log_user_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: audit_log_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX audit_log_company_idx ON public.audit_log USING btree (company_id);
+
+
+--
+-- Name: audit_log_user_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX audit_log_user_idx ON public.audit_log USING btree (user_id);
 
 
 --
--- Name: bom_items_bom_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: bom_items_bom_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX bom_items_bom_idx ON public.bom_items USING btree (bom_id);
 
 
 --
--- Name: customer_order_items_order_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: bom_items_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX bom_items_company_idx ON public.bom_items USING btree (company_id);
+
+
+--
+-- Name: boms_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX boms_company_idx ON public.boms USING btree (company_id);
+
+
+--
+-- Name: capital_snapshots_company_date_uq; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX capital_snapshots_company_date_uq ON public.capital_snapshots USING btree (company_id, snapshot_date);
+
+
+--
+-- Name: customer_order_items_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX customer_order_items_company_idx ON public.customer_order_items USING btree (company_id);
+
+
+--
+-- Name: customer_order_items_order_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX customer_order_items_order_idx ON public.customer_order_items USING btree (order_id);
 
 
 --
--- Name: customer_orders_status_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: customer_orders_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX customer_orders_company_idx ON public.customer_orders USING btree (company_id);
+
+
+--
+-- Name: customer_orders_status_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX customer_orders_status_idx ON public.customer_orders USING btree (status);
 
 
 --
--- Name: customer_orders_user_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: customer_orders_user_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX customer_orders_user_idx ON public.customer_orders USING btree (user_id);
 
 
 --
--- Name: entities_mobile_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: entities_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX entities_company_idx ON public.entities USING btree (company_id);
+
+
+--
+-- Name: entities_mobile_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX entities_mobile_idx ON public.entities USING btree (mobile);
 
 
 --
--- Name: entities_type_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: entities_type_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX entities_type_idx ON public.entities USING btree (type);
 
 
 --
--- Name: expense_categories_name_uq; Type: INDEX; Schema: public; Owner: -
+-- Name: expense_categories_company_name_uq; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE UNIQUE INDEX expense_categories_name_uq ON public.expense_categories USING btree (name);
+CREATE UNIQUE INDEX expense_categories_company_name_uq ON public.expense_categories USING btree (company_id, name);
 
 
 --
--- Name: expenses_category_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: expenses_category_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX expenses_category_idx ON public.expenses USING btree (category_id);
 
 
 --
--- Name: expenses_date_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: expenses_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX expenses_company_idx ON public.expenses USING btree (company_id);
+
+
+--
+-- Name: expenses_date_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX expenses_date_idx ON public.expenses USING btree (date);
 
 
 --
--- Name: invoice_items_invoice_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: invoice_items_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX invoice_items_company_idx ON public.invoice_items USING btree (company_id);
+
+
+--
+-- Name: invoice_items_invoice_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX invoice_items_invoice_idx ON public.invoice_items USING btree (invoice_id);
 
 
 --
--- Name: invoices_customer_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: invoices_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX invoices_company_idx ON public.invoices USING btree (company_id);
+
+
+--
+-- Name: invoices_customer_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX invoices_customer_idx ON public.invoices USING btree (customer_id);
 
 
 --
--- Name: invoices_date_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: invoices_date_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX invoices_date_idx ON public.invoices USING btree (invoice_date);
 
 
 --
--- Name: invoices_salesman_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: invoices_salesman_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX invoices_salesman_idx ON public.invoices USING btree (salesman_id);
 
 
 --
--- Name: ledger_entity_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: ledger_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX ledger_company_idx ON public.ledger_entries USING btree (company_id);
+
+
+--
+-- Name: ledger_entity_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX ledger_entity_idx ON public.ledger_entries USING btree (entity_id);
 
 
 --
--- Name: payments_customer_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: number_series_company_type_uq; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX number_series_company_type_uq ON public.number_series USING btree (company_id, series_type);
+
+
+--
+-- Name: payments_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX payments_company_idx ON public.payments USING btree (company_id);
+
+
+--
+-- Name: payments_customer_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX payments_customer_idx ON public.payments USING btree (customer_id);
 
 
 --
--- Name: payments_status_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: payments_status_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX payments_status_idx ON public.payments USING btree (status);
 
 
 --
--- Name: products_brand_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: print_settings_company_uq; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX print_settings_company_uq ON public.print_settings USING btree (company_id);
+
+
+--
+-- Name: products_brand_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX products_brand_idx ON public.products USING btree (brand);
 
 
 --
--- Name: products_deleted_at_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: products_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX products_company_idx ON public.products USING btree (company_id);
+
+
+--
+-- Name: products_company_item_code_uq; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX products_company_item_code_uq ON public.products USING btree (company_id, item_code);
+
+
+--
+-- Name: products_deleted_at_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX products_deleted_at_idx ON public.products USING btree (deleted_at);
 
 
 --
--- Name: products_group_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: products_group_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX products_group_idx ON public.products USING btree ("group");
 
 
 --
--- Name: purchase_items_purchase_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: purchase_items_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX purchase_items_company_idx ON public.purchase_items USING btree (company_id);
+
+
+--
+-- Name: purchase_items_purchase_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX purchase_items_purchase_idx ON public.purchase_items USING btree (purchase_id);
 
 
 --
--- Name: purchases_date_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: purchases_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX purchases_company_idx ON public.purchases USING btree (company_id);
+
+
+--
+-- Name: purchases_date_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX purchases_date_idx ON public.purchases USING btree (bill_date);
 
 
 --
--- Name: purchases_vendor_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: purchases_vendor_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX purchases_vendor_idx ON public.purchases USING btree (vendor_id);
 
 
 --
--- Name: reward_progress_scheme_customer_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: reward_progress_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX reward_progress_company_idx ON public.reward_progress USING btree (company_id);
+
+
+--
+-- Name: reward_progress_scheme_customer_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX reward_progress_scheme_customer_idx ON public.reward_progress USING btree (scheme_id, customer_id);
 
 
 --
--- Name: stock_movements_product_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: reward_schemes_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX reward_schemes_company_idx ON public.reward_schemes USING btree (company_id);
+
+
+--
+-- Name: role_permissions_company_role_feature_uq; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX role_permissions_company_role_feature_uq ON public.role_permissions USING btree (company_id, role, feature);
+
+
+--
+-- Name: stock_movements_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX stock_movements_company_idx ON public.stock_movements USING btree (company_id);
+
+
+--
+-- Name: stock_movements_product_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX stock_movements_product_idx ON public.stock_movements USING btree (product_id);
 
 
 --
--- Name: worker_attendance_date_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: subscription_alert_sub_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX subscription_alert_sub_idx ON public.subscription_alerts USING btree (subscription_id);
+
+
+--
+-- Name: subscription_alert_type_unique; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX subscription_alert_type_unique ON public.subscription_alerts USING btree (subscription_id, alert_type);
+
+
+--
+-- Name: subscription_company_unique; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX subscription_company_unique ON public.subscriptions USING btree (company_id);
+
+
+--
+-- Name: users_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX users_company_idx ON public.users USING btree (company_id);
+
+
+--
+-- Name: worker_attendance_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX worker_attendance_company_idx ON public.worker_attendance USING btree (company_id);
+
+
+--
+-- Name: worker_attendance_date_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX worker_attendance_date_idx ON public.worker_attendance USING btree (date);
 
 
 --
--- Name: worker_attendance_worker_date_uq; Type: INDEX; Schema: public; Owner: -
+-- Name: worker_attendance_worker_date_uq; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE UNIQUE INDEX worker_attendance_worker_date_uq ON public.worker_attendance USING btree (worker_id, date);
 
 
 --
--- Name: worker_payments_paid_on_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: worker_payments_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX worker_payments_company_idx ON public.worker_payments USING btree (company_id);
+
+
+--
+-- Name: worker_payments_paid_on_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX worker_payments_paid_on_idx ON public.worker_payments USING btree (paid_on);
 
 
 --
--- Name: worker_payments_worker_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: worker_payments_worker_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX worker_payments_worker_idx ON public.worker_payments USING btree (worker_id);
 
 
 --
--- Name: workers_active_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: workers_active_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX workers_active_idx ON public.workers USING btree (is_active);
 
 
 --
--- Name: workload_status_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: workers_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX workers_company_idx ON public.workers USING btree (company_id);
+
+
+--
+-- Name: workload_company_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX workload_company_idx ON public.workload_cards USING btree (company_id);
+
+
+--
+-- Name: workload_status_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX workload_status_idx ON public.workload_cards USING btree (status);
 
 
 --
--- Name: account_transactions account_transactions_account_id_accounts_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: account_transactions account_transactions_account_id_accounts_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.account_transactions
@@ -1946,7 +2641,7 @@ ALTER TABLE ONLY public.account_transactions
 
 
 --
--- Name: bom_items bom_items_bom_id_boms_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: bom_items bom_items_bom_id_boms_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.bom_items
@@ -1954,7 +2649,7 @@ ALTER TABLE ONLY public.bom_items
 
 
 --
--- Name: bom_items bom_items_material_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: bom_items bom_items_material_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.bom_items
@@ -1962,7 +2657,7 @@ ALTER TABLE ONLY public.bom_items
 
 
 --
--- Name: boms boms_finished_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: boms boms_finished_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.boms
@@ -1970,7 +2665,7 @@ ALTER TABLE ONLY public.boms
 
 
 --
--- Name: customer_order_items customer_order_items_order_id_customer_orders_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: customer_order_items customer_order_items_order_id_customer_orders_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.customer_order_items
@@ -1978,7 +2673,7 @@ ALTER TABLE ONLY public.customer_order_items
 
 
 --
--- Name: expenses expenses_category_id_expense_categories_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: expenses expenses_category_id_expense_categories_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.expenses
@@ -1986,7 +2681,7 @@ ALTER TABLE ONLY public.expenses
 
 
 --
--- Name: invoice_items invoice_items_invoice_id_invoices_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: invoice_items invoice_items_invoice_id_invoices_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoice_items
@@ -1994,7 +2689,7 @@ ALTER TABLE ONLY public.invoice_items
 
 
 --
--- Name: invoice_items invoice_items_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: invoice_items invoice_items_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoice_items
@@ -2002,7 +2697,7 @@ ALTER TABLE ONLY public.invoice_items
 
 
 --
--- Name: invoices invoices_customer_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: invoices invoices_customer_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.invoices
@@ -2010,7 +2705,7 @@ ALTER TABLE ONLY public.invoices
 
 
 --
--- Name: ledger_entries ledger_entries_entity_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ledger_entries ledger_entries_entity_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.ledger_entries
@@ -2018,7 +2713,7 @@ ALTER TABLE ONLY public.ledger_entries
 
 
 --
--- Name: payments payments_customer_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: payments payments_customer_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.payments
@@ -2026,7 +2721,7 @@ ALTER TABLE ONLY public.payments
 
 
 --
--- Name: purchase_items purchase_items_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: purchase_items purchase_items_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_items
@@ -2034,7 +2729,7 @@ ALTER TABLE ONLY public.purchase_items
 
 
 --
--- Name: purchase_items purchase_items_purchase_id_purchases_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: purchase_items purchase_items_purchase_id_purchases_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchase_items
@@ -2042,7 +2737,7 @@ ALTER TABLE ONLY public.purchase_items
 
 
 --
--- Name: purchases purchases_vendor_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: purchases purchases_vendor_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.purchases
@@ -2050,7 +2745,7 @@ ALTER TABLE ONLY public.purchases
 
 
 --
--- Name: reward_progress reward_progress_customer_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: reward_progress reward_progress_customer_id_entities_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.reward_progress
@@ -2058,7 +2753,7 @@ ALTER TABLE ONLY public.reward_progress
 
 
 --
--- Name: reward_progress reward_progress_scheme_id_reward_schemes_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: reward_progress reward_progress_scheme_id_reward_schemes_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.reward_progress
@@ -2066,7 +2761,7 @@ ALTER TABLE ONLY public.reward_progress
 
 
 --
--- Name: reward_schemes reward_schemes_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: reward_schemes reward_schemes_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.reward_schemes
@@ -2074,7 +2769,7 @@ ALTER TABLE ONLY public.reward_schemes
 
 
 --
--- Name: stock_movements stock_movements_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: stock_movements stock_movements_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.stock_movements
@@ -2082,7 +2777,7 @@ ALTER TABLE ONLY public.stock_movements
 
 
 --
--- Name: worker_attendance worker_attendance_worker_id_workers_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: worker_attendance worker_attendance_worker_id_workers_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.worker_attendance
@@ -2090,7 +2785,7 @@ ALTER TABLE ONLY public.worker_attendance
 
 
 --
--- Name: worker_payments worker_payments_worker_id_workers_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: worker_payments worker_payments_worker_id_workers_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.worker_payments
@@ -2098,7 +2793,7 @@ ALTER TABLE ONLY public.worker_payments
 
 
 --
--- Name: workload_cards workload_cards_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: workload_cards workload_cards_product_id_products_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.workload_cards
@@ -2109,84 +2804,5 @@ ALTER TABLE ONLY public.workload_cards
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 2P7W0ZsnQ0vcLzRhLbTMvcDGEkeDiz5ElEbeJwrLW1bMBxlLAylc2WaeMA9p2NX
+\unrestrict Bj3OfosX12qBer5YTf1v0vlzSz5g5fP926wRz1OKKr5jUhXX6KMZ4lT0p0FU0nS
 
-
---
--- SaaS Subscription Management module tables
---
-
-CREATE TABLE IF NOT EXISTS public.companies (
-    id SERIAL PRIMARY KEY,
-    name text NOT NULL,
-    owner_name text,
-    mobile text,
-    email text,
-    logo text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.subscriptions (
-    id SERIAL PRIMARY KEY,
-    company_id integer NOT NULL,
-    plan_name text NOT NULL,
-    subscription_start_date timestamp with time zone NOT NULL,
-    subscription_end_date timestamp with time zone NOT NULL,
-    subscription_amount numeric(12,2) DEFAULT '0'::numeric NOT NULL,
-    payment_status text DEFAULT 'pending'::text NOT NULL,
-    subscription_status text DEFAULT 'active'::text NOT NULL,
-    last_payment_date timestamp with time zone,
-    next_due_date timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS subscription_company_unique ON public.subscriptions (company_id);
-
-CREATE TABLE IF NOT EXISTS public.subscription_alerts (
-    id SERIAL PRIMARY KEY,
-    company_id integer NOT NULL,
-    subscription_id integer NOT NULL,
-    alert_type text NOT NULL,
-    message text NOT NULL,
-    days_remaining integer DEFAULT 0 NOT NULL,
-    is_read boolean DEFAULT false NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-CREATE INDEX IF NOT EXISTS subscription_alert_sub_idx ON public.subscription_alerts (subscription_id);
-CREATE UNIQUE INDEX IF NOT EXISTS subscription_alert_type_unique ON public.subscription_alerts (subscription_id, alert_type);
-
-CREATE TABLE IF NOT EXISTS public.app_settings (
-    key text PRIMARY KEY,
-    value text,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.number_series (
-    series_type text PRIMARY KEY,
-    prefix text DEFAULT '' NOT NULL,
-    include_year boolean DEFAULT true NOT NULL,
-    include_month boolean DEFAULT true NOT NULL,
-    year_format text DEFAULT 'calendar'::text NOT NULL,
-    separator text DEFAULT '/'::text NOT NULL,
-    padding integer DEFAULT 0 NOT NULL,
-    start_number integer DEFAULT 1 NOT NULL,
-    next_number integer DEFAULT 1 NOT NULL,
-    reset_rule text DEFAULT 'monthly'::text NOT NULL,
-    period_key text,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
--- Default admin user (plaintext password by current app design: plain === hash)
-INSERT INTO public.users (username, password_hash, role, name, is_active)
-VALUES ('admin', 'admin123', 'admin', 'Administrator', true)
-ON CONFLICT (username) DO NOTHING;
-
-CREATE TABLE IF NOT EXISTS public.print_settings (
-    id serial PRIMARY KEY,
-    company_id integer NOT NULL,
-    config jsonb DEFAULT '{}'::jsonb NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS print_settings_company_uq ON public.print_settings (company_id);
