@@ -66,6 +66,21 @@ paths:
         "403":
           description: Super admin access required
 
+  /system/companies-public:
+    get:
+      operationId: getPublicCompanies
+      tags: [system]
+      summary: List tenant companies for the login screen company switcher (public)
+      responses:
+        "200":
+          description: Companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompanyOption"
+
   /system/active-company:
     post:
       operationId: setActiveCompany

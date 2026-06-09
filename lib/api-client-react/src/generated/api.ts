@@ -382,6 +382,83 @@ export function useGetCompanies<TData = Awaited<ReturnType<typeof getCompanies>>
 
 
 
+export const getGetPublicCompaniesUrl = () => {
+
+
+
+
+  return `/api/system/companies-public`
+}
+
+/**
+ * @summary List tenant companies for the login screen company switcher (public)
+ */
+export const getPublicCompanies = async ( options?: RequestInit): Promise<CompanyOption[]> => {
+
+  return customFetch<CompanyOption[]>(getGetPublicCompaniesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicCompaniesQueryKey = () => {
+    return [
+    `/api/system/companies-public`
+    ] as const;
+    }
+
+
+export const getGetPublicCompaniesQueryOptions = <TData = Awaited<ReturnType<typeof getPublicCompanies>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicCompanies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicCompaniesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicCompanies>>> = ({ signal }) => getPublicCompanies({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicCompanies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicCompaniesQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicCompanies>>>
+export type GetPublicCompaniesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List tenant companies for the login screen company switcher (public)
+ */
+
+export function useGetPublicCompanies<TData = Awaited<ReturnType<typeof getPublicCompanies>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicCompanies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicCompaniesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getSetActiveCompanyUrl = () => {
 
 

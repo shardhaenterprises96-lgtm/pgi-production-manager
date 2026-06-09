@@ -29,6 +29,19 @@ router.get("/system/config", async (_req, res): Promise<void> => {
   res.json({ multiCompanyMode, company });
 });
 
+// GET /system/companies-public — PUBLIC (no auth). Lists tenant companies for
+// the login screen's hidden company switcher. Exposes only id/name/logo (no
+// sensitive data). Access control still lives in the login handler + tenant
+// middleware; this only powers the pre-auth picker.
+router.get("/system/companies-public", async (_req, res): Promise<void> => {
+  res.set("Cache-Control", "no-store");
+  const rows = await db
+    .select({ id: companiesTable.id, name: companiesTable.name, logo: companiesTable.logo })
+    .from(companiesTable)
+    .orderBy(asc(companiesTable.name));
+  res.json(rows.map((r) => ({ id: r.id, name: r.name, logo: r.logo ?? null })));
+});
+
 // GET /system/companies — super_admin only. Lists every tenant company so the
 // platform operator can pick which one to switch into. Regular users never call
 // this; they are locked to their own company.

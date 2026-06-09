@@ -41,6 +41,17 @@ export const GetCompaniesResponse = zod.array(GetCompaniesResponseItem)
 
 
 /**
+ * @summary List tenant companies for the login screen company switcher (public)
+ */
+export const GetPublicCompaniesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "logo": zod.string().nullish()
+})
+export const GetPublicCompaniesResponse = zod.array(GetPublicCompaniesResponseItem)
+
+
+/**
  * @summary Switch the super_admin into a company (super_admin only)
  */
 export const SetActiveCompanyBody = zod.object({
