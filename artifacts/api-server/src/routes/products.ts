@@ -85,7 +85,7 @@ router.post("/products", async (req, res): Promise<void> => {
     .values({
       ...data,
       companyId,
-      purchasePrice: String(data.purchasePrice),
+      purchasePrice: String(data.purchasePrice ?? 0),
       retailPrice: String(retailPrice),
       wholesalePrice: String(wholesalePrice),
       mrp: String(data.mrp),

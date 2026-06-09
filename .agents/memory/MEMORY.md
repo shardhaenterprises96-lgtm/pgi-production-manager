@@ -1,4 +1,5 @@
 - [Auth identity caching](auth-identity-caching.md) — /auth responses must send no-store; proxies otherwise cache one user's identity for another.
+- [Session cookie payload evolution](session-cookie-payload-evolution.md) — adding a session field breaks old cookies; /auth/me must re-stamp req.session from DB so stale sessions self-heal.
 - [Production single-container routing](production-single-container-routing.md) — non-Replit deploys run only the API server; it must serve /api AND the SPA in strict middleware order.
 - [Order lifecycle authorization](order-lifecycle-authorization.md) — customer_order status PATCH must validate from→to per role (not target-set); guard workload-card creation against terminal states.
 - [Base64 image storage](base64-image-storage.md) — uploaded images stored as base64 data URLs in text columns (no object storage/disk); validate mime+size server-side.

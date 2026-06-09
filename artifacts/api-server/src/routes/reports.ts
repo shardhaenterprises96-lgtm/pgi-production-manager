@@ -154,11 +154,11 @@ router.get("/reports/sales/customer-wise", async (req, res): Promise<void> => {
   const search = String((req.query as any).search ?? "").trim();
 
   const params: any[] = [companyId];
-  const where: string[] = [`i.company_id = $1`, `status = 'saved'`];
-  if (from) { params.push(new Date(from)); where.push(`invoice_date >= $${params.length}`); }
-  if (to) { const d = new Date(to); d.setHours(23,59,59,999); params.push(d); where.push(`invoice_date <= $${params.length}`); }
-  if (type === "gst" || type === "non_gst") { params.push(type); where.push(`invoice_type = $${params.length}`); }
-  if (search) { params.push(`%${search}%`); where.push(`COALESCE(customer_name,'') ILIKE $${params.length}`); }
+  const where: string[] = [`i.company_id = $1`, `i.status = 'saved'`];
+  if (from) { params.push(new Date(from)); where.push(`i.invoice_date >= $${params.length}`); }
+  if (to) { const d = new Date(to); d.setHours(23,59,59,999); params.push(d); where.push(`i.invoice_date <= $${params.length}`); }
+  if (type === "gst" || type === "non_gst") { params.push(type); where.push(`i.invoice_type = $${params.length}`); }
+  if (search) { params.push(`%${search}%`); where.push(`COALESCE(i.customer_name,'') ILIKE $${params.length}`); }
 
   const rows = await queryMany(
     `SELECT i.customer_id,

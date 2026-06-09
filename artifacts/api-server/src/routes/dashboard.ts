@@ -342,8 +342,8 @@ router.get("/search", async (req, res): Promise<void> => {
     return;
   }
 
-  const pattern = `%${q}%`;
   const companyId = getCompanyId(req);
+  const pattern = `%${q}%`;
 
   const [products, entities, invoices] = await Promise.all([
     db.select().from(productsTable).where(
@@ -362,9 +362,9 @@ router.get("/search", async (req, res): Promise<void> => {
     queryMany(
       `SELECT id, invoice_no, invoice_date, customer_name, grand_total, status
        FROM invoices
-       WHERE company_id = $2 AND (invoice_no ILIKE $1 OR customer_name ILIKE $1)
+       WHERE company_id = $1 AND (invoice_no ILIKE $2 OR customer_name ILIKE $2)
        ORDER BY created_at DESC LIMIT 5`,
-      [pattern, companyId]
+      [companyId, pattern]
     ),
   ]);
 

@@ -163,6 +163,19 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
 
+  // Re-stamp the session cookie from the current DB record. Sessions issued
+  // before `companyId` (or other fields) were added to the payload would
+  // otherwise stay stale forever and trip getCompanyId() with a 403 on every
+  // data route. Refreshing here lets a stale session self-heal on page load.
+  (req as any).session = {
+    userId: user.id,
+    username: user.username,
+    role: user.role,
+    name: user.name,
+    entityId: user.entityId ?? null,
+    companyId: user.companyId ?? null,
+  };
+
   res.json({
     id: user.id,
     username: user.username,

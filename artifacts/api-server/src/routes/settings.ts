@@ -105,7 +105,7 @@ router.get("/settings", async (req, res): Promise<void> => {
     return;
   }
   const companyId = getCompanyId(req);
-  const r = await pool.query(`SELECT value FROM app_settings WHERE key = $1 AND company_id = $2`, [DEFAULT_TEMPLATE_KEY, companyId]);
+  const r = await pool.query(`SELECT value FROM app_settings WHERE company_id = $1 AND key = $2`, [companyId, DEFAULT_TEMPLATE_KEY]);
   res.json({ defaultInvoiceTemplate: r.rows[0]?.value ?? null });
 });
 
@@ -125,18 +125,18 @@ router.put("/settings", requireAdmin, async (req, res): Promise<void> => {
       [companyId, DEFAULT_TEMPLATE_KEY, parsed.data.defaultInvoiceTemplate],
     );
     await pool.query(
-      `INSERT INTO audit_log (action, description, user_id, user_name, metadata, company_id)
-       VALUES ('settings_updated', $1, $2, $3, $4, $5)`,
+      `INSERT INTO audit_log (company_id, action, description, user_id, user_name, metadata)
+       VALUES ($1, 'settings_updated', $2, $3, $4, $5)`,
       [
+        companyId,
         `Default invoice template set to ${parsed.data.defaultInvoiceTemplate}`,
         session?.userId ?? 1,
         session?.name ?? "Unknown",
         JSON.stringify({ defaultInvoiceTemplate: parsed.data.defaultInvoiceTemplate }),
-        companyId,
       ],
     );
   }
-  const r = await pool.query(`SELECT value FROM app_settings WHERE key = $1 AND company_id = $2`, [DEFAULT_TEMPLATE_KEY, companyId]);
+  const r = await pool.query(`SELECT value FROM app_settings WHERE company_id = $1 AND key = $2`, [companyId, DEFAULT_TEMPLATE_KEY]);
   res.json({ defaultInvoiceTemplate: r.rows[0]?.value ?? null });
 });
 
@@ -177,14 +177,14 @@ router.put("/print-settings", requireAdmin, async (req, res): Promise<void> => {
     [companyId, JSON.stringify(merged)],
   );
   await pool.query(
-    `INSERT INTO audit_log (action, description, user_id, user_name, metadata, company_id)
-     VALUES ('print_settings_updated', $1, $2, $3, $4, $5)`,
+    `INSERT INTO audit_log (company_id, action, description, user_id, user_name, metadata)
+     VALUES ($1, 'print_settings_updated', $2, $3, $4, $5)`,
     [
+      companyId,
       "Invoice print settings updated",
       session?.userId ?? 1,
       session?.name ?? "Unknown",
       JSON.stringify(parsed.data),
-      companyId,
     ],
   );
 
@@ -251,18 +251,18 @@ router.put("/number-series/:seriesType", requireAdmin, async (req, res): Promise
   );
 
   await pool.query(
-    `INSERT INTO audit_log (action, description, user_id, user_name, metadata, company_id)
-     VALUES ('number_series_updated', $1, $2, $3, $4, $5)`,
+    `INSERT INTO audit_log (company_id, action, description, user_id, user_name, metadata)
+     VALUES ($1, 'number_series_updated', $2, $3, $4, $5)`,
     [
+      companyId,
       `Number series '${seriesType}' updated`,
       session?.userId ?? 1,
       session?.name ?? "Unknown",
       JSON.stringify(b),
-      companyId,
     ],
   );
 
-  const r = await pool.query(`SELECT * FROM number_series WHERE series_type = $1 AND company_id = $2`, [seriesType, companyId]);
+  const r = await pool.query(`SELECT * FROM number_series WHERE company_id = $1 AND series_type = $2`, [companyId, seriesType]);
   res.json(mapSeries(r.rows[0]));
 });
 

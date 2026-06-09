@@ -110,7 +110,7 @@ router.post("/entities", async (req, res): Promise<void> => {
       companyId,
       name,
       pricingTier,
-      creditLimit: parsed.data.creditLimit != null ? String(parsed.data.creditLimit) : undefined,
+      creditLimit: parsed.data.creditLimit != null ? String(parsed.data.creditLimit) : null,
     })
     .returning();
 

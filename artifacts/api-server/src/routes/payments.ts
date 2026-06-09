@@ -30,9 +30,11 @@ router.get("/payments", async (req, res): Promise<void> => {
   if (params.data.customerId) conditions.push(eq(paymentsTable.customerId, params.data.customerId));
   if (params.data.status) conditions.push(eq(paymentsTable.status, params.data.status));
 
-  const payments = conditions.length > 0
-    ? await db.select().from(paymentsTable).where(and(...conditions)).orderBy(sql`${paymentsTable.createdAt} DESC`)
-    : await db.select().from(paymentsTable).orderBy(sql`${paymentsTable.createdAt} DESC`);
+  const payments = await db
+    .select()
+    .from(paymentsTable)
+    .where(and(...conditions))
+    .orderBy(sql`${paymentsTable.createdAt} DESC`);
 
   res.json(payments.map(formatPayment));
 });
@@ -57,7 +59,10 @@ router.post("/payments", async (req, res): Promise<void> => {
   let customer;
   let customerId: number;
   if (parsed.data.customerId) {
-    [customer] = await db.select().from(entitiesTable).where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, parsed.data.customerId)));
+    [customer] = await db
+      .select()
+      .from(entitiesTable)
+      .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, parsed.data.customerId)));
     if (!customer) {
       res.status(404).json({ error: "Customer not found" });
       return;
@@ -66,20 +71,24 @@ router.post("/payments", async (req, res): Promise<void> => {
   } else {
     const lockClient = await pool.connect();
     try {
-      await lockClient.query("SELECT pg_advisory_lock($1)", [WALKIN_LOCK_KEY]);
+      await lockClient.query("SELECT pg_advisory_lock($1, $2)", [WALKIN_LOCK_KEY, companyId]);
       [customer] = await db
         .select()
         .from(entitiesTable)
-        .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.type, "customer"), eq(entitiesTable.name, "Walk-in Customer")));
+        .where(and(
+          eq(entitiesTable.companyId, companyId),
+          eq(entitiesTable.type, "customer"),
+          eq(entitiesTable.name, "Walk-in Customer"),
+        ));
       if (!customer) {
         [customer] = await db
           .insert(entitiesTable)
-          .values({ type: "customer", name: "Walk-in Customer", mobile: "0000000000", companyId })
+          .values({ companyId, type: "customer", name: "Walk-in Customer", mobile: "0000000000" })
           .returning();
       }
       customerId = customer.id;
     } finally {
-      try { await lockClient.query("SELECT pg_advisory_unlock($1)", [WALKIN_LOCK_KEY]); } catch {}
+      try { await lockClient.query("SELECT pg_advisory_unlock($1, $2)", [WALKIN_LOCK_KEY, companyId]); } catch {}
       lockClient.release();
     }
   }
@@ -93,6 +102,7 @@ router.post("/payments", async (req, res): Promise<void> => {
       await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
       const [payment] = await db.insert(paymentsTable).values({
+        companyId,
         receiptId,
         customerId,
         customerName: customer.name,
@@ -107,7 +117,6 @@ router.post("/payments", async (req, res): Promise<void> => {
         accountId: parsed.data.accountId ?? null,
         collectedAt: parsed.data.accountId ? new Date() : null,
         collectedById: parsed.data.accountId ? session.userId : null,
-        companyId,
       }).returning();
 
       // If deposited directly to an account, verify it exists & is active, then bump its balance
@@ -136,9 +145,9 @@ router.post("/payments", async (req, res): Promise<void> => {
       const newBal = balResult.rows[0].outstanding_balance;
 
       await client.query(
-        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
-         VALUES ($1, NOW(), $2, 0, $3, $4, 'payment', $5, $6, $7)`,
-        [customerId, `Payment received (${parsed.data.mode})`, parsed.data.amount, newBal, payment.id, receiptId, companyId]
+        `INSERT INTO ledger_entries (company_id, entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
+         VALUES ($1, $2, NOW(), $3, 0, $4, $5, 'payment', $6, $7)`,
+        [companyId, customerId, `Payment received (${parsed.data.mode})`, parsed.data.amount, newBal, payment.id, receiptId]
       );
 
       await client.query("COMMIT");
@@ -153,6 +162,7 @@ router.post("/payments", async (req, res): Promise<void> => {
   } else {
     // Salesman entry - goes to escrow (pending)
     const [payment] = await db.insert(paymentsTable).values({
+      companyId,
       receiptId,
       customerId,
       customerName: customer.name,
@@ -162,7 +172,6 @@ router.post("/payments", async (req, res): Promise<void> => {
       mode: parsed.data.mode,
       status: "pending",
       notes: parsed.data.notes ?? null,
-      companyId,
     }).returning();
 
     res.status(201).json(formatPayment(payment));
@@ -179,7 +188,10 @@ router.post("/payments/:id/approve", async (req, res): Promise<void> => {
 
   const companyId = getCompanyId(req);
   const session = (req as any).session;
-  const [payment] = await db.select().from(paymentsTable).where(and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.id, params.data.id)));
+  const [payment] = await db
+    .select()
+    .from(paymentsTable)
+    .where(and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.id, params.data.id)));
 
   if (!payment) {
     res.status(404).json({ error: "Payment not found" });
@@ -213,9 +225,9 @@ router.post("/payments/:id/approve", async (req, res): Promise<void> => {
     const newBal = balResult.rows[0].outstanding_balance;
 
     await client.query(
-      `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
-       VALUES ($1, NOW(), $2, 0, $3, $4, 'payment', $5, $6, $7)`,
-      [payment.customerId, `Payment received - Approved (${payment.mode})`, payment.amount, newBal, payment.id, payment.receiptId, companyId]
+      `INSERT INTO ledger_entries (company_id, entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
+       VALUES ($1, $2, NOW(), $3, 0, $4, $5, 'payment', $6, $7)`,
+      [companyId, payment.customerId, `Payment received - Approved (${payment.mode})`, payment.amount, newBal, payment.id, payment.receiptId]
     );
 
     await client.query("COMMIT");

@@ -178,7 +178,10 @@ router.delete("/workers/:id", async (req, res): Promise<void> => {
     return;
   }
   const companyId = getCompanyId(req);
-  await db.update(workersTable).set({ isActive: false }).where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, params.data.id)));
+  await db
+    .update(workersTable)
+    .set({ isActive: false })
+    .where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, params.data.id)));
   res.sendStatus(204);
 });
 
@@ -190,9 +193,12 @@ router.get("/workers/:id/ledger", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const workerId = params.data.id;
   const companyId = getCompanyId(req);
-  const [worker] = await db.select().from(workersTable).where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, workerId)));
+  const workerId = params.data.id;
+  const [worker] = await db
+    .select()
+    .from(workersTable)
+    .where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, workerId)));
   if (!worker) {
     res.status(404).json({ error: "Worker not found" });
     return;
@@ -291,7 +297,10 @@ router.post("/worker-attendance", async (req, res): Promise<void> => {
     return;
   }
   const companyId = getCompanyId(req);
-  const [worker] = await db.select().from(workersTable).where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, parsed.data.workerId)));
+  const [worker] = await db
+    .select()
+    .from(workersTable)
+    .where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, parsed.data.workerId)));
   if (!worker) {
     res.status(404).json({ error: "Worker not found" });
     return;
@@ -330,7 +339,10 @@ router.post("/worker-payments", async (req, res): Promise<void> => {
     return;
   }
   const companyId = getCompanyId(req);
-  const [worker] = await db.select().from(workersTable).where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, parsed.data.workerId)));
+  const [worker] = await db
+    .select()
+    .from(workersTable)
+    .where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, parsed.data.workerId)));
   if (!worker) {
     res.status(404).json({ error: "Worker not found" });
     return;

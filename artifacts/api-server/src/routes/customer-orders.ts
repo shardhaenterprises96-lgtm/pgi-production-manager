@@ -158,10 +158,10 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
         : "pending";
     const ins = await client.query(
       `INSERT INTO customer_orders
-         (user_id, entity_id, customer_name, customer_mobile, status, is_draft, total_items, total_amount, notes, company_id)
+         (company_id, user_id, entity_id, customer_name, customer_mobile, status, is_draft, total_items, total_amount, notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
-      [session.userId, entityId, customerName, customerMobile, initialStatus, isDraft, totalItems, totalAmount, body.notes ?? null, companyId]
+      [companyId, session.userId, entityId, customerName, customerMobile, initialStatus, isDraft, totalItems, totalAmount, body.notes ?? null]
     );
     const order = ins.rows[0];
 
@@ -176,19 +176,19 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     for (const it of resolvedItems) {
       const itemIns = await client.query(
         `INSERT INTO customer_order_items
-           (order_id, product_id, product_name, unit, qty, unit_price, line_total, company_id)
+           (company_id, order_id, product_id, product_name, unit, qty, unit_price, line_total)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING id`,
-        [order.id, it.productId, it.productName, it.unit, it.qty, it.unitPrice, it.lineTotal, companyId]
+        [companyId, order.id, it.productId, it.productName, it.unit, it.qty, it.unitPrice, it.lineTotal]
       );
       // Auto-create workload card for customer orders so manufacturing
       // sees the demand right away. Drafts never generate demand.
       if (!isDraft && PRODUCTION_STATUSES.has(initialStatus)) {
         const wlIns = await client.query(
-          `INSERT INTO workload_cards (product_id, target_qty, status, order_type, reference_order_id, company_id)
-           VALUES ($1, $2, 'pending', 'customer_backorder', $3, $4)
+          `INSERT INTO workload_cards (company_id, product_id, target_qty, status, order_type, reference_order_id)
+           VALUES ($1, $2, $3, 'pending', 'customer_backorder', $4)
            RETURNING id`,
-          [it.productId, it.qty, order.id, companyId]
+          [companyId, it.productId, it.qty, order.id]
         );
         await client.query(
           `UPDATE customer_order_items SET workload_card_id = $1 WHERE id = $2 AND company_id = $3`,
@@ -217,11 +217,8 @@ router.get("/customer-orders", async (req, res): Promise<void> => {
 
   const companyId = getCompanyId(req);
   const status = typeof req.query.status === "string" ? String(req.query.status) : null;
-  const params: any[] = [];
-  const where: string[] = [];
-
-  params.push(companyId);
-  where.push(`company_id = $${params.length}`);
+  const params: any[] = [companyId];
+  const where: string[] = [`company_id = $1`];
 
   if (session.role === "customer" || session.role === "salesman") {
     params.push(session.userId);
@@ -237,7 +234,7 @@ router.get("/customer-orders", async (req, res): Promise<void> => {
     where.push(`status = $${params.length}`);
   }
 
-  const sqlText = `SELECT * FROM customer_orders ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY created_at DESC LIMIT 200`;
+  const sqlText = `SELECT * FROM customer_orders WHERE ${where.join(" AND ")} ORDER BY created_at DESC LIMIT 200`;
   const result = await pool.query(sqlText, params);
   res.json(result.rows.map(formatOrder));
 });
@@ -382,10 +379,10 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
       for (const it of itemsRes.rows) {
         if (it.workload_card_id) continue;
         const ins = await client.query(
-          `INSERT INTO workload_cards (product_id, target_qty, status, order_type, reference_order_id, company_id)
-           VALUES ($1, $2, 'pending', 'customer_backorder', $3, $4)
+          `INSERT INTO workload_cards (company_id, product_id, target_qty, status, order_type, reference_order_id)
+           VALUES ($1, $2, $3, 'pending', 'customer_backorder', $4)
            RETURNING id`,
-          [it.product_id, it.qty, id, companyId]
+          [companyId, it.product_id, it.qty, id]
         );
         await client.query(
           `UPDATE customer_order_items SET workload_card_id = $1 WHERE id = $2 AND company_id = $3`,

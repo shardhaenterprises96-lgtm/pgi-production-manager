@@ -231,9 +231,10 @@ router.post("/invoices", async (req, res): Promise<void> => {
     // Insert items + deduct stock
     for (const item of processedItems) {
       await client.query(
-        `INSERT INTO invoice_items (invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount, company_id)
+        `INSERT INTO invoice_items (company_id, invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
         [
+          companyId,
           invRow.id,
           item.productId,
           (await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, item.productId))))[0]?.name ?? "Unknown",
@@ -250,15 +251,14 @@ router.post("/invoices", async (req, res): Promise<void> => {
           item.cessPct,
           item.netPrice,
           item.amount,
-          companyId,
         ]
       );
 
       // Stock movement (always via stock_movements)
       await client.query(
-        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
-         VALUES ($1, 'outward', $2, 'Invoice sale', $3, 'invoice', $4, $5)`,
-        [item.productId, item.qty, invRow.id, session?.userId ?? 1, companyId]
+        `INSERT INTO stock_movements (company_id, product_id, type, quantity, reason, reference_id, reference_type, user_id)
+         VALUES ($1, $2, 'outward', $3, 'Invoice sale', $4, 'invoice', $5)`,
+        [companyId, item.productId, item.qty, invRow.id, session?.userId ?? 1]
       );
 
       // Reduce product stock
@@ -282,17 +282,17 @@ router.post("/invoices", async (req, res): Promise<void> => {
       const newBal = balResult.rows[0].outstanding_balance;
 
       await client.query(
-        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
-         VALUES ($1, NOW(), $2, $3, 0, $4, 'invoice', $5, $6, $7)`,
-        [data.customerId, `Invoice ${invoiceNo}`, grandTotal, newBal, invRow.id, invoiceNo, companyId]
+        `INSERT INTO ledger_entries (company_id, entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
+         VALUES ($1, $2, NOW(), $3, $4, 0, $5, 'invoice', $6, $7)`,
+        [companyId, data.customerId, `Invoice ${invoiceNo}`, grandTotal, newBal, invRow.id, invoiceNo]
       );
     }
 
     await client.query("COMMIT");
 
     // Fetch with items
-    const [fullInv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invRow.id));
-    const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invRow.id));
+    const [fullInv] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.companyId, companyId), eq(invoicesTable.id, invRow.id)));
+    const items = await db.select().from(invoiceItemsTable).where(and(eq(invoiceItemsTable.companyId, companyId), eq(invoiceItemsTable.invoiceId, invRow.id)));
 
     res.status(201).json(formatInvoice(fullInv, items));
   } catch (err) {
@@ -331,7 +331,7 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
     }
   }
 
-  const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, params.data.id));
+  const items = await db.select().from(invoiceItemsTable).where(and(eq(invoiceItemsTable.companyId, companyId), eq(invoiceItemsTable.invoiceId, params.data.id)));
   res.json(formatInvoice(inv, items));
 });
 
@@ -389,7 +389,7 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
       .where(and(eq(invoicesTable.companyId, companyId), eq(invoicesTable.id, invoiceId)))
       .returning();
     if (!inv) { res.status(404).json({ error: "Invoice not found" }); return; }
-    const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, inv.id));
+    const items = await db.select().from(invoiceItemsTable).where(and(eq(invoiceItemsTable.companyId, companyId), eq(invoiceItemsTable.invoiceId, inv.id)));
     res.json(formatInvoice(inv, items));
     return;
   }
@@ -431,9 +431,9 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
     const oldItemsRes = await client.query(`SELECT * FROM invoice_items WHERE invoice_id = $1 AND company_id = $2`, [invoiceId, companyId]);
     for (const oi of oldItemsRes.rows) {
       await client.query(
-        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
-         VALUES ($1, 'inward', $2, $3, $4, 'invoice_edit_reversal', $5, $6)`,
-        [oi.product_id, oi.qty, `Invoice ${existing.invoice_no} edit — reverse old qty`, invoiceId, session?.userId ?? 1, companyId]
+        `INSERT INTO stock_movements (company_id, product_id, type, quantity, reason, reference_id, reference_type, user_id)
+         VALUES ($1, $2, 'inward', $3, $4, $5, 'invoice_edit_reversal', $6)`,
+        [companyId, oi.product_id, oi.qty, `Invoice ${existing.invoice_no} edit — reverse old qty`, invoiceId, session?.userId ?? 1]
       );
       await client.query(`UPDATE products SET current_stock = current_stock + $1 WHERE id = $2 AND company_id = $3`, [oi.qty, oi.product_id, companyId]);
     }
@@ -450,9 +450,9 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
       const balRes = await client.query(`SELECT outstanding_balance FROM entities WHERE id = $1 AND company_id = $2`, [oldCustomerId, companyId]);
       const newBal = balRes.rows[0]?.outstanding_balance ?? 0;
       await client.query(
-        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
-         VALUES ($1, NOW(), $2, 0, $3, $4, 'invoice_edit_reversal', $5, $6, $7)`,
-        [oldCustomerId, `Invoice ${existing.invoice_no} edited — reversal`, oldGrandTotal, newBal, invoiceId, existing.invoice_no, companyId]
+        `INSERT INTO ledger_entries (company_id, entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
+         VALUES ($1, $2, NOW(), $3, 0, $4, $5, 'invoice_edit_reversal', $6, $7)`,
+        [companyId, oldCustomerId, `Invoice ${existing.invoice_no} edited — reversal`, oldGrandTotal, newBal, invoiceId, existing.invoice_no]
       );
     }
 
@@ -562,14 +562,14 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
     for (const item of processedItems) {
       const prodName = (await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, item.productId))))[0]?.name ?? "Unknown";
       await client.query(
-        `INSERT INTO invoice_items (invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount, company_id)
+        `INSERT INTO invoice_items (company_id, invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
-        [invoiceId, item.productId, prodName, null, item.qty, item.qtyBoxesVal, item.totalLitersVal, item.unit, item.rate, item.mrp, item.discountPct, item.discountAmt, item.taxPct, item.cessPct, item.netPrice, item.amount, companyId]
+        [companyId, invoiceId, item.productId, prodName, null, item.qty, item.qtyBoxesVal, item.totalLitersVal, item.unit, item.rate, item.mrp, item.discountPct, item.discountAmt, item.taxPct, item.cessPct, item.netPrice, item.amount]
       );
       await client.query(
-        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
-         VALUES ($1, 'outward', $2, $3, $4, 'invoice_edit', $5, $6)`,
-        [item.productId, item.qty, `Invoice ${existing.invoice_no} edit — new qty`, invoiceId, session?.userId ?? 1, companyId]
+        `INSERT INTO stock_movements (company_id, product_id, type, quantity, reason, reference_id, reference_type, user_id)
+         VALUES ($1, $2, 'outward', $3, $4, $5, 'invoice_edit', $6)`,
+        [companyId, item.productId, item.qty, `Invoice ${existing.invoice_no} edit — new qty`, invoiceId, session?.userId ?? 1]
       );
       await client.query(`UPDATE products SET current_stock = current_stock - $1 WHERE id = $2 AND company_id = $3`, [item.qty, item.productId, companyId]);
     }
@@ -584,17 +584,18 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
       const balRes = await client.query(`SELECT outstanding_balance FROM entities WHERE id = $1 AND company_id = $2`, [newCustomerId, companyId]);
       const newBal = balRes.rows[0]?.outstanding_balance ?? 0;
       await client.query(
-        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
-         VALUES ($1, NOW(), $2, $3, 0, $4, 'invoice_edit', $5, $6, $7)`,
-        [newCustomerId, `Invoice ${existing.invoice_no} (edited)`, newGrandTotal, newBal, invoiceId, existing.invoice_no, companyId]
+        `INSERT INTO ledger_entries (company_id, entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
+         VALUES ($1, $2, NOW(), $3, $4, 0, $5, 'invoice_edit', $6, $7)`,
+        [companyId, newCustomerId, `Invoice ${existing.invoice_no} (edited)`, newGrandTotal, newBal, invoiceId, existing.invoice_no]
       );
     }
 
     // 7. Audit log
     await client.query(
-      `INSERT INTO audit_log (action, description, user_id, user_name, metadata, company_id)
-       VALUES ('invoice_edited', $1, $2, $3, $4, $5)`,
+      `INSERT INTO audit_log (company_id, action, description, user_id, user_name, metadata)
+       VALUES ($1, 'invoice_edited', $2, $3, $4, $5)`,
       [
+        companyId,
         `Invoice ${existing.invoice_no} edited: ₹${oldGrandTotal} → ₹${newGrandTotal.toFixed(2)} (${oldItemsRes.rows.length} → ${processedItems.length} items)`,
         session?.userId ?? 1,
         session?.name ?? "Unknown",
@@ -603,14 +604,13 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
           oldGrandTotal, newGrandTotal, oldItemCount: oldItemsRes.rows.length, newItemCount: processedItems.length,
           oldCustomerId, newCustomerId,
         }),
-        companyId,
       ]
     );
 
     await client.query("COMMIT");
 
-    const [fullInv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
-    const newItems = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceId));
+    const [fullInv] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.companyId, companyId), eq(invoicesTable.id, invoiceId)));
+    const newItems = await db.select().from(invoiceItemsTable).where(and(eq(invoiceItemsTable.companyId, companyId), eq(invoiceItemsTable.invoiceId, invoiceId)));
     res.json(formatInvoice(fullInv, newItems));
   } catch (err) {
     await client.query("ROLLBACK");
@@ -664,7 +664,7 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
     const updated = await client.query(
       `UPDATE invoices
          SET status = 'cancelled'
-       WHERE id = $1 AND status <> 'cancelled' AND company_id = $2
+       WHERE id = $1 AND company_id = $2 AND status <> 'cancelled'
        RETURNING id, invoice_no, invoice_type, grand_total, customer_id, customer_name`,
       [params.data.id, companyId]
     );
@@ -682,9 +682,10 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
     };
 
     await client.query(
-      `INSERT INTO audit_log (action, description, user_id, user_name, metadata, company_id)
-       VALUES ('invoice_cancelled', $1, $2, $3, $4, $5)`,
+      `INSERT INTO audit_log (company_id, action, description, user_id, user_name, metadata)
+       VALUES ($1, 'invoice_cancelled', $2, $3, $4, $5)`,
       [
+        companyId,
         `${inv.invoiceType === "gst" ? "GST" : "Non-GST"} invoice ${inv.invoiceNo} cancelled by admin — stock NOT reversed per policy`,
         session?.userId ?? 1,
         session?.name ?? "Unknown",
@@ -696,7 +697,6 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
           customerId: inv.customerId,
           customerName: inv.customerName,
         }),
-        companyId,
       ]
     );
 
