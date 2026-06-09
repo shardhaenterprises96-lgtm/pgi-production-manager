@@ -151,7 +151,7 @@ export default function Login() {
 
   const onSubmit = (values: LoginFormValues) => {
     loginMutation.mutate(
-      { data: values },
+      { data: { ...values, companyId: override?.id ?? null } },
       {
         onSuccess: (data) => {
           // If a company was picked via the hidden switcher and this account can

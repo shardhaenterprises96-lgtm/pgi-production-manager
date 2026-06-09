@@ -9,4 +9,9 @@
 export interface LoginInput {
   username: string;
   password: string;
+  /**
+     * Optional company selected via the login screen's hidden "Switch Company" feature. Lets a user sign into a company other than this deployment's locked default, but only into the company their own account belongs to.
+     * @nullable
+     */
+  companyId?: number | null;
 }

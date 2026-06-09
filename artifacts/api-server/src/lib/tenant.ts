@@ -16,6 +16,12 @@ export interface AppSession {
   // every company-scoped route treats the super_admin as a member of this
   // company so it can view/manage that tenant's data.
   activeCompanyId?: number | null;
+  // True when this regular user signed in via the login-screen "Switch Company"
+  // feature into their OWN company. Login already validated companyId ===
+  // user.companyId, so this lets requireAuth skip the dedicated-deployment lock
+  // for this session (it would otherwise 403 a non-default-company user on every
+  // request). Set server-side only; the signed cookie makes it tamper-proof.
+  companySwitch?: boolean;
 }
 
 // Raised when a request that requires a tenant context has none (e.g. an
@@ -79,7 +85,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   // just at login. Otherwise a session minted before the instance was switched
   // to dedicated mode (or for a different company) would keep working until the
   // cookie expired. Fail-closed and clear the stale session so the SPA re-logs in.
-  if (!isAccountAllowedHere(session.role, session.companyId ?? null)) {
+  // Exception: a session that signed in via the validated "Switch Company" flow
+  // (companySwitch) is allowed into its own company even on a dedicated install —
+  // login already proved companyId === user.companyId.
+  if (!session.companySwitch && !isAccountAllowedHere(session.role, session.companyId ?? null)) {
     res.clearCookie("session", { path: "/" });
     res.status(403).json({ error: "This system is dedicated to another company." });
     return;

@@ -73,7 +73,8 @@ export const SetActiveCompanyResponse = zod.object({
  */
 export const LoginBody = zod.object({
   "username": zod.string(),
-  "password": zod.string()
+  "password": zod.string(),
+  "companyId": zod.number().nullish().describe('Optional company selected via the login screen\'s hidden \"Switch Company\" feature. Lets a user sign into a company other than this deployment\'s locked default, but only into the company their own account belongs to.')
 })
 
 export const LoginResponse = zod.object({

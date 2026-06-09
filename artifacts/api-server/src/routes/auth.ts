@@ -39,7 +39,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { username, password } = parsed.data;
+  const { username, password, companyId: requestedCompanyId } = parsed.data;
+  const switchTarget = requestedCompanyId ?? null;
 
   const [user] = await db
     .select()
@@ -51,12 +52,25 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  // Dedicated single-company deployment lock: when MULTI_COMPANY_MODE=false only
-  // users of the configured DEFAULT_COMPANY_ID (and the platform super_admin) may
-  // sign in here. Enforced server-side via the shared, fail-closed helper, so a
-  // tampered client cannot bypass it and a misconfigured install denies access
-  // rather than falling open.
-  if (!isAccountAllowedHere(user.role, user.companyId ?? null)) {
+  // Login-screen "Switch Company" selection. The hidden switcher lets a user
+  // sign into a company OTHER than this deployment's locked default — but ONLY
+  // into the company their own account belongs to. This bypasses the dedicated
+  // lock for that case; it NEVER grants access to a company the account does not
+  // belong to. The platform super_admin is exempt (it switches in explicitly
+  // after login) so its selection is ignored here.
+  if (user.role !== "super_admin" && switchTarget != null) {
+    if (user.companyId == null || user.companyId !== switchTarget) {
+      res.status(403).json({
+        error: "Your account does not belong to the selected company.",
+      });
+      return;
+    }
+  } else if (!isAccountAllowedHere(user.role, user.companyId ?? null)) {
+    // Dedicated single-company deployment lock: when MULTI_COMPANY_MODE=false
+    // only users of the configured DEFAULT_COMPANY_ID (and the platform
+    // super_admin) may sign in here. Enforced server-side via the shared,
+    // fail-closed helper, so a tampered client cannot bypass it and a
+    // misconfigured install denies access rather than falling open.
     res.status(403).json({
       error: "This system is dedicated to another company. You cannot sign in here.",
     });
@@ -89,14 +103,16 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     }
   }
 
-  // Tenant isolation: lock the session's company. In dedicated mode
-  // (DEFAULT_COMPANY_ID set) every signed-in user is forced onto that company;
-  // in shared mode it falls back to the user's own company. The platform
+  // Tenant isolation: lock the session's company. A validated "Switch Company"
+  // selection (switchTarget, already proven to match the user's own company)
+  // wins so the user lands in the company they picked. Otherwise dedicated mode
+  // (DEFAULT_COMPANY_ID set) forces every signed-in user onto that company; in
+  // shared mode it falls back to the user's own company. The platform
   // super_admin is never scoped to a company (it switches in explicitly).
   const sessionCompanyId =
     user.role === "super_admin"
       ? null
-      : getDefaultCompanyId() ?? user.companyId ?? null;
+      : switchTarget ?? getDefaultCompanyId() ?? user.companyId ?? null;
 
   // Store session — entityId is critical for salesman attribution & ledger
   // scoping; companyId is the tenant isolation key for every data route.
@@ -107,6 +123,9 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     name: user.name,
     entityId: user.entityId ?? null,
     companyId: sessionCompanyId,
+    // Records a validated "Switch Company" sign-in so requireAuth lets this
+    // regular user into their own company on a dedicated install.
+    companySwitch: user.role !== "super_admin" && switchTarget != null,
   };
 
   res.json({
