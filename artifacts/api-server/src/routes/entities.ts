@@ -110,6 +110,7 @@ router.post("/entities", async (req, res): Promise<void> => {
       companyId,
       name,
       pricingTier,
+      creditLimit: parsed.data.creditLimit != null ? String(parsed.data.creditLimit) : undefined,
     })
     .returning();
 
@@ -155,7 +156,10 @@ router.patch("/entities/:id", async (req, res): Promise<void> => {
   const companyId = getCompanyId(req);
   const [entity] = await db
     .update(entitiesTable)
-    .set(parsed.data)
+    .set({
+      ...parsed.data,
+      creditLimit: parsed.data.creditLimit != null ? String(parsed.data.creditLimit) : undefined,
+    })
     .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, params.data.id)))
     .returning();
 

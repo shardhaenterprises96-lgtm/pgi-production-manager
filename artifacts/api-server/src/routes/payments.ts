@@ -13,6 +13,7 @@ import {
   RejectPaymentParams,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -24,7 +25,8 @@ router.get("/payments", async (req, res): Promise<void> => {
     return;
   }
 
-  const conditions: any[] = [];
+  const companyId = getCompanyId(req);
+  const conditions: any[] = [eq(paymentsTable.companyId, companyId)];
   if (params.data.customerId) conditions.push(eq(paymentsTable.customerId, params.data.customerId));
   if (params.data.status) conditions.push(eq(paymentsTable.status, params.data.status));
 
@@ -43,6 +45,7 @@ router.post("/payments", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const session = (req as any).session;
   const isAdmin = session?.role === "admin";
   const status = isAdmin ? "approved" : "pending";
@@ -54,7 +57,7 @@ router.post("/payments", async (req, res): Promise<void> => {
   let customer;
   let customerId: number;
   if (parsed.data.customerId) {
-    [customer] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, parsed.data.customerId));
+    [customer] = await db.select().from(entitiesTable).where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.id, parsed.data.customerId)));
     if (!customer) {
       res.status(404).json({ error: "Customer not found" });
       return;
@@ -67,11 +70,11 @@ router.post("/payments", async (req, res): Promise<void> => {
       [customer] = await db
         .select()
         .from(entitiesTable)
-        .where(and(eq(entitiesTable.type, "customer"), eq(entitiesTable.name, "Walk-in Customer")));
+        .where(and(eq(entitiesTable.companyId, companyId), eq(entitiesTable.type, "customer"), eq(entitiesTable.name, "Walk-in Customer")));
       if (!customer) {
         [customer] = await db
           .insert(entitiesTable)
-          .values({ type: "customer", name: "Walk-in Customer", mobile: "0000000000" })
+          .values({ type: "customer", name: "Walk-in Customer", mobile: "0000000000", companyId })
           .returning();
       }
       customerId = customer.id;
@@ -104,15 +107,16 @@ router.post("/payments", async (req, res): Promise<void> => {
         accountId: parsed.data.accountId ?? null,
         collectedAt: parsed.data.accountId ? new Date() : null,
         collectedById: parsed.data.accountId ? session.userId : null,
+        companyId,
       }).returning();
 
       // If deposited directly to an account, verify it exists & is active, then bump its balance
       if (parsed.data.accountId) {
         const upd = await client.query(
           `UPDATE accounts SET current_balance = current_balance + $1
-           WHERE id = $2 AND is_active = true
+           WHERE id = $2 AND is_active = true AND company_id = $3
            RETURNING id`,
-          [parsed.data.amount, parsed.data.accountId]
+          [parsed.data.amount, parsed.data.accountId, companyId]
         );
         if (upd.rowCount === 0) {
           throw new Error(`Account ${parsed.data.accountId} not found or inactive`);
@@ -121,20 +125,20 @@ router.post("/payments", async (req, res): Promise<void> => {
 
       // Deduct from outstanding
       await client.query(
-        `UPDATE entities SET outstanding_balance = outstanding_balance - $1 WHERE id = $2`,
-        [parsed.data.amount, customerId]
+        `UPDATE entities SET outstanding_balance = outstanding_balance - $1 WHERE id = $2 AND company_id = $3`,
+        [parsed.data.amount, customerId, companyId]
       );
 
       const balResult = await client.query(
-        `SELECT outstanding_balance FROM entities WHERE id = $1`,
-        [customerId]
+        `SELECT outstanding_balance FROM entities WHERE id = $1 AND company_id = $2`,
+        [customerId, companyId]
       );
       const newBal = balResult.rows[0].outstanding_balance;
 
       await client.query(
-        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
-         VALUES ($1, NOW(), $2, 0, $3, $4, 'payment', $5, $6)`,
-        [customerId, `Payment received (${parsed.data.mode})`, parsed.data.amount, newBal, payment.id, receiptId]
+        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
+         VALUES ($1, NOW(), $2, 0, $3, $4, 'payment', $5, $6, $7)`,
+        [customerId, `Payment received (${parsed.data.mode})`, parsed.data.amount, newBal, payment.id, receiptId, companyId]
       );
 
       await client.query("COMMIT");
@@ -158,6 +162,7 @@ router.post("/payments", async (req, res): Promise<void> => {
       mode: parsed.data.mode,
       status: "pending",
       notes: parsed.data.notes ?? null,
+      companyId,
     }).returning();
 
     res.status(201).json(formatPayment(payment));
@@ -172,8 +177,9 @@ router.post("/payments/:id/approve", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const session = (req as any).session;
-  const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, params.data.id));
+  const [payment] = await db.select().from(paymentsTable).where(and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.id, params.data.id)));
 
   if (!payment) {
     res.status(404).json({ error: "Payment not found" });
@@ -191,25 +197,25 @@ router.post("/payments/:id/approve", async (req, res): Promise<void> => {
 
     const [updated] = await db.update(paymentsTable)
       .set({ status: "approved", approvedById: session?.userId, approvedAt: new Date() })
-      .where(eq(paymentsTable.id, params.data.id))
+      .where(and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.id, params.data.id)))
       .returning();
 
     // Deduct from outstanding
     await client.query(
-      `UPDATE entities SET outstanding_balance = outstanding_balance - $1 WHERE id = $2`,
-      [payment.amount, payment.customerId]
+      `UPDATE entities SET outstanding_balance = outstanding_balance - $1 WHERE id = $2 AND company_id = $3`,
+      [payment.amount, payment.customerId, companyId]
     );
 
     const balResult = await client.query(
-      `SELECT outstanding_balance FROM entities WHERE id = $1`,
-      [payment.customerId]
+      `SELECT outstanding_balance FROM entities WHERE id = $1 AND company_id = $2`,
+      [payment.customerId, companyId]
     );
     const newBal = balResult.rows[0].outstanding_balance;
 
     await client.query(
-      `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
-       VALUES ($1, NOW(), $2, 0, $3, $4, 'payment', $5, $6)`,
-      [payment.customerId, `Payment received - Approved (${payment.mode})`, payment.amount, newBal, payment.id, payment.receiptId]
+      `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
+       VALUES ($1, NOW(), $2, 0, $3, $4, 'payment', $5, $6, $7)`,
+      [payment.customerId, `Payment received - Approved (${payment.mode})`, payment.amount, newBal, payment.id, payment.receiptId, companyId]
     );
 
     await client.query("COMMIT");
@@ -231,9 +237,10 @@ router.post("/payments/:id/reject", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const [updated] = await db.update(paymentsTable)
     .set({ status: "rejected" })
-    .where(eq(paymentsTable.id, params.data.id))
+    .where(and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.id, params.data.id)))
     .returning();
 
   if (!updated) {

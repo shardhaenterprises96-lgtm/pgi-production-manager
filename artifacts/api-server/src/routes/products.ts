@@ -85,9 +85,21 @@ router.post("/products", async (req, res): Promise<void> => {
     .values({
       ...data,
       companyId,
+      purchasePrice: String(data.purchasePrice),
       retailPrice: String(retailPrice),
       wholesalePrice: String(wholesalePrice),
+      mrp: String(data.mrp),
       currentStock: String(data.openingStock ?? 0),
+      minSalePrice: data.minSalePrice != null ? String(data.minSalePrice) : undefined,
+      openingStock: data.openingStock != null ? String(data.openingStock) : undefined,
+      openingStockValue: data.openingStockValue != null ? String(data.openingStockValue) : undefined,
+      wholesaleMargin: data.wholesaleMargin != null ? String(data.wholesaleMargin) : undefined,
+      retailMargin: data.retailMargin != null ? String(data.retailMargin) : undefined,
+      taxRate: data.taxRate != null ? String(data.taxRate) : undefined,
+      commissionPerLiter: data.commissionPerLiter != null ? String(data.commissionPerLiter) : undefined,
+      litersPerBox: data.litersPerBox != null ? String(data.litersPerBox) : undefined,
+      unitsPerBox: data.unitsPerBox != null ? String(data.unitsPerBox) : undefined,
+      minStockThreshold: data.minStockThreshold != null ? String(data.minStockThreshold) : undefined,
     })
     .returning();
 

@@ -177,7 +177,8 @@ router.delete("/workers/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  await db.update(workersTable).set({ isActive: false }).where(eq(workersTable.id, params.data.id));
+  const companyId = getCompanyId(req);
+  await db.update(workersTable).set({ isActive: false }).where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, params.data.id)));
   res.sendStatus(204);
 });
 
@@ -190,7 +191,8 @@ router.get("/workers/:id/ledger", async (req, res): Promise<void> => {
     return;
   }
   const workerId = params.data.id;
-  const [worker] = await db.select().from(workersTable).where(eq(workersTable.id, workerId));
+  const companyId = getCompanyId(req);
+  const [worker] = await db.select().from(workersTable).where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, workerId)));
   if (!worker) {
     res.status(404).json({ error: "Worker not found" });
     return;
@@ -198,12 +200,12 @@ router.get("/workers/:id/ledger", async (req, res): Promise<void> => {
   const attendance = await db
     .select()
     .from(workerAttendanceTable)
-    .where(eq(workerAttendanceTable.workerId, workerId))
+    .where(and(eq(workerAttendanceTable.companyId, companyId), eq(workerAttendanceTable.workerId, workerId)))
     .orderBy(workerAttendanceTable.date);
   const payments = await db
     .select()
     .from(workerPaymentsTable)
-    .where(eq(workerPaymentsTable.workerId, workerId))
+    .where(and(eq(workerPaymentsTable.companyId, companyId), eq(workerPaymentsTable.workerId, workerId)))
     .orderBy(workerPaymentsTable.paidOn);
 
   type Entry = { date: string; kind: "attendance" | "payment"; status: string | null; amount: number; notes: string | null; sortKey: number };
@@ -262,6 +264,7 @@ router.get("/worker-attendance", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const rows = await db
     .select({
       id: workerAttendanceTable.id,
@@ -275,7 +278,7 @@ router.get("/worker-attendance", async (req, res): Promise<void> => {
     })
     .from(workerAttendanceTable)
     .leftJoin(workersTable, eq(workersTable.id, workerAttendanceTable.workerId))
-    .where(eq(workerAttendanceTable.date, parsed.data.date));
+    .where(and(eq(workerAttendanceTable.companyId, companyId), eq(workerAttendanceTable.date, parsed.data.date)));
   res.json(rows.map((r) => formatAttendance(r, r.workerName)));
 });
 
@@ -287,7 +290,8 @@ router.post("/worker-attendance", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [worker] = await db.select().from(workersTable).where(eq(workersTable.id, parsed.data.workerId));
+  const companyId = getCompanyId(req);
+  const [worker] = await db.select().from(workersTable).where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, parsed.data.workerId)));
   if (!worker) {
     res.status(404).json({ error: "Worker not found" });
     return;
@@ -298,6 +302,7 @@ router.post("/worker-attendance", async (req, res): Promise<void> => {
   const [saved] = await db
     .insert(workerAttendanceTable)
     .values({
+      companyId,
       workerId: parsed.data.workerId,
       date: parsed.data.date,
       status: parsed.data.status,
@@ -324,7 +329,8 @@ router.post("/worker-payments", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [worker] = await db.select().from(workersTable).where(eq(workersTable.id, parsed.data.workerId));
+  const companyId = getCompanyId(req);
+  const [worker] = await db.select().from(workersTable).where(and(eq(workersTable.companyId, companyId), eq(workersTable.id, parsed.data.workerId)));
   if (!worker) {
     res.status(404).json({ error: "Worker not found" });
     return;
@@ -332,6 +338,7 @@ router.post("/worker-payments", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(workerPaymentsTable)
     .values({
+      companyId,
       workerId: parsed.data.workerId,
       amount: String(parsed.data.amount),
       paidOn: parsed.data.paidOn,

@@ -231,12 +231,12 @@ router.post("/invoices", async (req, res): Promise<void> => {
     // Insert items + deduct stock
     for (const item of processedItems) {
       await client.query(
-        `INSERT INTO invoice_items (invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+        `INSERT INTO invoice_items (invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount, company_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
         [
           invRow.id,
           item.productId,
-          (await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, item.productId)))[0]?.name ?? "Unknown",
+          (await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, item.productId))))[0]?.name ?? "Unknown",
           null,
           item.qty,
           item.qtyBoxes,
@@ -250,40 +250,41 @@ router.post("/invoices", async (req, res): Promise<void> => {
           item.cessPct,
           item.netPrice,
           item.amount,
+          companyId,
         ]
       );
 
       // Stock movement (always via stock_movements)
       await client.query(
-        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-         VALUES ($1, 'outward', $2, 'Invoice sale', $3, 'invoice', $4)`,
-        [item.productId, item.qty, invRow.id, session?.userId ?? 1]
+        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
+         VALUES ($1, 'outward', $2, 'Invoice sale', $3, 'invoice', $4, $5)`,
+        [item.productId, item.qty, invRow.id, session?.userId ?? 1, companyId]
       );
 
       // Reduce product stock
       await client.query(
-        `UPDATE products SET current_stock = current_stock - $1 WHERE id = $2`,
-        [item.qty, item.productId]
+        `UPDATE products SET current_stock = current_stock - $1 WHERE id = $2 AND company_id = $3`,
+        [item.qty, item.productId, companyId]
       );
     }
 
     // Update customer outstanding balance & ledger
     if (data.customerId) {
       await client.query(
-        `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE id = $2`,
-        [grandTotal, data.customerId]
+        `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE id = $2 AND company_id = $3`,
+        [grandTotal, data.customerId, companyId]
       );
 
       const balResult = await client.query(
-        `SELECT outstanding_balance FROM entities WHERE id = $1`,
-        [data.customerId]
+        `SELECT outstanding_balance FROM entities WHERE id = $1 AND company_id = $2`,
+        [data.customerId, companyId]
       );
       const newBal = balResult.rows[0].outstanding_balance;
 
       await client.query(
-        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
-         VALUES ($1, NOW(), $2, $3, 0, $4, 'invoice', $5, $6)`,
-        [data.customerId, `Invoice ${invoiceNo}`, grandTotal, newBal, invRow.id, invoiceNo]
+        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
+         VALUES ($1, NOW(), $2, $3, 0, $4, 'invoice', $5, $6, $7)`,
+        [data.customerId, `Invoice ${invoiceNo}`, grandTotal, newBal, invRow.id, invoiceNo, companyId]
       );
     }
 
@@ -311,7 +312,8 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, params.data.id));
+  const companyId = getCompanyId(req);
+  const [inv] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.companyId, companyId), eq(invoicesTable.id, params.data.id)));
   if (!inv) {
     res.status(404).json({ error: "Invoice not found" });
     return;
@@ -341,6 +343,7 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
 //      previous stock movements + ledger entry, then re-applies them with the new payload.
 router.patch("/invoices/:id", async (req, res): Promise<void> => {
   const session = (req as any).session;
+  const companyId = getCompanyId(req);
   if (session?.role !== "admin") {
     res.status(403).json({ error: "Only admins can edit invoices" });
     return;
@@ -383,7 +386,7 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
     const [inv] = await db
       .update(invoicesTable)
       .set(updates)
-      .where(eq(invoicesTable.id, invoiceId))
+      .where(and(eq(invoicesTable.companyId, companyId), eq(invoicesTable.id, invoiceId)))
       .returning();
     if (!inv) { res.status(404).json({ error: "Invoice not found" }); return; }
     const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, inv.id));
@@ -401,7 +404,7 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
     // Lock the invoice row for the duration of the txn
-    const existingRes = await client.query(`SELECT * FROM invoices WHERE id = $1 FOR UPDATE`, [invoiceId]);
+    const existingRes = await client.query(`SELECT * FROM invoices WHERE id = $1 AND company_id = $2 FOR UPDATE`, [invoiceId, companyId]);
     if (existingRes.rows.length === 0) {
       await client.query("ROLLBACK");
       res.status(404).json({ error: "Invoice not found" });
@@ -425,31 +428,31 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
     }
 
     // 1. Reverse old line-item stock movements (inward)
-    const oldItemsRes = await client.query(`SELECT * FROM invoice_items WHERE invoice_id = $1`, [invoiceId]);
+    const oldItemsRes = await client.query(`SELECT * FROM invoice_items WHERE invoice_id = $1 AND company_id = $2`, [invoiceId, companyId]);
     for (const oi of oldItemsRes.rows) {
       await client.query(
-        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-         VALUES ($1, 'inward', $2, $3, $4, 'invoice_edit_reversal', $5)`,
-        [oi.product_id, oi.qty, `Invoice ${existing.invoice_no} edit — reverse old qty`, invoiceId, session?.userId ?? 1]
+        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
+         VALUES ($1, 'inward', $2, $3, $4, 'invoice_edit_reversal', $5, $6)`,
+        [oi.product_id, oi.qty, `Invoice ${existing.invoice_no} edit — reverse old qty`, invoiceId, session?.userId ?? 1, companyId]
       );
-      await client.query(`UPDATE products SET current_stock = current_stock + $1 WHERE id = $2`, [oi.qty, oi.product_id]);
+      await client.query(`UPDATE products SET current_stock = current_stock + $1 WHERE id = $2 AND company_id = $3`, [oi.qty, oi.product_id, companyId]);
     }
-    await client.query(`DELETE FROM invoice_items WHERE invoice_id = $1`, [invoiceId]);
+    await client.query(`DELETE FROM invoice_items WHERE invoice_id = $1 AND company_id = $2`, [invoiceId, companyId]);
 
     // 2. Reverse old customer outstanding + ledger entry (if there was a customer)
     const oldGrandTotal = Number(existing.grand_total);
     const oldCustomerId: number | null = existing.customer_id;
     if (oldCustomerId) {
       await client.query(
-        `UPDATE entities SET outstanding_balance = outstanding_balance - $1 WHERE id = $2`,
-        [oldGrandTotal, oldCustomerId]
+        `UPDATE entities SET outstanding_balance = outstanding_balance - $1 WHERE id = $2 AND company_id = $3`,
+        [oldGrandTotal, oldCustomerId, companyId]
       );
-      const balRes = await client.query(`SELECT outstanding_balance FROM entities WHERE id = $1`, [oldCustomerId]);
+      const balRes = await client.query(`SELECT outstanding_balance FROM entities WHERE id = $1 AND company_id = $2`, [oldCustomerId, companyId]);
       const newBal = balRes.rows[0]?.outstanding_balance ?? 0;
       await client.query(
-        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
-         VALUES ($1, NOW(), $2, 0, $3, $4, 'invoice_edit_reversal', $5, $6)`,
-        [oldCustomerId, `Invoice ${existing.invoice_no} edited — reversal`, oldGrandTotal, newBal, invoiceId, existing.invoice_no]
+        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
+         VALUES ($1, NOW(), $2, 0, $3, $4, 'invoice_edit_reversal', $5, $6, $7)`,
+        [oldCustomerId, `Invoice ${existing.invoice_no} edited — reversal`, oldGrandTotal, newBal, invoiceId, existing.invoice_no, companyId]
       );
     }
 
@@ -510,16 +513,16 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
         resolvedSalesmanName = null;
       } else {
         const [sm] = await client.query(
-          `SELECT name FROM entities WHERE id = $1`,
-          [resolvedSalesmanId]
+          `SELECT name FROM entities WHERE id = $1 AND company_id = $2`,
+          [resolvedSalesmanId, companyId]
         ).then((r) => [r.rows[0]]);
         resolvedSalesmanName = sm?.name ?? null;
       }
     } else if (resolvedSalesmanId !== null && !resolvedSalesmanName) {
       // Heal legacy rows that have salesman_id but no name persisted.
       const [sm] = await client.query(
-        `SELECT name FROM entities WHERE id = $1`,
-        [resolvedSalesmanId]
+        `SELECT name FROM entities WHERE id = $1 AND company_id = $2`,
+        [resolvedSalesmanId, companyId]
       ).then((r) => [r.rows[0]]);
       resolvedSalesmanName = sm?.name ?? null;
     }
@@ -531,7 +534,7 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
          salesman_id = $10, salesman_name = $11, po_number = $12, e_way_bill_no = $13,
          subtotal = $14, total_discount = $15, total_tax = $16, cgst = $17, sgst = $18, igst = $19,
          freight = $20, round_off = $21, grand_total = $22, balance_due = $23, status = $24
-       WHERE id = $25`,
+       WHERE id = $25 AND company_id = $26`,
       [
         data.invoiceType ?? existing.invoice_type,
         data.invoiceDate ?? existing.invoice_date,
@@ -551,45 +554,46 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
         String(freight), String(roundOff), String(newGrandTotal), String(balanceDue),
         data.status ?? existing.status,
         invoiceId,
+        companyId,
       ]
     );
 
     // 5. Insert new line items + outward stock movements
     for (const item of processedItems) {
-      const prodName = (await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, item.productId)))[0]?.name ?? "Unknown";
+      const prodName = (await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, item.productId))))[0]?.name ?? "Unknown";
       await client.query(
-        `INSERT INTO invoice_items (invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-        [invoiceId, item.productId, prodName, null, item.qty, item.qtyBoxesVal, item.totalLitersVal, item.unit, item.rate, item.mrp, item.discountPct, item.discountAmt, item.taxPct, item.cessPct, item.netPrice, item.amount]
+        `INSERT INTO invoice_items (invoice_id, product_id, product_name, hsn_code, qty, qty_boxes, total_liters, unit, rate, mrp, discount_pct, discount_amt, tax_pct, cess_pct, net_price, amount, company_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+        [invoiceId, item.productId, prodName, null, item.qty, item.qtyBoxesVal, item.totalLitersVal, item.unit, item.rate, item.mrp, item.discountPct, item.discountAmt, item.taxPct, item.cessPct, item.netPrice, item.amount, companyId]
       );
       await client.query(
-        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-         VALUES ($1, 'outward', $2, $3, $4, 'invoice_edit', $5)`,
-        [item.productId, item.qty, `Invoice ${existing.invoice_no} edit — new qty`, invoiceId, session?.userId ?? 1]
+        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
+         VALUES ($1, 'outward', $2, $3, $4, 'invoice_edit', $5, $6)`,
+        [item.productId, item.qty, `Invoice ${existing.invoice_no} edit — new qty`, invoiceId, session?.userId ?? 1, companyId]
       );
-      await client.query(`UPDATE products SET current_stock = current_stock - $1 WHERE id = $2`, [item.qty, item.productId]);
+      await client.query(`UPDATE products SET current_stock = current_stock - $1 WHERE id = $2 AND company_id = $3`, [item.qty, item.productId, companyId]);
     }
 
     // 6. Apply new customer outstanding + ledger entry (if new customer set)
     const newCustomerId: number | null = data.customerId === undefined ? oldCustomerId : data.customerId;
     if (newCustomerId) {
       await client.query(
-        `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE id = $2`,
-        [newGrandTotal, newCustomerId]
+        `UPDATE entities SET outstanding_balance = outstanding_balance + $1 WHERE id = $2 AND company_id = $3`,
+        [newGrandTotal, newCustomerId, companyId]
       );
-      const balRes = await client.query(`SELECT outstanding_balance FROM entities WHERE id = $1`, [newCustomerId]);
+      const balRes = await client.query(`SELECT outstanding_balance FROM entities WHERE id = $1 AND company_id = $2`, [newCustomerId, companyId]);
       const newBal = balRes.rows[0]?.outstanding_balance ?? 0;
       await client.query(
-        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no)
-         VALUES ($1, NOW(), $2, $3, 0, $4, 'invoice_edit', $5, $6)`,
-        [newCustomerId, `Invoice ${existing.invoice_no} (edited)`, newGrandTotal, newBal, invoiceId, existing.invoice_no]
+        `INSERT INTO ledger_entries (entity_id, date, description, debit, credit, balance, type, reference_id, reference_no, company_id)
+         VALUES ($1, NOW(), $2, $3, 0, $4, 'invoice_edit', $5, $6, $7)`,
+        [newCustomerId, `Invoice ${existing.invoice_no} (edited)`, newGrandTotal, newBal, invoiceId, existing.invoice_no, companyId]
       );
     }
 
     // 7. Audit log
     await client.query(
-      `INSERT INTO audit_log (action, description, user_id, user_name, metadata)
-       VALUES ('invoice_edited', $1, $2, $3, $4)`,
+      `INSERT INTO audit_log (action, description, user_id, user_name, metadata, company_id)
+       VALUES ('invoice_edited', $1, $2, $3, $4, $5)`,
       [
         `Invoice ${existing.invoice_no} edited: ₹${oldGrandTotal} → ₹${newGrandTotal.toFixed(2)} (${oldItemsRes.rows.length} → ${processedItems.length} items)`,
         session?.userId ?? 1,
@@ -599,6 +603,7 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
           oldGrandTotal, newGrandTotal, oldItemCount: oldItemsRes.rows.length, newItemCount: processedItems.length,
           oldCustomerId, newCustomerId,
         }),
+        companyId,
       ]
     );
 
@@ -619,6 +624,7 @@ router.patch("/invoices/:id", async (req, res): Promise<void> => {
 // DELETE /invoices/:id  — admin only
 router.delete("/invoices/:id", async (req, res): Promise<void> => {
   const session = (req as any).session;
+  const companyId = getCompanyId(req);
   if (session?.role !== "admin") {
     res.status(403).json({ error: "Only admins can cancel invoices" });
     return;
@@ -637,8 +643,8 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
     // (exists but already cancelled). Read inside the txn client so it
     // participates in the SERIALIZABLE snapshot.
     const existsRes = await client.query(
-      `SELECT id FROM invoices WHERE id = $1`,
-      [params.data.id]
+      `SELECT id FROM invoices WHERE id = $1 AND company_id = $2`,
+      [params.data.id, companyId]
     );
     if (existsRes.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -658,9 +664,9 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
     const updated = await client.query(
       `UPDATE invoices
          SET status = 'cancelled'
-       WHERE id = $1 AND status <> 'cancelled'
+       WHERE id = $1 AND status <> 'cancelled' AND company_id = $2
        RETURNING id, invoice_no, invoice_type, grand_total, customer_id, customer_name`,
-      [params.data.id]
+      [params.data.id, companyId]
     );
     if (updated.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -676,8 +682,8 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
     };
 
     await client.query(
-      `INSERT INTO audit_log (action, description, user_id, user_name, metadata)
-       VALUES ('invoice_cancelled', $1, $2, $3, $4)`,
+      `INSERT INTO audit_log (action, description, user_id, user_name, metadata, company_id)
+       VALUES ('invoice_cancelled', $1, $2, $3, $4, $5)`,
       [
         `${inv.invoiceType === "gst" ? "GST" : "Non-GST"} invoice ${inv.invoiceNo} cancelled by admin — stock NOT reversed per policy`,
         session?.userId ?? 1,
@@ -690,6 +696,7 @@ router.delete("/invoices/:id", async (req, res): Promise<void> => {
           customerId: inv.customerId,
           customerName: inv.customerName,
         }),
+        companyId,
       ]
     );
 

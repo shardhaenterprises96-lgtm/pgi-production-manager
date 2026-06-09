@@ -19,18 +19,21 @@ import {
   AssembleItemBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
 // GET /boms
-router.get("/boms", async (_req, res): Promise<void> => {
+router.get("/boms", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const boms = await db
     .select({
       bom: bomsTable,
       productName: productsTable.name,
     })
     .from(bomsTable)
-    .leftJoin(productsTable, eq(bomsTable.finishedProductId, productsTable.id));
+    .leftJoin(productsTable, eq(bomsTable.finishedProductId, productsTable.id))
+    .where(eq(bomsTable.companyId, companyId));
 
   const result = await Promise.all(
     boms.map(async ({ bom, productName }) => {
@@ -41,7 +44,7 @@ router.get("/boms", async (_req, res): Promise<void> => {
         })
         .from(bomItemsTable)
         .leftJoin(productsTable, eq(bomItemsTable.materialProductId, productsTable.id))
-        .where(eq(bomItemsTable.bomId, bom.id));
+        .where(and(eq(bomItemsTable.companyId, companyId), eq(bomItemsTable.bomId, bom.id)));
 
       return formatBom(bom, productName, items);
     })
@@ -57,6 +60,7 @@ router.post("/boms", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Only administrators can create BOMs" });
     return;
   }
+  const companyId = getCompanyId(req);
   const parsed = CreateBomBody.safeParse(req.body);
   if (!parsed.success) {
     req.log.warn({ body: req.body, issues: parsed.error.issues }, "BOM create validation failed");
@@ -91,15 +95,15 @@ router.post("/boms", async (req, res): Promise<void> => {
   try {
     await client.query("BEGIN");
     const bomResult = await client.query(
-      `INSERT INTO boms (finished_product_id, output_quantity) VALUES ($1, $2) RETURNING id`,
-      [parsed.data.finishedProductId, String(parsed.data.outputQuantity)],
+      `INSERT INTO boms (finished_product_id, output_quantity, company_id) VALUES ($1, $2, $3) RETURNING id`,
+      [parsed.data.finishedProductId, String(parsed.data.outputQuantity), companyId],
     );
     bomId = bomResult.rows[0].id;
 
     for (const item of parsed.data.items) {
       await client.query(
-        `INSERT INTO bom_items (bom_id, material_product_id, quantity, unit) VALUES ($1, $2, $3, $4)`,
-        [bomId, item.materialProductId, String(item.quantity), item.unit],
+        `INSERT INTO bom_items (bom_id, material_product_id, quantity, unit, company_id) VALUES ($1, $2, $3, $4, $5)`,
+        [bomId, item.materialProductId, String(item.quantity), item.unit, companyId],
       );
     }
     await client.query("COMMIT");
@@ -112,26 +116,27 @@ router.post("/boms", async (req, res): Promise<void> => {
     client.release();
   }
 
-  const [bom] = await db.select().from(bomsTable).where(eq(bomsTable.id, bomId));
+  const [bom] = await db.select().from(bomsTable).where(and(eq(bomsTable.companyId, companyId), eq(bomsTable.id, bomId)));
   const items = await db
     .select({ item: bomItemsTable, materialName: productsTable.name })
     .from(bomItemsTable)
     .leftJoin(productsTable, eq(bomItemsTable.materialProductId, productsTable.id))
-    .where(eq(bomItemsTable.bomId, bomId));
-  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, bom.finishedProductId));
+    .where(and(eq(bomItemsTable.companyId, companyId), eq(bomItemsTable.bomId, bomId)));
+  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, bom.finishedProductId)));
 
   res.status(201).json(formatBom(bom, product?.name ?? null, items));
 });
 
 // GET /boms/:id
 router.get("/boms/:id", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const params = GetBomParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  const [bom] = await db.select().from(bomsTable).where(eq(bomsTable.id, params.data.id));
+  const [bom] = await db.select().from(bomsTable).where(and(eq(bomsTable.companyId, companyId), eq(bomsTable.id, params.data.id)));
   if (!bom) {
     res.status(404).json({ error: "BOM not found" });
     return;
@@ -141,9 +146,9 @@ router.get("/boms/:id", async (req, res): Promise<void> => {
     .select({ item: bomItemsTable, materialName: productsTable.name })
     .from(bomItemsTable)
     .leftJoin(productsTable, eq(bomItemsTable.materialProductId, productsTable.id))
-    .where(eq(bomItemsTable.bomId, bom.id));
+    .where(and(eq(bomItemsTable.companyId, companyId), eq(bomItemsTable.bomId, bom.id)));
 
-  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, bom.finishedProductId));
+  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, bom.finishedProductId)));
 
   res.json(formatBom(bom, product?.name ?? null, items));
 });
@@ -155,6 +160,7 @@ router.patch("/boms/:id", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Only administrators can edit BOMs" });
     return;
   }
+  const companyId = getCompanyId(req);
   const params = UpdateBomParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -172,9 +178,9 @@ router.patch("/boms/:id", async (req, res): Promise<void> => {
 
   let bom: any;
   if (Object.keys(updateData).length > 0) {
-    [bom] = await db.update(bomsTable).set(updateData).where(eq(bomsTable.id, params.data.id)).returning();
+    [bom] = await db.update(bomsTable).set(updateData).where(and(eq(bomsTable.companyId, companyId), eq(bomsTable.id, params.data.id))).returning();
   } else {
-    [bom] = await db.select().from(bomsTable).where(eq(bomsTable.id, params.data.id));
+    [bom] = await db.select().from(bomsTable).where(and(eq(bomsTable.companyId, companyId), eq(bomsTable.id, params.data.id)));
   }
 
   if (!bom) {
@@ -183,10 +189,11 @@ router.patch("/boms/:id", async (req, res): Promise<void> => {
   }
 
   if (parsed.data.items) {
-    await db.delete(bomItemsTable).where(eq(bomItemsTable.bomId, params.data.id));
+    await db.delete(bomItemsTable).where(and(eq(bomItemsTable.companyId, companyId), eq(bomItemsTable.bomId, params.data.id)));
     for (const item of parsed.data.items) {
       if (item.materialProductId && item.quantity) {
         await db.insert(bomItemsTable).values({
+          companyId,
           bomId: params.data.id,
           materialProductId: item.materialProductId,
           quantity: String(item.quantity),
@@ -200,42 +207,38 @@ router.patch("/boms/:id", async (req, res): Promise<void> => {
     .select({ item: bomItemsTable, materialName: productsTable.name })
     .from(bomItemsTable)
     .leftJoin(productsTable, eq(bomItemsTable.materialProductId, productsTable.id))
-    .where(eq(bomItemsTable.bomId, bom.id));
+    .where(and(eq(bomItemsTable.companyId, companyId), eq(bomItemsTable.bomId, bom.id)));
 
-  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, bom.finishedProductId));
+  const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, bom.finishedProductId)));
 
   res.json(formatBom(bom, product?.name ?? null, items));
 });
 
 // GET /workload
 router.get("/workload", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const params = ListWorkloadCardsQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  const conditions: any[] = [];
+  const conditions: any[] = [eq(workloadCardsTable.companyId, companyId)];
   if (params.data.status) conditions.push(eq(workloadCardsTable.status, params.data.status));
 
-  const cards = conditions.length > 0
-    ? await db
-        .select({ card: workloadCardsTable, productName: productsTable.name, productImageUrl: productsTable.imageUrl })
-        .from(workloadCardsTable)
-        .leftJoin(productsTable, eq(workloadCardsTable.productId, productsTable.id))
-        .where(and(...conditions))
-        .orderBy(sql`${workloadCardsTable.createdAt} DESC`)
-    : await db
-        .select({ card: workloadCardsTable, productName: productsTable.name, productImageUrl: productsTable.imageUrl })
-        .from(workloadCardsTable)
-        .leftJoin(productsTable, eq(workloadCardsTable.productId, productsTable.id))
-        .orderBy(sql`${workloadCardsTable.createdAt} DESC`);
+  const cards = await db
+    .select({ card: workloadCardsTable, productName: productsTable.name, productImageUrl: productsTable.imageUrl })
+    .from(workloadCardsTable)
+    .leftJoin(productsTable, eq(workloadCardsTable.productId, productsTable.id))
+    .where(and(...conditions))
+    .orderBy(sql`${workloadCardsTable.createdAt} DESC`);
 
   res.json(cards.map(({ card, productName, productImageUrl }) => formatWorkloadCard(card, productName, productImageUrl)));
 });
 
 // POST /workload
 router.post("/workload", async (req, res): Promise<void> => {
+  const companyId = getCompanyId(req);
   const parsed = CreateWorkloadCardBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -243,6 +246,7 @@ router.post("/workload", async (req, res): Promise<void> => {
   }
 
   const [card] = await db.insert(workloadCardsTable).values({
+    companyId,
     productId: parsed.data.productId,
     targetQty: String(parsed.data.targetQty),
     orderType: parsed.data.orderType,
@@ -252,7 +256,7 @@ router.post("/workload", async (req, res): Promise<void> => {
   }).returning();
 
   const [product] = await db.select({ name: productsTable.name, imageUrl: productsTable.imageUrl })
-    .from(productsTable).where(eq(productsTable.id, card.productId));
+    .from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, card.productId)));
 
   res.status(201).json(formatWorkloadCard(card, product?.name ?? null, product?.imageUrl ?? null));
 });
@@ -266,13 +270,14 @@ router.patch("/workload/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const parsed = UpdateWorkloadCardBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  const [existing] = await db.select().from(workloadCardsTable).where(eq(workloadCardsTable.id, id));
+  const [existing] = await db.select().from(workloadCardsTable).where(and(eq(workloadCardsTable.companyId, companyId), eq(workloadCardsTable.id, id)));
   if (!existing) {
     res.status(404).json({ error: "Workload card not found" });
     return;
@@ -303,35 +308,35 @@ router.patch("/workload/:id", async (req, res): Promise<void> => {
       try {
         await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
-        const [bom] = await db.select().from(bomsTable).where(eq(bomsTable.finishedProductId, existing.productId));
+        const [bom] = await db.select().from(bomsTable).where(and(eq(bomsTable.companyId, companyId), eq(bomsTable.finishedProductId, existing.productId)));
         if (bom) {
-          const bomItems = await db.select().from(bomItemsTable).where(eq(bomItemsTable.bomId, bom.id));
+          const bomItems = await db.select().from(bomItemsTable).where(and(eq(bomItemsTable.companyId, companyId), eq(bomItemsTable.bomId, bom.id)));
           const outputQty = Number(bom.outputQuantity);
           const batchMultiplier = finalQty / outputQty;
 
           for (const item of bomItems) {
             const consumeQty = Number(item.quantity) * batchMultiplier;
             await client.query(
-              `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-               VALUES ($1, 'manufacturing_consume', $2, 'Manufacturing batch', $3, 'workload', 1)`,
-              [item.materialProductId, consumeQty, id]
+              `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
+               VALUES ($1, 'manufacturing_consume', $2, 'Manufacturing batch', $3, 'workload', 1, $4)`,
+              [item.materialProductId, consumeQty, id, companyId]
             );
             await client.query(
-              `UPDATE products SET current_stock = current_stock - $1 WHERE id = $2`,
-              [consumeQty, item.materialProductId]
+              `UPDATE products SET current_stock = current_stock - $1 WHERE id = $2 AND company_id = $3`,
+              [consumeQty, item.materialProductId, companyId]
             );
           }
         }
 
         // Produce finished good
         await client.query(
-          `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-           VALUES ($1, 'manufacturing_produce', $2, 'Manufacturing complete', $3, 'workload', 1)`,
-          [existing.productId, finalQty, id]
+          `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
+           VALUES ($1, 'manufacturing_produce', $2, 'Manufacturing complete', $3, 'workload', 1, $4)`,
+          [existing.productId, finalQty, id, companyId]
         );
         await client.query(
-          `UPDATE products SET current_stock = current_stock + $1 WHERE id = $2`,
-          [finalQty, existing.productId]
+          `UPDATE products SET current_stock = current_stock + $1 WHERE id = $2 AND company_id = $3`,
+          [finalQty, existing.productId, companyId]
         );
 
         await client.query("COMMIT");
@@ -350,9 +355,9 @@ router.patch("/workload/:id", async (req, res): Promise<void> => {
 
   if (parsed.data.workerId != null) updateData.workerId = parsed.data.workerId;
 
-  const [card] = await db.update(workloadCardsTable).set(updateData).where(eq(workloadCardsTable.id, id)).returning();
+  const [card] = await db.update(workloadCardsTable).set(updateData).where(and(eq(workloadCardsTable.companyId, companyId), eq(workloadCardsTable.id, id))).returning();
   const [product] = await db.select({ name: productsTable.name, imageUrl: productsTable.imageUrl })
-    .from(productsTable).where(eq(productsTable.id, card.productId));
+    .from(productsTable).where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, card.productId)));
 
   res.json(formatWorkloadCard(card, product?.name ?? null, product?.imageUrl ?? null));
 });
@@ -367,13 +372,14 @@ router.post("/manufacturing/assemble", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const companyId = getCompanyId(req);
   const { bomId, batches } = parsed.data;
   if (Number(batches) <= 0) {
     res.status(400).json({ error: "batches must be greater than 0" });
     return;
   }
 
-  const [bom] = await db.select().from(bomsTable).where(eq(bomsTable.id, bomId));
+  const [bom] = await db.select().from(bomsTable).where(and(eq(bomsTable.companyId, companyId), eq(bomsTable.id, bomId)));
   if (!bom) {
     res.status(404).json({ error: "BOM not found" });
     return;
@@ -385,7 +391,7 @@ router.post("/manufacturing/assemble", async (req, res): Promise<void> => {
     })
     .from(bomItemsTable)
     .leftJoin(productsTable, eq(bomItemsTable.materialProductId, productsTable.id))
-    .where(eq(bomItemsTable.bomId, bomId));
+    .where(and(eq(bomItemsTable.companyId, companyId), eq(bomItemsTable.bomId, bomId)));
 
   const outputUnits = Number(bom.outputQuantity) * Number(batches);
 
@@ -405,8 +411,8 @@ router.post("/manufacturing/assemble", async (req, res): Promise<void> => {
     for (const { item, materialName } of bomItems) {
       const required = Number(item.quantity) * Number(batches);
       const stockRow = await client.query(
-        `SELECT current_stock FROM products WHERE id = $1 AND deleted_at IS NULL`,
-        [item.materialProductId],
+        `SELECT current_stock FROM products WHERE id = $1 AND company_id = $2 AND deleted_at IS NULL`,
+        [item.materialProductId, companyId],
       );
       const available = Number(stockRow.rows[0]?.current_stock ?? 0);
       if (available < required) {
@@ -431,10 +437,10 @@ router.post("/manufacturing/assemble", async (req, res): Promise<void> => {
     const now = new Date();
     const cardRes = await client.query(
       `INSERT INTO workload_cards
-         (product_id, target_qty, status, order_type, started_at, completed_at)
-       VALUES ($1, $2, 'done', 'production', $3, $3)
+         (product_id, target_qty, status, order_type, started_at, completed_at, company_id)
+       VALUES ($1, $2, 'done', 'production', $3, $3, $4)
        RETURNING id`,
-      [bom.finishedProductId, String(outputUnits), now],
+      [bom.finishedProductId, String(outputUnits), now, companyId],
     );
     cardId = cardRes.rows[0].id;
 
@@ -442,25 +448,25 @@ router.post("/manufacturing/assemble", async (req, res): Promise<void> => {
     for (const { item } of bomItems) {
       const consumeQty = Number(item.quantity) * Number(batches);
       await client.query(
-        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-         VALUES ($1, 'manufacturing_consume', $2, 'Manufacturing batch', $3, 'workload', $4)`,
-        [item.materialProductId, consumeQty, cardId, userId],
+        `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
+         VALUES ($1, 'manufacturing_consume', $2, 'Manufacturing batch', $3, 'workload', $4, $5)`,
+        [item.materialProductId, consumeQty, cardId, userId, companyId],
       );
       await client.query(
-        `UPDATE products SET current_stock = current_stock - $1 WHERE id = $2`,
-        [consumeQty, item.materialProductId],
+        `UPDATE products SET current_stock = current_stock - $1 WHERE id = $2 AND company_id = $3`,
+        [consumeQty, item.materialProductId, companyId],
       );
     }
 
     // Credit finished good
     await client.query(
-      `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id)
-       VALUES ($1, 'manufacturing_produce', $2, 'Manufacturing complete', $3, 'workload', $4)`,
-      [bom.finishedProductId, outputUnits, cardId, userId],
+      `INSERT INTO stock_movements (product_id, type, quantity, reason, reference_id, reference_type, user_id, company_id)
+       VALUES ($1, 'manufacturing_produce', $2, 'Manufacturing complete', $3, 'workload', $4, $5)`,
+      [bom.finishedProductId, outputUnits, cardId, userId, companyId],
     );
     await client.query(
-      `UPDATE products SET current_stock = current_stock + $1 WHERE id = $2`,
-      [outputUnits, bom.finishedProductId],
+      `UPDATE products SET current_stock = current_stock + $1 WHERE id = $2 AND company_id = $3`,
+      [outputUnits, bom.finishedProductId, companyId],
     );
 
     await client.query("COMMIT");
@@ -473,11 +479,11 @@ router.post("/manufacturing/assemble", async (req, res): Promise<void> => {
     client.release();
   }
 
-  const [card] = await db.select().from(workloadCardsTable).where(eq(workloadCardsTable.id, cardId!));
+  const [card] = await db.select().from(workloadCardsTable).where(and(eq(workloadCardsTable.companyId, companyId), eq(workloadCardsTable.id, cardId!)));
   const [product] = await db
     .select({ name: productsTable.name, imageUrl: productsTable.imageUrl })
     .from(productsTable)
-    .where(eq(productsTable.id, card.productId));
+    .where(and(eq(productsTable.companyId, companyId), eq(productsTable.id, card.productId)));
   res.status(201).json(formatWorkloadCard(card, product?.name ?? null, product?.imageUrl ?? null));
 });
 

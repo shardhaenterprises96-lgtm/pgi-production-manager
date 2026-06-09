@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
+import { getCompanyId } from "../lib/tenant";
 
 const router: IRouter = Router();
 
@@ -33,13 +34,14 @@ function dateRange(req: any): { from: Date | null; to: Date | null; clauses: str
 // ── GET /reports/sales ──────────────────────────────────────────────
 router.get("/reports/sales", async (req, res): Promise<void> => {
   if (!requireAdmin(req, res)) return;
+  const companyId = getCompanyId(req);
   const { from, to } = req.query as any;
   const type = String((req.query as any).type ?? "all"); // gst | non_gst | all
   const customerId = (req.query as any).customerId ? Number((req.query as any).customerId) : null;
   const search = String((req.query as any).search ?? "").trim();
 
-  const params: any[] = [];
-  const where: string[] = [`status = 'saved'`];
+  const params: any[] = [companyId];
+  const where: string[] = [`company_id = $1`, `status = 'saved'`];
   if (from) { params.push(new Date(from)); where.push(`invoice_date >= $${params.length}`); }
   if (to) { const d = new Date(to); d.setHours(23,59,59,999); params.push(d); where.push(`invoice_date <= $${params.length}`); }
   if (type === "gst" || type === "non_gst") { params.push(type); where.push(`invoice_type = $${params.length}`); }
@@ -98,12 +100,13 @@ router.get("/reports/sales", async (req, res): Promise<void> => {
 // ── GET /reports/sales/item-wise ────────────────────────────────────
 router.get("/reports/sales/item-wise", async (req, res): Promise<void> => {
   if (!requireAdmin(req, res)) return;
+  const companyId = getCompanyId(req);
   const { from, to } = req.query as any;
   const type = String((req.query as any).type ?? "all");
   const search = String((req.query as any).search ?? "").trim();
 
-  const params: any[] = [];
-  const where: string[] = [`i.status = 'saved'`];
+  const params: any[] = [companyId];
+  const where: string[] = [`i.company_id = $1`, `i.status = 'saved'`];
   if (from) { params.push(new Date(from)); where.push(`i.invoice_date >= $${params.length}`); }
   if (to) { const d = new Date(to); d.setHours(23,59,59,999); params.push(d); where.push(`i.invoice_date <= $${params.length}`); }
   if (type === "gst" || type === "non_gst") { params.push(type); where.push(`i.invoice_type = $${params.length}`); }
@@ -145,12 +148,13 @@ router.get("/reports/sales/item-wise", async (req, res): Promise<void> => {
 // ── GET /reports/sales/customer-wise ────────────────────────────────
 router.get("/reports/sales/customer-wise", async (req, res): Promise<void> => {
   if (!requireAdmin(req, res)) return;
+  const companyId = getCompanyId(req);
   const { from, to } = req.query as any;
   const type = String((req.query as any).type ?? "all");
   const search = String((req.query as any).search ?? "").trim();
 
-  const params: any[] = [];
-  const where: string[] = [`status = 'saved'`];
+  const params: any[] = [companyId];
+  const where: string[] = [`i.company_id = $1`, `status = 'saved'`];
   if (from) { params.push(new Date(from)); where.push(`invoice_date >= $${params.length}`); }
   if (to) { const d = new Date(to); d.setHours(23,59,59,999); params.push(d); where.push(`invoice_date <= $${params.length}`); }
   if (type === "gst" || type === "non_gst") { params.push(type); where.push(`invoice_type = $${params.length}`); }
@@ -203,11 +207,12 @@ router.get("/reports/sales/customer-wise", async (req, res): Promise<void> => {
 // ── GET /reports/production ─────────────────────────────────────────
 router.get("/reports/production", async (req, res): Promise<void> => {
   if (!requireAdmin(req, res)) return;
+  const companyId = getCompanyId(req);
   const { from, to } = req.query as any;
   const search = String((req.query as any).search ?? "").trim();
 
-  const params: any[] = [];
-  const where: string[] = [`wc.status = 'done'`, `wc.completed_at IS NOT NULL`];
+  const params: any[] = [companyId];
+  const where: string[] = [`wc.company_id = $1`, `wc.status = 'done'`, `wc.completed_at IS NOT NULL`];
   if (from) { params.push(new Date(from)); where.push(`wc.completed_at >= $${params.length}`); }
   if (to) { const d = new Date(to); d.setHours(23,59,59,999); params.push(d); where.push(`wc.completed_at <= $${params.length}`); }
   if (search) { params.push(`%${search}%`); where.push(`(p.name ILIKE $${params.length} OR COALESCE(wc.worker_name,'') ILIKE $${params.length})`); }
@@ -264,10 +269,11 @@ router.get("/reports/production", async (req, res): Promise<void> => {
 // ── GET /reports/tax ────────────────────────────────────────────────
 router.get("/reports/tax", async (req, res): Promise<void> => {
   if (!requireAdmin(req, res)) return;
+  const companyId = getCompanyId(req);
   const { from, to } = req.query as any;
-  const ps: any[] = [];
-  let dateClauseSales = "i.status = 'saved' AND i.invoice_type = 'gst'";
-  let dateClausePurchase = "p.status = 'saved' AND p.bill_type = 'gst'";
+  const ps: any[] = [companyId];
+  let dateClauseSales = "i.company_id = $1 AND i.status = 'saved' AND i.invoice_type = 'gst'";
+  let dateClausePurchase = "p.company_id = $1 AND p.status = 'saved' AND p.bill_type = 'gst'";
   if (from) {
     ps.push(new Date(from));
     dateClauseSales += ` AND i.invoice_date >= $${ps.length}`;
@@ -330,11 +336,12 @@ router.get("/reports/tax", async (req, res): Promise<void> => {
 // ── GET /reports/profit-loss ────────────────────────────────────────
 router.get("/reports/profit-loss", async (req, res): Promise<void> => {
   if (!requireAdmin(req, res)) return;
+  const companyId = getCompanyId(req);
   const { from, to } = req.query as any;
-  const ps: any[] = [];
-  let salesClause = "i.status = 'saved'";
-  let purClause = "p.status = 'saved'";
-  let expClause = "1=1";
+  const ps: any[] = [companyId];
+  let salesClause = "i.company_id = $1 AND i.status = 'saved'";
+  let purClause = "p.company_id = $1 AND p.status = 'saved'";
+  let expClause = "e.company_id = $1";
   if (from) {
     ps.push(new Date(from));
     salesClause += ` AND i.invoice_date >= $${ps.length}`;
@@ -398,9 +405,10 @@ router.get("/reports/commission", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const { from, to } = req.query as any;
-  const params: any[] = [];
-  const where: string[] = [`i.status = 'saved'`, `i.salesman_id IS NOT NULL`];
+  const params: any[] = [companyId];
+  const where: string[] = [`i.company_id = $1`, `i.status = 'saved'`, `i.salesman_id IS NOT NULL`];
   if (from) { params.push(new Date(from)); where.push(`i.invoice_date >= $${params.length}`); }
   if (to) { const d = new Date(to); d.setHours(23, 59, 59, 999); params.push(d); where.push(`i.invoice_date <= $${params.length}`); }
 

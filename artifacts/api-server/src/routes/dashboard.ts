@@ -317,8 +317,10 @@ router.get("/reports/audit-log", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
+  const companyId = getCompanyId(req);
   const rows = await queryMany(
-    `SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 1000`
+    `SELECT * FROM audit_log WHERE company_id = $1 ORDER BY created_at DESC LIMIT 1000`,
+    [companyId]
   );
 
   res.json(rows.map((e) => ({
@@ -341,23 +343,28 @@ router.get("/search", async (req, res): Promise<void> => {
   }
 
   const pattern = `%${q}%`;
+  const companyId = getCompanyId(req);
 
   const [products, entities, invoices] = await Promise.all([
     db.select().from(productsTable).where(
       and(
+        eq(productsTable.companyId, companyId),
         isNull(productsTable.deletedAt),
         or(ilike(productsTable.name, pattern), ilike(productsTable.itemCode, pattern))
       )
     ).limit(5),
     db.select().from(entitiesTable).where(
-      or(ilike(entitiesTable.name, pattern), ilike(entitiesTable.mobile, pattern))
+      and(
+        eq(entitiesTable.companyId, companyId),
+        or(ilike(entitiesTable.name, pattern), ilike(entitiesTable.mobile, pattern))
+      )
     ).limit(5),
     queryMany(
       `SELECT id, invoice_no, invoice_date, customer_name, grand_total, status
        FROM invoices
-       WHERE invoice_no ILIKE $1 OR customer_name ILIKE $1
+       WHERE company_id = $2 AND (invoice_no ILIKE $1 OR customer_name ILIKE $1)
        ORDER BY created_at DESC LIMIT 5`,
-      [pattern]
+      [pattern, companyId]
     ),
   ]);
 

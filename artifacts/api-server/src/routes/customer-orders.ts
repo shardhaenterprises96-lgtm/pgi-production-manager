@@ -92,8 +92,8 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
 
   if (session.role === "customer") {
     const entRows = await pool.query(
-      `SELECT id, name, mobile FROM entities WHERE user_id = $1 AND type = 'customer' LIMIT 1`,
-      [session.userId]
+      `SELECT id, name, mobile FROM entities WHERE user_id = $1 AND type = 'customer' AND company_id = $2 LIMIT 1`,
+      [session.userId, companyId]
     );
     if (entRows.rows[0]) {
       entityId = entRows.rows[0].id;
@@ -106,7 +106,7 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
   // Fetch product info for pricing snapshot
   const productIds = Array.from(new Set(items.map((i) => Number(i.productId)).filter((x) => Number.isFinite(x))));
   const products = productIds.length
-    ? await db.select().from(productsTable).where(inArray(productsTable.id, productIds))
+    ? await db.select().from(productsTable).where(and(eq(productsTable.companyId, companyId), inArray(productsTable.id, productIds)))
     : [];
   const byId = new Map(products.map((p) => [p.id, p]));
 
@@ -158,10 +158,10 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
         : "pending";
     const ins = await client.query(
       `INSERT INTO customer_orders
-         (user_id, entity_id, customer_name, customer_mobile, status, is_draft, total_items, total_amount, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         (user_id, entity_id, customer_name, customer_mobile, status, is_draft, total_items, total_amount, notes, company_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
-      [session.userId, entityId, customerName, customerMobile, initialStatus, isDraft, totalItems, totalAmount, body.notes ?? null]
+      [session.userId, entityId, customerName, customerMobile, initialStatus, isDraft, totalItems, totalAmount, body.notes ?? null, companyId]
     );
     const order = ins.rows[0];
 
@@ -169,30 +169,30 @@ router.post("/customer-orders", async (req, res): Promise<void> => {
     // work-in-progress and don't burn a number until submitted.
     const orderNo = isDraft
       ? `DRAFT-${order.id}`
-      : await generateSeriesNumber(client, "order", getCompanyId(req));
-    await client.query(`UPDATE customer_orders SET order_no = $1 WHERE id = $2`, [orderNo, order.id]);
+      : await generateSeriesNumber(client, "order", companyId);
+    await client.query(`UPDATE customer_orders SET order_no = $1 WHERE id = $2 AND company_id = $3`, [orderNo, order.id, companyId]);
     order.order_no = orderNo;
 
     for (const it of resolvedItems) {
       const itemIns = await client.query(
         `INSERT INTO customer_order_items
-           (order_id, product_id, product_name, unit, qty, unit_price, line_total)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+           (order_id, product_id, product_name, unit, qty, unit_price, line_total, company_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING id`,
-        [order.id, it.productId, it.productName, it.unit, it.qty, it.unitPrice, it.lineTotal]
+        [order.id, it.productId, it.productName, it.unit, it.qty, it.unitPrice, it.lineTotal, companyId]
       );
       // Auto-create workload card for customer orders so manufacturing
       // sees the demand right away. Drafts never generate demand.
       if (!isDraft && PRODUCTION_STATUSES.has(initialStatus)) {
         const wlIns = await client.query(
-          `INSERT INTO workload_cards (product_id, target_qty, status, order_type, reference_order_id)
-           VALUES ($1, $2, 'pending', 'customer_backorder', $3)
+          `INSERT INTO workload_cards (product_id, target_qty, status, order_type, reference_order_id, company_id)
+           VALUES ($1, $2, 'pending', 'customer_backorder', $3, $4)
            RETURNING id`,
-          [it.productId, it.qty, order.id]
+          [it.productId, it.qty, order.id, companyId]
         );
         await client.query(
-          `UPDATE customer_order_items SET workload_card_id = $1 WHERE id = $2`,
-          [wlIns.rows[0].id, itemIns.rows[0].id]
+          `UPDATE customer_order_items SET workload_card_id = $1 WHERE id = $2 AND company_id = $3`,
+          [wlIns.rows[0].id, itemIns.rows[0].id, companyId]
         );
       }
     }
@@ -215,9 +215,13 @@ router.get("/customer-orders", async (req, res): Promise<void> => {
     return;
   }
 
+  const companyId = getCompanyId(req);
   const status = typeof req.query.status === "string" ? String(req.query.status) : null;
   const params: any[] = [];
   const where: string[] = [];
+
+  params.push(companyId);
+  where.push(`company_id = $${params.length}`);
 
   if (session.role === "customer" || session.role === "salesman") {
     params.push(session.userId);
@@ -245,12 +249,13 @@ router.get("/customer-orders/:id", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
+  const companyId = getCompanyId(req);
   const id = parseInt(String(req.params.id), 10);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const head = await pool.query(`SELECT * FROM customer_orders WHERE id = $1`, [id]);
+  const head = await pool.query(`SELECT * FROM customer_orders WHERE id = $1 AND company_id = $2`, [id, companyId]);
   const order = head.rows[0];
   if (!order) {
     res.status(404).json({ error: "Not found" });
@@ -265,7 +270,7 @@ router.get("/customer-orders/:id", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  const itemsRes = await pool.query(`SELECT * FROM customer_order_items WHERE order_id = $1 ORDER BY id ASC`, [id]);
+  const itemsRes = await pool.query(`SELECT * FROM customer_order_items WHERE order_id = $1 AND company_id = $2 ORDER BY id ASC`, [id, companyId]);
   res.json({
     ...formatOrder(order),
     items: itemsRes.rows.map(formatItem),
@@ -294,6 +299,7 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
+  const companyId = getCompanyId(req);
   const id = parseInt(String(req.params.id), 10);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -324,8 +330,8 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
   try {
     await client.query("BEGIN");
     const existingRes = await client.query(
-      `SELECT * FROM customer_orders WHERE id = $1 FOR UPDATE`,
-      [id]
+      `SELECT * FROM customer_orders WHERE id = $1 AND company_id = $2 FOR UPDATE`,
+      [id, companyId]
     );
     const existing = existingRes.rows[0];
     if (!existing) {
@@ -370,20 +376,20 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
     const NON_PRODUCIBLE = new Set(["cancelled", "dispatched", "delivered", "done"]);
     if (PRODUCTION_STATUSES.has(newStatus) && !PRODUCTION_STATUSES.has(existing.status) && !NON_PRODUCIBLE.has(fromStatus)) {
       const itemsRes = await client.query(
-        `SELECT * FROM customer_order_items WHERE order_id = $1`,
-        [id]
+        `SELECT * FROM customer_order_items WHERE order_id = $1 AND company_id = $2`,
+        [id, companyId]
       );
       for (const it of itemsRes.rows) {
         if (it.workload_card_id) continue;
         const ins = await client.query(
-          `INSERT INTO workload_cards (product_id, target_qty, status, order_type, reference_order_id)
-           VALUES ($1, $2, 'pending', 'customer_backorder', $3)
+          `INSERT INTO workload_cards (product_id, target_qty, status, order_type, reference_order_id, company_id)
+           VALUES ($1, $2, 'pending', 'customer_backorder', $3, $4)
            RETURNING id`,
-          [it.product_id, it.qty, id]
+          [it.product_id, it.qty, id, companyId]
         );
         await client.query(
-          `UPDATE customer_order_items SET workload_card_id = $1 WHERE id = $2`,
-          [ins.rows[0].id, it.id]
+          `UPDATE customer_order_items SET workload_card_id = $1 WHERE id = $2 AND company_id = $3`,
+          [ins.rows[0].id, it.id, companyId]
         );
       }
     }
@@ -398,7 +404,7 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
              dispatch_status = COALESCE($6, dispatch_status),
              is_draft = COALESCE($7, is_draft),
              updated_at = NOW()
-       WHERE id = $8
+       WHERE id = $8 AND company_id = $9
        RETURNING *`,
       [
         newStatus,
@@ -409,6 +415,7 @@ router.patch("/customer-orders/:id/status", async (req, res): Promise<void> => {
         dispatchStatus,
         isDraft,
         id,
+        companyId,
       ]
     );
     await client.query("COMMIT");
