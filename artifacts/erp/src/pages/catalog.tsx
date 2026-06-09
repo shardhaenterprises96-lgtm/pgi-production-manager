@@ -557,23 +557,13 @@ export default function Catalog() {
                       </div>
                     </td>
                     <td className="py-2 px-1">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-7 w-7 shrink-0"
-                          onClick={() => decreaseQty(row.product.id)}
-                          disabled={row.qty <= 1}
-                          data-testid={`button-summary-qty-minus-${row.product.id}`}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
+                      <div className="flex items-center justify-end">
                         <Input
                           type="number"
                           min={1}
                           max={row.product.currentStock}
                           value={row.qty}
-                          className="h-7 w-14 text-sm text-center px-1 tabular-nums"
+                          className="h-7 w-16 text-sm text-center px-1 tabular-nums"
                           onChange={(e) => {
                             const val = parseInt(e.target.value, 10);
                             if (!isNaN(val) && val > 0) {
@@ -582,16 +572,6 @@ export default function Catalog() {
                           }}
                           data-testid={`input-summary-qty-${row.product.id}`}
                         />
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-7 w-7 shrink-0"
-                          onClick={() => increaseQty(row.product.id, row.product.currentStock)}
-                          disabled={row.qty >= row.product.currentStock}
-                          data-testid={`button-summary-qty-plus-${row.product.id}`}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
                       </div>
                     </td>
                     <td className="text-right py-2 px-1 tabular-nums">
