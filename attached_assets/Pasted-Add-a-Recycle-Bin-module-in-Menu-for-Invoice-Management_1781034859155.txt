@@ -1,0 +1,95 @@
+Add a Recycle Bin module in Menu for Invoice Management.
+
+Requirements:
+
+1. Create new Menu:
+
+   * Recycle Bin
+
+2. When Admin deletes an Invoice:
+
+   * Do NOT permanently delete immediately
+   * Move invoice to Recycle Bin
+   * Preserve all invoice data
+   * Preserve customer details
+   * Preserve item details
+   * Preserve GST/non-GST information
+   * Preserve totals and accounting values
+   * The deleted invoice must NOT be visible in the normal Invoice list
+   * The deleted invoice must NOT appear in invoice searches, reports, or invoice management screens
+   * The invoice should only be visible inside the Recycle Bin until restored
+
+3. Stock Protection:
+
+   * Moving invoice to Recycle Bin must NOT affect stock
+   * No stock increase
+   * No stock decrease
+   * Inventory must remain unchanged
+
+4. Commission Protection:
+
+   * Deleted invoices must NOT generate any commission
+   * Existing commission linked to a deleted invoice must be excluded from commission calculations
+   * Deleted invoices must not appear in salesman commission reports
+   * If an invoice is restored, commission eligibility should be restored according to existing business rules
+
+5. Recycle Bin Page:
+
+   Show:
+
+   * Invoice No
+   * Invoice Date
+   * Customer Name
+   * GST / Non-GST Type
+   * Total Amount
+   * Created By
+   * Deleted By
+   * Deleted Date
+   * Status
+
+6. Multi Select:
+
+   * Checkbox selection
+   * Select one or multiple invoices
+
+7. Actions:
+
+   * Restore Selected
+   * Permanently Delete Selected
+
+8. Restore Logic:
+
+   * Restore invoice exactly as original
+   * Keep invoice number unchanged
+   * Keep accounting values unchanged
+   * Keep stock unchanged
+   * Make the invoice visible again in the normal Invoice list
+   * Restore commission eligibility according to existing rules
+
+9. Permanent Delete Logic:
+
+   * Admin only
+   * Confirmation popup required
+   * Delete permanently from system
+   * Create audit log entry
+
+10. Accounting Requirement:
+
+* Deleted invoices must remain visible in Recycle Bin for audit purposes
+* All financial values must remain available until permanent deletion
+* Support mainly deletion of Non-GST invoices without affecting accounting records
+
+11. Security:
+
+* Only Admin can access Recycle Bin
+* Salesman and Customer cannot access
+
+12. Reuse existing database tables, APIs and components wherever possible.
+
+Deliver first:
+
+* Architecture Plan
+* Database impact
+* Files to modify
+* Audit log flow
+* No code yet
