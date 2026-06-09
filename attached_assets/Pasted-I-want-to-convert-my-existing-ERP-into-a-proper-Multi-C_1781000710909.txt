@@ -1,0 +1,179 @@
+I want to convert my existing ERP into a proper Multi-Company SaaS ERP using ONE application and ONE database.
+
+IMPORTANT:
+Do NOT rebuild the whole app.
+Do NOT redesign existing ERP modules.
+Keep current inventory, billing, ledger, reports, printing, recycle bin, and accounting logic untouched.
+
+Need lightweight scalable implementation only.
+
+========================================
+CORE REQUIREMENT
+========================================
+
+Single ERP application
+Multiple companies
+Company-wise isolated data
+
+Every company should only access its own:
+- customers
+- products
+- invoices
+- stock
+- ledger
+- reports
+- users
+
+========================================
+DATABASE STRUCTURE
+========================================
+
+Use existing database.
+
+Add:
+company_id
+
+in all business tables:
+
+- customers
+- products
+- invoices
+- purchases
+- ledger
+- inventory
+- expenses
+- users
+- orders
+- payments
+
+Do NOT duplicate tables per company.
+
+========================================
+LOGIN SYSTEM
+========================================
+
+Need 2 modes.
+
+----------------------------------------
+MODE 1 — SaaS Shared Mode
+----------------------------------------
+
+Login page should show:
+
+[ Select Company ]
+Username
+Password
+
+Users login into their own company.
+
+----------------------------------------
+MODE 2 — Dedicated Company Mode
+----------------------------------------
+
+Using environment variable:
+
+DEFAULT_COMPANY_ID=1
+
+Then:
+- auto select company
+- hide company dropdown
+- lock entire ERP to that company only
+
+Frontend users should never see other companies.
+
+Backend must enforce company restriction.
+
+========================================
+SUPER ADMIN
+========================================
+
+Super Admin can:
+- create companies
+- manage subscriptions
+- activate/deactivate companies
+- switch company
+- see analytics
+
+Only super admin can access all companies.
+
+========================================
+COMPANY ISOLATION
+========================================
+
+All APIs must use:
+
+req.companyId
+
+Every query should filter by:
+
+WHERE company_id = req.companyId
+
+Never trust frontend company selection alone.
+
+========================================
+SECURITY
+========================================
+
+- proper auth middleware
+- hashed passwords
+- protected APIs
+- validate company access everywhere
+
+========================================
+UI REQUIREMENTS
+========================================
+
+Company users:
+- should see company logo/name
+- no SaaS admin branding
+
+Super admin:
+- should see SaaS dashboard
+
+Role-based layout separation required.
+
+========================================
+PERFORMANCE
+========================================
+
+- lightweight implementation
+- minimal file changes
+- avoid unnecessary refactors
+- reusable middleware/helpers
+- cache company config
+
+========================================
+HELPERS
+========================================
+
+Create:
+
+getCurrentCompany()
+
+Inject:
+req.companyId
+
+globally.
+
+========================================
+ENV VARIABLES
+========================================
+
+Support:
+
+DEFAULT_COMPANY_ID=
+DATABASE_URL=
+SESSION_SECRET=
+
+========================================
+IMPORTANT
+========================================
+
+Do NOT:
+- rebuild ERP
+- change inventory logic
+- change billing logic
+- change reports
+- create unnecessary pages
+
+Need production-ready lightweight SaaS architecture using existing ERP.

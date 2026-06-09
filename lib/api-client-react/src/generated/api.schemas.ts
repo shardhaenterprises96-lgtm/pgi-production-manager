@@ -169,6 +169,37 @@ export interface AuthSession {
   customerId?: number | null;
   /** @nullable */
   companyId?: number | null;
+  /** @nullable */
+  activeCompanyId?: number | null;
+}
+
+export interface CompanyOption {
+  id: number;
+  name: string;
+  /** @nullable */
+  logo?: string | null;
+}
+
+export interface SetActiveCompanyInput {
+  /** @nullable */
+  companyId: number | null;
+}
+
+/**
+ * @nullable
+ */
+export type ActiveCompanyCompany = {
+  id: number;
+  name: string;
+  /** @nullable */
+  logo?: string | null;
+} | null;
+
+export interface ActiveCompany {
+  /** @nullable */
+  activeCompanyId: number | null;
+  /** @nullable */
+  company: ActiveCompanyCompany;
 }
 
 /**

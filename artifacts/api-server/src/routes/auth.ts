@@ -142,6 +142,10 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     name: user.name,
     customerId: user.entityId ?? null,
     companyId: user.companyId ?? null,
+    // Surface the super_admin's currently switched-into company so the SPA can
+    // show the right company context and unlock ERP navigation. Null for normal
+    // users and for a super_admin that hasn't picked a company yet.
+    activeCompanyId: (session.activeCompanyId as number | null | undefined) ?? null,
   });
 });
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "./sidebar";
+import { CompanySwitcher } from "./company-switcher";
 import { useAuth } from "@/contexts/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
@@ -60,8 +61,11 @@ export function AppLayout({ children }: AppLayoutProps) {
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
           <div className="font-semibold tracking-tight text-sm sm:text-base">VIPRO ERP</div>
-          <div className="ml-auto text-xs text-muted-foreground hidden sm:block">
-            {user?.name} · <span className="capitalize">{user?.role}</span>
+          <div className="ml-auto flex items-center gap-3">
+            <CompanySwitcher />
+            <div className="text-xs text-muted-foreground hidden sm:block">
+              {user?.name} · <span className="capitalize">{user?.role}</span>
+            </div>
           </div>
         </header>
 

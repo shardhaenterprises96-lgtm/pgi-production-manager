@@ -16,4 +16,6 @@ export interface AuthSession {
   customerId?: number | null;
   /** @nullable */
   companyId?: number | null;
+  /** @nullable */
+  activeCompanyId?: number | null;
 }

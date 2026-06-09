@@ -30,6 +30,34 @@ export const GetSystemConfigResponse = zod.object({
 
 
 /**
+ * @summary List all tenant companies (super_admin only)
+ */
+export const GetCompaniesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "logo": zod.string().nullish()
+})
+export const GetCompaniesResponse = zod.array(GetCompaniesResponseItem)
+
+
+/**
+ * @summary Switch the super_admin into a company (super_admin only)
+ */
+export const SetActiveCompanyBody = zod.object({
+  "companyId": zod.number().nullable()
+})
+
+export const SetActiveCompanyResponse = zod.object({
+  "activeCompanyId": zod.number().nullable(),
+  "company": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "logo": zod.string().nullish()
+}).nullable()
+})
+
+
+/**
  * @summary Login
  */
 export const LoginBody = zod.object({
@@ -43,7 +71,8 @@ export const LoginResponse = zod.object({
   "role": zod.enum(['super_admin', 'admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "name": zod.string(),
   "customerId": zod.number().nullish(),
-  "companyId": zod.number().nullish()
+  "companyId": zod.number().nullish(),
+  "activeCompanyId": zod.number().nullish()
 })
 
 
@@ -56,7 +85,8 @@ export const GetMeResponse = zod.object({
   "role": zod.enum(['super_admin', 'admin', 'salesman', 'store', 'manufacturing', 'accountant', 'customer']),
   "name": zod.string(),
   "customerId": zod.number().nullish(),
-  "companyId": zod.number().nullish()
+  "companyId": zod.number().nullish(),
+  "activeCompanyId": zod.number().nullish()
 })
 
 

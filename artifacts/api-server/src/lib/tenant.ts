@@ -11,6 +11,11 @@ export interface AppSession {
   // Tenant company this user belongs to. NULL only for platform `super_admin`,
   // which operates across all companies and is never scoped to one.
   companyId: number | null;
+  // The company the platform `super_admin` has "switched into". Only ever set
+  // for super_admin; regular users are scoped by `companyId` instead. When set,
+  // every company-scoped route treats the super_admin as a member of this
+  // company so it can view/manage that tenant's data.
+  activeCompanyId?: number | null;
 }
 
 // Raised when a request that requires a tenant context has none (e.g. an
@@ -40,6 +45,15 @@ export function getCompanyId(req: Request): number {
   if (!session || !session.userId) {
     throw new TenantContextError("Not authenticated", 401);
   }
+  // Platform super_admin has no home company. It scopes to whichever company it
+  // has switched into (session.activeCompanyId). Until one is selected it has no
+  // tenant context, so company-scoped routes must not silently leak data.
+  if (session.role === "super_admin") {
+    if (session.activeCompanyId == null) {
+      throw new TenantContextError("Select a company to continue", 409);
+    }
+    return session.activeCompanyId;
+  }
   if (session.companyId == null) {
     throw new TenantContextError("No tenant context for this account", 403);
   }
@@ -64,7 +78,12 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     res.status(403).json({ error: "This system is dedicated to another company." });
     return;
   }
-  (req as any).companyId = session.companyId ?? null;
+  // For a normal user this is their home company; for the platform super_admin
+  // it is whichever company they have switched into (null until they pick one).
+  (req as any).companyId =
+    session.role === "super_admin"
+      ? session.activeCompanyId ?? null
+      : session.companyId ?? null;
   (req as any).isSuperAdmin = session.role === "super_admin";
   next();
 }
