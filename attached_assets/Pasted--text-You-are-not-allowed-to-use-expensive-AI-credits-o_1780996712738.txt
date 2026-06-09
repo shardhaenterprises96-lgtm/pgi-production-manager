@@ -1,0 +1,100 @@
+```text
+You are not allowed to use expensive AI credits or large refactors.
+
+Current issue:
+You keep saying “out of budget” and not implementing the dedicated company mode correctly.
+
+I do NOT want a full SaaS rewrite.
+
+I only want a SIMPLE lightweight solution using the existing system.
+
+========================================
+REQUIRED SIMPLE LOGIC
+========================================
+
+Keep current ERP exactly as it is.
+
+Just add ONE backend config:
+
+DEFAULT_COMPANY_ID=1
+
+OR
+
+DEFAULT_COMPANY_CODE=shraddha
+
+========================================
+LOGIN LOGIC
+========================================
+
+If DEFAULT_COMPANY_ID exists:
+
+THEN:
+- automatically load that company
+- hide company dropdown completely
+- login should work only for that company
+- users from other companies cannot login
+
+Frontend should remain simple.
+
+Current UI already looks good.
+
+Just show:
+
+Shradha Enterprises
+Vipro ERP System
+
+Username
+Password
+
+[ Sign In ]
+
+NO extra SaaS UI needed.
+
+========================================
+BACKEND SECURITY
+========================================
+
+On login:
+- ignore frontend company input
+- backend should force:
+company_id = DEFAULT_COMPANY_ID
+
+On every API:
+- automatically use fixed company_id
+
+========================================
+SUPER ADMIN
+========================================
+
+Super admin should still bypass restriction.
+
+========================================
+IMPORTANT
+========================================
+
+DO NOT:
+- redesign app
+- rebuild database
+- create heavy architecture
+- create unnecessary pages
+- use huge AI token budget
+
+ONLY:
+- small backend middleware
+- small login adjustment
+- env variable support
+
+========================================
+FILES TO MODIFY ONLY
+========================================
+
+Modify only minimal files:
+- auth middleware
+- login API
+- login page
+- env config
+
+Do not touch inventory/accounting logic.
+
+Need a lightweight production-ready implementation.
+```

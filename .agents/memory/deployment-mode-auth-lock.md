@@ -6,8 +6,12 @@ description: How the ERP switches between shared SaaS and single-company deploym
 The same ERP codebase serves two deployment shapes, selected at runtime by env vars
 (no code change): shared multi-tenant SaaS vs a dedicated install locked to one company.
 
-- `MULTI_COMPANY_MODE` = `true` (default) | `false`
-- `DEFAULT_COMPANY_ID` = numeric company id (only meaningful in dedicated mode)
+- `DEFAULT_COMPANY_ID` — the single trigger, keyed on RAW PRESENCE of the env var
+  (any non-empty value, even malformed), NOT its parsed value: if SET, dedicated
+  single-company mode; if UNSET, shared multi-tenant SaaS (default). Tying the
+  trigger to the parsed id would fall open to shared mode on a malformed value.
+- `MULTI_COMPANY_MODE` = optional legacy override (`true`/`false`); not required —
+  setting `DEFAULT_COMPANY_ID` alone is enough to lock the install.
 - `GET /system/config` is PUBLIC (mounted before requireAuth) and returns
   `{ multiCompanyMode, company }` purely so the login screen can show fixed branding.
 
