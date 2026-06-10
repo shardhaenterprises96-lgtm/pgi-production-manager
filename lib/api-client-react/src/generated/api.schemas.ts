@@ -148,6 +148,45 @@ export interface ChangePlanInput {
   subscriptionAmount: number;
 }
 
+export type UpdateSubscriptionInputPlanName = typeof UpdateSubscriptionInputPlanName[keyof typeof UpdateSubscriptionInputPlanName];
+
+
+export const UpdateSubscriptionInputPlanName = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  half_yearly: 'half_yearly',
+  yearly: 'yearly',
+} as const;
+
+export type UpdateSubscriptionInputPaymentStatus = typeof UpdateSubscriptionInputPaymentStatus[keyof typeof UpdateSubscriptionInputPaymentStatus];
+
+
+export const UpdateSubscriptionInputPaymentStatus = {
+  paid: 'paid',
+  pending: 'pending',
+  overdue: 'overdue',
+} as const;
+
+export interface UpdateSubscriptionInput {
+  companyName: string;
+  /** @nullable */
+  ownerName?: string | null;
+  /** @nullable */
+  mobile?: string | null;
+  /** @nullable */
+  email?: string | null;
+  planName: UpdateSubscriptionInputPlanName;
+  subscriptionAmount: number;
+  subscriptionStartDate: string;
+  subscriptionEndDate: string;
+  paymentStatus: UpdateSubscriptionInputPaymentStatus;
+}
+
+export interface DeleteSubscriptionResult {
+  message: string;
+  companyName: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

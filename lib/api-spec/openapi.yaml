@@ -2350,6 +2350,54 @@ paths:
               schema:
                 $ref: "#/components/schemas/SubscriptionListItem"
 
+  /subscriptions/{id}:
+    put:
+      operationId: updateSubscription
+      tags: [subscriptions]
+      summary: Edit a tenant company and its subscription details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSubscriptionInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionListItem"
+        "400":
+          description: Invalid input
+        "404":
+          description: Subscription not found
+    delete:
+      operationId: deleteSubscription
+      tags: [subscriptions]
+      summary: Permanently delete a tenant company, its subscription and all its data (destructive)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteSubscriptionResult"
+        "404":
+          description: Subscription not found
+
 components:
   schemas:
     SubscriptionListItem:
@@ -2509,6 +2557,40 @@ components:
           enum: [monthly, quarterly, half_yearly, yearly]
         subscriptionAmount:
           type: number
+
+    UpdateSubscriptionInput:
+      type: object
+      required: [companyName, planName, subscriptionAmount, subscriptionStartDate, subscriptionEndDate, paymentStatus]
+      properties:
+        companyName:
+          type: string
+        ownerName:
+          type: ["string", "null"]
+        mobile:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        planName:
+          type: string
+          enum: [monthly, quarterly, half_yearly, yearly]
+        subscriptionAmount:
+          type: number
+        subscriptionStartDate:
+          type: string
+        subscriptionEndDate:
+          type: string
+        paymentStatus:
+          type: string
+          enum: [paid, pending, overdue]
+
+    DeleteSubscriptionResult:
+      type: object
+      required: [message, companyName]
+      properties:
+        message:
+          type: string
+        companyName:
+          type: string
 
     HealthStatus:
       type: object

@@ -53,6 +53,7 @@ import type {
   CustomerOrderStatusUpdate,
   CustomerWiseSalesReport,
   DashboardSummary,
+  DeleteSubscriptionResult,
   Entity,
   EntityInput,
   EntityLedger,
@@ -134,6 +135,7 @@ import type {
   SystemConfig,
   TaxReport,
   TopProduct,
+  UpdateSubscriptionInput,
   UpdateUserInput,
   UserAccount,
   Worker,
@@ -9165,5 +9167,147 @@ export const useActivateSubscription = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getActivateSubscriptionMutationOptions(options));
+    }
+
+export const getUpdateSubscriptionUrl = (id: number,) => {
+
+
+
+
+  return `/api/subscriptions/${id}`
+}
+
+/**
+ * @summary Edit a tenant company and its subscription details
+ */
+export const updateSubscription = async (id: number,
+    updateSubscriptionInput: UpdateSubscriptionInput, options?: RequestInit): Promise<SubscriptionListItem> => {
+
+  return customFetch<SubscriptionListItem>(getUpdateSubscriptionUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateSubscriptionInput,)
+  }
+);}
+
+
+
+
+export const getUpdateSubscriptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubscription>>, TError,{id: number;data: BodyType<UpdateSubscriptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSubscription>>, TError,{id: number;data: BodyType<UpdateSubscriptionInput>}, TContext> => {
+
+const mutationKey = ['updateSubscription'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSubscription>>, {id: number;data: BodyType<UpdateSubscriptionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSubscription(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSubscriptionMutationResult = NonNullable<Awaited<ReturnType<typeof updateSubscription>>>
+    export type UpdateSubscriptionMutationBody = BodyType<UpdateSubscriptionInput>
+    export type UpdateSubscriptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Edit a tenant company and its subscription details
+ */
+export const useUpdateSubscription = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubscription>>, TError,{id: number;data: BodyType<UpdateSubscriptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSubscription>>,
+        TError,
+        {id: number;data: BodyType<UpdateSubscriptionInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSubscriptionMutationOptions(options));
+    }
+
+export const getDeleteSubscriptionUrl = (id: number,) => {
+
+
+
+
+  return `/api/subscriptions/${id}`
+}
+
+/**
+ * @summary Permanently delete a tenant company, its subscription and all its data (destructive)
+ */
+export const deleteSubscription = async (id: number, options?: RequestInit): Promise<DeleteSubscriptionResult> => {
+
+  return customFetch<DeleteSubscriptionResult>(getDeleteSubscriptionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSubscriptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubscription>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSubscription>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteSubscription'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSubscription>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSubscription(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSubscriptionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSubscription>>>
+
+    export type DeleteSubscriptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Permanently delete a tenant company, its subscription and all its data (destructive)
+ */
+export const useDeleteSubscription = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubscription>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSubscription>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSubscriptionMutationOptions(options));
     }
 

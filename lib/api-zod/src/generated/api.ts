@@ -2913,3 +2913,54 @@ export const ActivateSubscriptionResponse = zod.object({
 })
 
 
+/**
+ * @summary Edit a tenant company and its subscription details
+ */
+export const UpdateSubscriptionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateSubscriptionBody = zod.object({
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.enum(['monthly', 'quarterly', 'half_yearly', 'yearly']),
+  "subscriptionAmount": zod.number(),
+  "subscriptionStartDate": zod.string(),
+  "subscriptionEndDate": zod.string(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue'])
+})
+
+export const UpdateSubscriptionResponse = zod.object({
+  "id": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "planName": zod.string(),
+  "subscriptionStartDate": zod.string(),
+  "subscriptionEndDate": zod.string(),
+  "subscriptionAmount": zod.number(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue']),
+  "subscriptionStatus": zod.enum(['active', 'expired', 'suspended']),
+  "lastPaymentDate": zod.string().nullish(),
+  "nextDueDate": zod.string().nullish(),
+  "daysRemaining": zod.number()
+})
+
+
+/**
+ * @summary Permanently delete a tenant company, its subscription and all its data (destructive)
+ */
+export const DeleteSubscriptionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteSubscriptionResponse = zod.object({
+  "message": zod.string(),
+  "companyName": zod.string()
+})
+
+

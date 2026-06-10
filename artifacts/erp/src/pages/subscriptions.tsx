@@ -9,6 +9,8 @@ import {
   useChangeSubscriptionPlan,
   useSuspendSubscription,
   useActivateSubscription,
+  useUpdateSubscription,
+  useDeleteSubscription,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -28,14 +30,19 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
 } from "recharts";
 import {
   Users, CheckCircle2, XCircle, Clock, TrendingUp, DollarSign, Bell, Plus,
   RefreshCw, ArrowUpDown, Ban, Play, Download, FileSpreadsheet, FileText, Search,
+  Pencil, Trash2, AlertTriangle,
 } from "lucide-react";
 
 const PLANS = [
@@ -197,12 +204,23 @@ export default function Subscriptions() {
   const planMut = useChangeSubscriptionPlan({ mutation: { onSuccess: () => { invalidate(); toast({ title: "Plan updated" }); }, onError: onErr } });
   const suspendMut = useSuspendSubscription({ mutation: { onSuccess: () => { invalidate(); toast({ title: "Subscription suspended" }); }, onError: onErr } });
   const activateMut = useActivateSubscription({ mutation: { onSuccess: () => { invalidate(); toast({ title: "Subscription activated" }); }, onError: onErr } });
+  const editMut = useUpdateSubscription({ mutation: { onSuccess: () => { invalidate(); toast({ title: "Subscription updated" }); }, onError: onErr } });
+  const deleteMut = useDeleteSubscription({ mutation: { onSuccess: (r) => { invalidate(); toast({ title: "Subscription deleted", description: `${r.companyName} and all its data were removed.` }); }, onError: onErr } });
 
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const [planOpen, setPlanOpen] = useState(false);
   const [planTarget, setPlanTarget] = useState<{ id: number; planName: string; amount: string } | null>(null);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{
+    id: number; companyName: string; ownerName: string; mobile: string; email: string;
+    planName: string; subscriptionAmount: string; subscriptionStartDate: string;
+    subscriptionEndDate: string; paymentStatus: string;
+  } | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; companyName: string } | null>(null);
 
   const rows = list.data ?? [];
   const d = dashboard.data;
@@ -250,6 +268,54 @@ export default function Subscriptions() {
       id: planTarget.id,
       data: { planName: planTarget.planName as "monthly" | "quarterly" | "half_yearly" | "yearly", subscriptionAmount: amount },
     }, { onSuccess: () => { setPlanOpen(false); setPlanTarget(null); } });
+  };
+
+  const openEdit = (r: (typeof rows)[number]) => {
+    setEditTarget({
+      id: r.id,
+      companyName: r.companyName,
+      ownerName: r.ownerName ?? "",
+      mobile: r.mobile ?? "",
+      email: r.email ?? "",
+      planName: r.planName,
+      subscriptionAmount: String(r.subscriptionAmount),
+      subscriptionStartDate: r.subscriptionStartDate.slice(0, 10),
+      subscriptionEndDate: r.subscriptionEndDate.slice(0, 10),
+      paymentStatus: r.paymentStatus,
+    });
+    setEditOpen(true);
+  };
+
+  const submitEdit = () => {
+    if (!editTarget) return;
+    const amount = Number(editTarget.subscriptionAmount);
+    if (!editTarget.companyName.trim() || Number.isNaN(amount) || amount <= 0) {
+      toast({ title: "Validation", description: "Company name and a valid amount are required.", variant: "destructive" });
+      return;
+    }
+    if (new Date(editTarget.subscriptionEndDate) <= new Date(editTarget.subscriptionStartDate)) {
+      toast({ title: "Validation", description: "End date must be after the start date.", variant: "destructive" });
+      return;
+    }
+    editMut.mutate({
+      id: editTarget.id,
+      data: {
+        companyName: editTarget.companyName.trim(),
+        ownerName: editTarget.ownerName || null,
+        mobile: editTarget.mobile || null,
+        email: editTarget.email || null,
+        planName: editTarget.planName as "monthly" | "quarterly" | "half_yearly" | "yearly",
+        subscriptionAmount: amount,
+        subscriptionStartDate: new Date(editTarget.subscriptionStartDate).toISOString(),
+        subscriptionEndDate: new Date(editTarget.subscriptionEndDate).toISOString(),
+        paymentStatus: editTarget.paymentStatus as "paid" | "pending" | "overdue",
+      },
+    }, { onSuccess: () => { setEditOpen(false); setEditTarget(null); } });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMut.mutate({ id: deleteTarget.id }, { onSuccess: () => setDeleteTarget(null) });
   };
 
   return (
@@ -419,6 +485,9 @@ export default function Subscriptions() {
                             <Button variant="ghost" size="sm"><ArrowUpDown className="w-4 h-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(r)}>
+                              <Pencil className="w-4 h-4 mr-2" /> Edit
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => renewMut.mutate({ id: r.id })}>
                               <RefreshCw className="w-4 h-4 mr-2" /> Renew
                             </DropdownMenuItem>
@@ -434,6 +503,13 @@ export default function Subscriptions() {
                                 <Ban className="w-4 h-4 mr-2" /> Suspend
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600"
+                              onClick={() => setDeleteTarget({ id: r.id, companyName: r.companyName })}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" /> Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -557,6 +633,98 @@ export default function Subscriptions() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* EDIT SUBSCRIPTION DIALOG */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Subscription</DialogTitle>
+            <DialogDescription>Update the tenant company and its subscription details.</DialogDescription>
+          </DialogHeader>
+          {editTarget && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Company Name</Label>
+                <Input value={editTarget.companyName} onChange={(e) => setEditTarget({ ...editTarget, companyName: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Owner Name</Label>
+                <Input value={editTarget.ownerName} onChange={(e) => setEditTarget({ ...editTarget, ownerName: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Mobile</Label>
+                <Input value={editTarget.mobile} onChange={(e) => setEditTarget({ ...editTarget, mobile: e.target.value })} />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Email</Label>
+                <Input value={editTarget.email} onChange={(e) => setEditTarget({ ...editTarget, email: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Plan</Label>
+                <Select value={editTarget.planName} onValueChange={(v) => setEditTarget({ ...editTarget, planName: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PLANS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Amount (₹)</Label>
+                <Input type="number" value={editTarget.subscriptionAmount} onChange={(e) => setEditTarget({ ...editTarget, subscriptionAmount: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Start Date</Label>
+                <Input type="date" value={editTarget.subscriptionStartDate} onChange={(e) => setEditTarget({ ...editTarget, subscriptionStartDate: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>End Date</Label>
+                <Input type="date" value={editTarget.subscriptionEndDate} onChange={(e) => setEditTarget({ ...editTarget, subscriptionEndDate: e.target.value })} />
+              </div>
+              <div className="space-y-1.5 col-span-2">
+                <Label>Payment Status</Label>
+                <Select value={editTarget.paymentStatus} onValueChange={(v) => setEditTarget({ ...editTarget, paymentStatus: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={submitEdit} disabled={editMut.isPending}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE CONFIRM */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" /> Delete subscription?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes <span className="font-semibold">{deleteTarget?.companyName}</span> along with its
+              subscription and <span className="font-semibold">all of its data</span> — logins, products, parties,
+              invoices, payments and history. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMut.isPending}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {deleteMut.isPending ? "Deleting…" : "Delete permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

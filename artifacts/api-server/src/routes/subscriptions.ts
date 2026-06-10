@@ -4,7 +4,9 @@ import { db, pool, usersTable } from "@workspace/db";
 import {
   CreateSubscriptionBody,
   ChangeSubscriptionPlanBody,
+  UpdateSubscriptionBody,
 } from "@workspace/api-zod";
+import { COMPANY_TABLES } from "../lib/company-data";
 
 const router: IRouter = Router();
 
@@ -439,6 +441,147 @@ router.put("/subscriptions/:id/activate", async (req, res): Promise<void> => {
 
   const { rows } = await pool.query(`${SELECT_JOIN} WHERE s.id = $1`, [id]);
   res.json(mapRow(rows[0]));
+});
+
+// PUT /subscriptions/:id — edit company + subscription details (SERIALIZABLE)
+router.put("/subscriptions/:id", async (req, res): Promise<void> => {
+
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid subscription id" });
+    return;
+  }
+  const parsed = UpdateSubscriptionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const body = parsed.data;
+  if (!PLAN_MONTHS[body.planName]) {
+    res.status(400).json({ error: "Invalid plan" });
+    return;
+  }
+
+  const start = new Date(body.subscriptionStartDate);
+  const end = new Date(body.subscriptionEndDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    res.status(400).json({ error: "Invalid start or end date" });
+    return;
+  }
+  if (end <= start) {
+    res.status(400).json({ error: "End date must be after the start date" });
+    return;
+  }
+  if (!Number.isFinite(body.subscriptionAmount) || body.subscriptionAmount <= 0) {
+    res.status(400).json({ error: "Amount must be a positive number" });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    const cur = await client.query(`SELECT * FROM subscriptions WHERE id = $1`, [id]);
+    if (cur.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Subscription not found" });
+      return;
+    }
+    const sub = cur.rows[0];
+    const companyId = sub.company_id;
+
+    // Suspended accounts stay suspended; otherwise status follows the (possibly
+    // edited) end date so the list never shows a misleading "active" past expiry.
+    const status =
+      sub.subscription_status === "suspended"
+        ? "suspended"
+        : end > new Date()
+          ? "active"
+          : "expired";
+
+    await client.query(
+      `UPDATE companies
+       SET name = $1, owner_name = $2, mobile = $3, email = $4, updated_at = NOW()
+       WHERE id = $5`,
+      [body.companyName.trim(), body.ownerName ?? null, body.mobile ?? null, body.email ?? null, companyId]
+    );
+
+    await client.query(
+      `UPDATE subscriptions
+       SET plan_name = $1,
+           subscription_amount = $2,
+           subscription_start_date = $3,
+           subscription_end_date = $4,
+           payment_status = $5,
+           subscription_status = $6,
+           next_due_date = $4,
+           updated_at = NOW()
+       WHERE id = $7`,
+      [body.planName, String(body.subscriptionAmount), start, end, body.paymentStatus, status, id]
+    );
+
+    await client.query("COMMIT");
+
+    const { rows } = await pool.query(`${SELECT_JOIN} WHERE s.id = $1`, [id]);
+    res.json(mapRow(rows[0]));
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /subscriptions/:id — permanently remove a tenant company, its
+// subscription and ALL of its business data (logins, transactions, history).
+// Destructive and irreversible. SERIALIZABLE so a concurrent write can't leave
+// the tenant half-deleted.
+router.delete("/subscriptions/:id", async (req, res): Promise<void> => {
+
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid subscription id" });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    const cur = await client.query(
+      `SELECT s.company_id, c.name AS company_name
+       FROM subscriptions s JOIN companies c ON c.id = s.company_id
+       WHERE s.id = $1`,
+      [id]
+    );
+    if (cur.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Subscription not found" });
+      return;
+    }
+    const companyId = cur.rows[0].company_id;
+    const companyName = cur.rows[0].company_name as string;
+
+    // Wipe every company-scoped business table (reverse FK order), then the
+    // tenant-management rows. COMPANY_TABLES is the same allow-list used by
+    // backup/restore/reset, so table names are never derived from user input.
+    for (const table of [...COMPANY_TABLES].reverse()) {
+      await client.query(`DELETE FROM ${table} WHERE company_id = $1`, [companyId]);
+    }
+    await client.query(`DELETE FROM backups WHERE company_id = $1`, [companyId]);
+    await client.query(`DELETE FROM backup_settings WHERE company_id = $1`, [companyId]);
+    await client.query(`DELETE FROM subscription_alerts WHERE company_id = $1`, [companyId]);
+    await client.query(`DELETE FROM subscriptions WHERE company_id = $1`, [companyId]);
+    await client.query(`DELETE FROM companies WHERE id = $1`, [companyId]);
+
+    await client.query("COMMIT");
+
+    res.json({ message: "Tenant company and all its data have been permanently deleted.", companyName });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 export default router;
