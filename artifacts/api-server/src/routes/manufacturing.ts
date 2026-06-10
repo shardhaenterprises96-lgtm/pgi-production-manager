@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
 import {
   bomsTable,
@@ -95,7 +95,7 @@ router.post("/boms", async (req, res): Promise<void> => {
   const owned = await db
     .select({ id: productsTable.id })
     .from(productsTable)
-    .where(and(eq(productsTable.companyId, companyId), sql`${productsTable.id} = ANY(${productIds})`));
+    .where(and(eq(productsTable.companyId, companyId), inArray(productsTable.id, productIds)));
   const ownedIds = new Set(owned.map((p) => p.id));
   for (const pid of productIds) {
     if (!ownedIds.has(pid)) {
@@ -218,7 +218,7 @@ router.patch("/boms/:id", async (req, res): Promise<void> => {
       const owned = await db
         .select({ id: productsTable.id })
         .from(productsTable)
-        .where(and(eq(productsTable.companyId, companyId), sql`${productsTable.id} = ANY(${materialIds})`));
+        .where(and(eq(productsTable.companyId, companyId), inArray(productsTable.id, materialIds)));
       const ownedIds = new Set(owned.map((p) => p.id));
       for (const mid of materialIds) {
         if (!ownedIds.has(mid)) {

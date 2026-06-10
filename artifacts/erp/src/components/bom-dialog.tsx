@@ -141,7 +141,7 @@ export function BomDialog({
 
   return (
     <Dialog open={!!state} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {state.existingBom ? "Edit BOM" : "Add BOM"} — {state.finishedProductName}
@@ -152,7 +152,7 @@ export function BomDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-[1fr_160px] gap-3 items-end">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_160px] sm:items-end">
             <div>
               <Label>Finished Product</Label>
               <Input value={state.finishedProductName} disabled className="mt-1.5" />
@@ -172,7 +172,7 @@ export function BomDialog({
           </div>
 
           <div className="border rounded-md">
-            <div className="grid grid-cols-[1fr_110px_80px_110px_40px] gap-2 px-3 py-2 text-xs uppercase text-muted-foreground font-medium border-b bg-muted/50">
+            <div className="hidden gap-2 px-3 py-2 text-xs uppercase text-muted-foreground font-medium border-b bg-muted/50 sm:grid sm:grid-cols-[1fr_110px_80px_110px_40px]">
               <div>Material</div>
               <div className="text-right">Qty / batch</div>
               <div>Unit</div>
@@ -181,7 +181,7 @@ export function BomDialog({
             </div>
             <div className="divide-y">
               {items.map((row, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_110px_80px_110px_40px] gap-2 px-3 py-2 items-center">
+                <div key={idx} className="flex flex-col gap-2 px-3 py-3 sm:grid sm:grid-cols-[1fr_110px_80px_110px_40px] sm:gap-2 sm:py-2 sm:items-center">
                   <div className="flex gap-1">
                     <Select
                       value={row.materialProductId}
@@ -193,7 +193,7 @@ export function BomDialog({
                         });
                       }}
                     >
-                      <SelectTrigger data-testid={`select-material-${idx}`}>
+                      <SelectTrigger className="min-w-0" data-testid={`select-material-${idx}`}>
                         <SelectValue placeholder="Select material…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -216,33 +216,44 @@ export function BomDialog({
                       <PackagePlus className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.001"
-                    value={row.quantity}
-                    onChange={(e) => updateRow(idx, { quantity: e.target.value })}
-                    className="text-right"
-                    data-testid={`input-material-qty-${idx}`}
-                  />
-                  <Input
-                    value={row.unit}
-                    onChange={(e) => updateRow(idx, { unit: e.target.value })}
-                    placeholder="QTY"
-                  />
-                  <div className="text-right text-sm font-medium tabular-nums" data-testid={`text-line-cost-${idx}`}>
-                    {rowCost(row) > 0 ? fmt(rowCost(row)) : <span className="text-muted-foreground">—</span>}
+                  <div className="grid grid-cols-2 gap-2 sm:contents">
+                    <div className="sm:contents">
+                      <Label className="mb-1 block text-[11px] text-muted-foreground sm:hidden">Qty / batch</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={row.quantity}
+                        onChange={(e) => updateRow(idx, { quantity: e.target.value })}
+                        className="text-right"
+                        data-testid={`input-material-qty-${idx}`}
+                      />
+                    </div>
+                    <div className="sm:contents">
+                      <Label className="mb-1 block text-[11px] text-muted-foreground sm:hidden">Unit</Label>
+                      <Input
+                        value={row.unit}
+                        onChange={(e) => updateRow(idx, { unit: e.target.value })}
+                        placeholder="QTY"
+                      />
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => removeRow(idx)}
-                    disabled={items.length === 1}
-                    title="Remove row"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center justify-between border-t pt-2 sm:contents sm:border-t-0 sm:pt-0">
+                    <div className="text-sm font-medium tabular-nums sm:text-right" data-testid={`text-line-cost-${idx}`}>
+                      <span className="mr-1 text-[11px] text-muted-foreground sm:hidden">Line Cost:</span>
+                      {rowCost(row) > 0 ? fmt(rowCost(row)) : <span className="text-muted-foreground">—</span>}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => removeRow(idx)}
+                      disabled={items.length === 1}
+                      title="Remove row"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

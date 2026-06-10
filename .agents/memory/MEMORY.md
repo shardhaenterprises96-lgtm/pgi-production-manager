@@ -9,3 +9,4 @@
 - [Tenant isolation in raw SQL](tenant-isolation-raw-sql.md) — every raw client.query in SERIALIZABLE txns must carry company_id, not just ORM reads; foreign ids else corrupt other tenants.
 - [Tenant hard-delete coverage](tenant-hard-delete.md) — no DB-level FK cascade exists; full company delete must sweep COMPANY_TABLES PLUS the excluded mgmt + backup tables manually.
 - [Backup restore SQL safety](backup-restore-injection.md) — restore must allow-list insert columns from information_schema (not uploaded keys) and strictly require companyId === current tenant.
+- [Drizzle = ANY(jsArray) is broken](drizzle-any-array.md) — `sql\`col = ANY(${jsArray})\`` expands to separate params and Postgres rejects it; use inArray() instead.
