@@ -42,11 +42,15 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
+type QtyMode = "unit" | "box";
+
 type BillingItem = {
   productId: number;
   name: string;
   unit: string;
-  qty: number;
+  qty: number;            // the number the user typed — pieces in "unit" mode, boxes in "box" mode
+  qtyMode: QtyMode;       // whether `qty` is entered as individual units or as boxes
+  unitsPerBox: number;    // pieces per box (0 → product has no pack size, box entry disabled)
   rate: number;
   mrp: number;
   taxPct: number;
@@ -56,13 +60,30 @@ type BillingItem = {
   litersPerBox: number; // 0 when not applicable; used to derive line LTR
 };
 
-// Per-line liters. Prefer explicit litersPerBox multiplier, else if unit is
-// already litres treat qty as liters directly.
-function lineLiters(i: { qty: number; unit: string; litersPerBox: number }): number {
-  if (i.litersPerBox && i.litersPerBox > 0) return i.qty * i.litersPerBox;
+// Pieces per box for a product. Prefer an explicit unitsPerBox; fall back to
+// litersPerBox (the existing catalog data uses it as the carton pack size).
+// 0 means no pack size, so box-based entry isn't offered for that product.
+function resolvePack(p: any): number {
+  const u = Number(p?.unitsPerBox ?? 0);
+  if (u > 0) return u;
+  const l = Number(p?.litersPerBox ?? 0);
+  return l > 0 ? l : 0;
+}
+
+// The billed quantity in the product's base stock unit (pieces). Box entry is a
+// convenience multiplier — stock, rate and amount always work in base units.
+function billedUnits(i: { qty: number; qtyMode: QtyMode; unitsPerBox: number }): number {
+  if (i.qtyMode === "box" && i.unitsPerBox > 0) return i.qty * i.unitsPerBox;
+  return i.qty;
+}
+
+// Per-line liters, derived from the billed base-unit quantity.
+function lineLiters(i: { qty: number; qtyMode: QtyMode; unit: string; unitsPerBox: number; litersPerBox: number }): number {
+  const units = billedUnits(i);
+  if (i.unitsPerBox > 0 && i.litersPerBox > 0) return units * (i.litersPerBox / i.unitsPerBox);
   const u = String(i.unit ?? "").toLowerCase();
   if (u === "ltr" || u === "l" || u === "liter" || u === "litre" || u === "liters" || u === "litres") {
-    return i.qty;
+    return units;
   }
   return 0;
 }
@@ -133,6 +154,8 @@ export default function Billing() {
           name: it.productName,
           unit: it.unit,
           qty: Number(it.qty),
+          qtyMode: "unit" as QtyMode,
+          unitsPerBox: resolvePack(prod),
           rate: Number(it.rate),
           mrp: Number(it.mrp),
           taxPct: Number(it.taxPct),
@@ -163,6 +186,8 @@ export default function Billing() {
             name: p.name,
             unit: p.unit,
             qty,
+            qtyMode: "unit" as QtyMode,
+            unitsPerBox: resolvePack(p),
             rate,
             mrp: p.mrp,
             taxPct: invoiceType === "gst" ? (p.taxRate ?? 18) : 0,
@@ -181,7 +206,7 @@ export default function Billing() {
     setItems((prev) => {
       const updated = [...prev];
       const item = { ...updated[idx], [field]: value };
-      const base = item.qty * item.rate;
+      const base = billedUnits(item) * item.rate;
       const discAmt = item.discountAmt > 0 ? item.discountAmt : (base * item.discountPct / 100);
       const taxable = base - discAmt;
       const taxAmt = invoiceType === "gst" ? (taxable * item.taxPct / 100) : 0;
@@ -195,17 +220,17 @@ export default function Billing() {
 
   // Totals
   const subtotal = items.reduce((s, i) => {
-    const base = i.qty * i.rate;
+    const base = billedUnits(i) * i.rate;
     const disc = i.discountAmt > 0 ? i.discountAmt : (base * i.discountPct / 100);
     return s + (base - disc);
   }, 0);
   const totalDiscount = items.reduce((s, i) => {
-    const base = i.qty * i.rate;
+    const base = billedUnits(i) * i.rate;
     return s + (i.discountAmt > 0 ? i.discountAmt : (base * i.discountPct / 100));
   }, 0);
   const totalTax = invoiceType === "gst"
     ? items.reduce((s, i) => {
-        const base = i.qty * i.rate;
+        const base = billedUnits(i) * i.rate;
         const disc = i.discountAmt > 0 ? i.discountAmt : (base * i.discountPct / 100);
         const taxable = base - disc;
         return s + (taxable * i.taxPct / 100);
@@ -269,7 +294,9 @@ export default function Billing() {
       roundOff,
       items: items.map((i) => ({
         productId: i.productId,
-        qty: i.qty,
+        qty: billedUnits(i),
+        ...(i.qtyMode === "box" && i.unitsPerBox > 0 ? { qtyBoxes: i.qty } : {}),
+        ...(i.litersPerBox > 0 ? { litersPerBox: i.litersPerBox } : {}),
         unit: i.unit,
         rate: i.rate,
         mrp: i.mrp,
@@ -800,7 +827,7 @@ export default function Billing() {
                   <TableHeader>
                     <TableRow className="text-xs">
                       <TableHead className="w-[220px]">Product</TableHead>
-                      <TableHead className="w-16 text-right">Qty</TableHead>
+                      <TableHead className="w-32 text-right">Qty</TableHead>
                       <TableHead className="w-16 text-right">LTR</TableHead>
                       <TableHead className="w-24 text-right">Rate (₹)</TableHead>
                       {invoiceType === "gst" && <TableHead className="w-16 text-right">Tax%</TableHead>}
@@ -824,14 +851,44 @@ export default function Billing() {
                             <div className="text-xs text-muted-foreground">{item.unit}</div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              min={1}
-                              value={item.qty}
-                              onChange={(e) => updateItem(idx, "qty", Number(e.target.value))}
-                              className="w-16 text-right h-7 text-sm"
-                              data-testid={`input-qty-${idx}`}
-                            />
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  step="any"
+                                  value={item.qty}
+                                  onChange={(e) => updateItem(idx, "qty", Number(e.target.value))}
+                                  className="w-14 text-right h-7 text-sm"
+                                  data-testid={`input-qty-${idx}`}
+                                />
+                                <Select
+                                  value={item.qtyMode}
+                                  onValueChange={(v) => updateItem(idx, "qtyMode", v as QtyMode)}
+                                >
+                                  <SelectTrigger
+                                    className="h-7 w-[58px] px-2 text-xs"
+                                    data-testid={`select-qty-mode-${idx}`}
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="unit">QTY</SelectItem>
+                                    <SelectItem value="box" disabled={item.unitsPerBox <= 0}>
+                                      BOX
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {item.qtyMode === "box" && item.unitsPerBox > 0 && (
+                                <span
+                                  className="text-[10px] text-muted-foreground"
+                                  data-testid={`hint-billed-units-${idx}`}
+                                >
+                                  = {billedUnits(item).toLocaleString()} {item.unit}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm" data-testid={`cell-ltr-${idx}`}>
                             {(() => {
@@ -908,7 +965,7 @@ export default function Billing() {
             <CardContent className="space-y-3 text-sm">
               {(() => {
                 const totalLtr = items.reduce((s, i) => s + lineLiters(i), 0);
-                const totalQty = items.reduce((s, i) => s + (Number(i.qty) || 0), 0);
+                const totalQty = items.reduce((s, i) => s + billedUnits(i), 0);
                 return (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Total Qty / Ltr</span>
@@ -973,7 +1030,7 @@ export default function Billing() {
                   <div className="font-medium mb-1 text-muted-foreground uppercase tracking-wide">GST Breakup</div>
                   {items.map((item, i) => {
                     if (!item.taxPct) return null;
-                    const base = item.qty * item.rate;
+                    const base = billedUnits(item) * item.rate;
                     const disc = item.discountAmt > 0 ? item.discountAmt : (base * item.discountPct / 100);
                     const taxable = base - disc;
                     const tax = taxable * item.taxPct / 100;
