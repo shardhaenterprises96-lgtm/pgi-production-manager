@@ -174,6 +174,14 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     name: user.name,
     entityId: user.entityId ?? null,
     companyId: user.companyId ?? null,
+    // Preserve session-only fields that have NO DB column. Re-stamping would
+    // otherwise drop them and the res.json patch would rewrite the cookie
+    // without them — wiping the super_admin's switched-into company
+    // (activeCompanyId) and a regular user's validated dedicated-mode unlock
+    // (companySwitch). Since the company switcher refetches /auth/me right
+    // after switching, omitting these makes every later data route 409.
+    activeCompanyId: (session.activeCompanyId as number | null | undefined) ?? null,
+    companySwitch: (session.companySwitch as boolean | undefined) ?? false,
   };
 
   res.json({
